@@ -3,7 +3,10 @@ This module defines all the binomial data structures used in my implementations
 of Buchberger's algorithm and Signature-based algorithms.
 """
 module GBElements
-export GBElement, regular_reducible, degree_reducible, getfilter, lattice_generator_binomial, lt_tiebreaker
+export GBElement, Binomial, regular_reducible, degree_reducible, getfilter,
+    lattice_generator_binomial, lt_tiebreaker, isfeasible
+
+using IPGBs.FastBitSets
 
 #
 # Functions dealing with reducibility of any monomial or binomial-like vector-based
@@ -234,7 +237,7 @@ end
 function le_upperbound(
     v :: T,
     u :: Vector{Int}
-) :: Bool
+) :: Bool where {T <: GBElement}
     for i in 1:length(v)
         if v[i] > 0 && v[i] > u[i]
             return false

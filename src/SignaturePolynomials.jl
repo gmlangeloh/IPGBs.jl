@@ -9,6 +9,7 @@ export Signature, SigPoly, SigBasis, ModuleMonomialOrdering, SPair,
     divides
 
 using IPGBs.GBElements
+using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 
 """

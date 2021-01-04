@@ -1,5 +1,6 @@
 using IPGBs
 using IPGBs.GBElements
+using IPGBs.GradedBinomials
 using IPGBs.Buchberger
 using IPGBs.FourTi2
 using Test
@@ -10,13 +11,14 @@ import Random
 function test_buchberger(
     n :: Int;
     seed = 0,
-    setseed = true
+    setseed = true,
+    structure = Binomial
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
-    lattice_basis = [ lattice_generator(i, instance.A, instance.C)
+    lattice_basis = [ lattice_generator_graded(i, instance.A, instance.C)
                       for i in 1:size(instance.A, 2)]
     lattice_4ti2 = fourti2_form(lattice_basis)
 
@@ -34,7 +36,7 @@ function test_buchberger(
 
     #Compute a GB using my Buchberger implementation
     gb, time, _, _, _ = @timed buchberger(
-        instance.A, instance.b, instance.C, instance.u
+        instance.A, instance.b, instance.C, instance.u, structure=structure
     )
     println("my results")
     @show length(gb) time
@@ -74,11 +76,13 @@ function test_siggb(
 end
 
 @testset "IPGBs.jl" begin
-    for n in [5, 10, 15, 20, 25]
-        println("Buchberger test for n = ", n)
-        gb, fourti2gb = test_buchberger(n)
-        @test IPGBs.GBTools.isequal(gb, fourti2gb)
-        println()
+    for s in [ Binomial, GradedBinomial ]
+        for n in [5, 10, 15, 20, 25]
+            println("Buchberger test for ", s, " structure, n = ", n)
+            gb, fourti2gb = test_buchberger(n, structure=s)
+            @test IPGBs.GBTools.isequal(gb, fourti2gb)
+            println()
+        end
     end
 
     #TODO Add tests for siggb

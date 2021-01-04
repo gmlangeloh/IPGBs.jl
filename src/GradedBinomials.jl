@@ -10,7 +10,7 @@ export GradedBinomial, lattice_generator_graded, fourti2_form, supports
 
 using StaticArrays
 using IPGBs.FastBitSets
-using IPGBS.GBElements
+using IPGBs.GBElements
 
 """
 Represents a binomial as a vector of integers, tracking its leading and trailing
@@ -151,9 +151,9 @@ the set of positive subset of coordinates of g.degree.
 
 If negative == true, checks whether g.degree- <= h.degree-
 """
-function IPGBs.GBElements.degree_reducible(
+function GBElements.degree_reducible(
     g :: GradedBinomial,
-    h :: GradedBinomial,
+    h :: GradedBinomial;
     negative :: Bool = false
 ) :: Bool
     m :: Int = length(g.degree)
@@ -208,7 +208,7 @@ end
 """
 In-place unary minus for GradedBinomials
 """
-function IPGBs.GBElements.opposite!(
+function GBElements.opposite!(
     g :: GradedBinomial
 ) :: Nothing
     g.element .= .-(g.element)
@@ -322,7 +322,7 @@ end
 """
 Computes g -= h in place.
 """
-function IPGBs.GBElements.reduce!(
+function GBElements.reduce!(
     g :: GradedBinomial,
     h :: GradedBinomial;
     negative :: Bool = false
@@ -476,7 +476,7 @@ end
 """
 Computes bitsets with the positive and negative supports of `g`.
 """
-function IPGBs.GBElements.supports(
+function GBElements.supports(
     g :: GradedBinomial
 ) :: Tuple{FastBitSet, FastBitSet}
     pos_supp = Array(g.head)
@@ -522,7 +522,7 @@ function lattice_generator_graded(
     return GradedBinomial(v, Int[i], Int[], cost, degree, pos_degree, neg_degree)
 end
 
-function degrees(
+function GBElements.degrees(
     v :: GradedBinomial,
     A :: Array{Int, 2}
 ) :: Tuple{Vector{Int}, Vector{Int}}
@@ -543,7 +543,7 @@ function fourti2_form(
 ) :: Array{Int, 2}
     fourti2_elems = []
     for binomial in binomial_set
-        f = GBElements.fullform(binomial)
+        f = fullform(binomial)
         if is_maximization
             f = -f
         end
