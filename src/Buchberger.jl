@@ -7,6 +7,7 @@ export buchberger
 
 using IPGBs.FastBitSets
 using IPGBs.GBElements
+using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 using TimerOutputs
 
@@ -17,8 +18,8 @@ TODO count number of removed elements so we can decrement the iteration
 index in the main loop
 """
 function auto_reduce(
-    gb :: Vector{GradedBinomial}
-)
+    gb :: Vector{T}
+) where {T <: GBElement}
     for i in length(gb):-1:1
         nothing
     end
@@ -32,9 +33,9 @@ In summary, it shows that one can remove from a GB any g such that LT(g) is a
 multiple of LT(h), for h distinct from g in the GB.
 """
 function minimal_basis!(
-    gb :: Vector{GradedBinomial},
-    tree :: SupportTree{GradedBinomial}
-)
+    gb :: Vector{T},
+    tree :: SupportTree{T}
+) where  {T <: GBElement}
     for i in length(gb):-1:1
         g = gb[i]
         if find_reducer(g, gb, tree, skipbinomial=g) != nothing
@@ -50,9 +51,9 @@ Updates gb to a reduced Gröbner Basis.
 TODO bugfix this, it doesn't terminate (at least not in reasonable time)
 """
 function reduced_basis!(
-    gb :: Vector{GradedBinomial},
-    tree :: SupportTree{GradedBinomial}
-)
+    gb :: Vector{T},
+    tree :: SupportTree{T}
+) where {T <: GBElement}
     minimal_basis!(gb, tree)
     for i in length(gb):-1:1
         g = gb[i]
@@ -84,12 +85,12 @@ end
 Adds a new element to the current GB.
 """
 function update_basis!(
-    B :: Vector{GradedBinomial},
-    reducer :: SupportTree{GradedBinomial},
+    B :: Vector{T},
+    reducer :: SupportTree{T},
     positive_supports :: Vector{FastBitSet},
     negative_supports :: Vector{FastBitSet},
-    r :: GradedBinomial
-)
+    r :: T
+) where {T <: GBElement}
     if r.cost < 0
         GBElements.opposite!(r)
     end
@@ -117,8 +118,8 @@ function is_support_reducible(
 end
 
 function supports(
-    B :: Vector{GradedBinomial}
-) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}}
+    B :: Vector{T}
+) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}} where {T <: GBElement}
     pos_supps = FastBitSet[]
     neg_supps = FastBitSet[]
     for g in B
@@ -134,6 +135,13 @@ Computes a test set / Gröbner Basis for the IP:
 max C^T * x
 s.t. A * x <= b
 x <= u
+
+TODO add some parameter allowing me to choose between GradedBinomials or
+Binomials
+TODO change isfeasible so the call isn't ambiguous
+TODO change fullfilter stuff
+TODO update tiebreaker to work with Binomials
+TODO check for typing before trying to call fullform at the end
 """
 function buchberger(
     A :: Array{Int, 2},

@@ -261,7 +261,7 @@ end
 """
 In-place unary minus for GradedBinomials
 """
-function opposite!(
+function IPGBs.GBElements.opposite!(
     g :: GradedBinomial
 ) :: Nothing
     g.element .= .-(g.element)
@@ -528,7 +528,7 @@ end
 """
 Computes bitsets with the positive and negative supports of `g`.
 """
-function supports(
+function IPGBs.GBElements.supports(
     g :: GradedBinomial
 ) :: Tuple{FastBitSet, FastBitSet}
     pos_supp = Array(g.head)
@@ -555,7 +555,7 @@ end
 """
 Vector in Z^n with i-th coordinate 1 and remaining coordinates 0.
 """
-function lattice_generator(
+function IPGBs.GBElements.lattice_generator(
     i :: Int,
     A :: Array{Int, 2},
     c :: Array{Int}

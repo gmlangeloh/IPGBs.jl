@@ -226,6 +226,13 @@ mutable struct Binomial <: GBElement
     cost :: Int
 end
 
+function Base.show(
+    io :: IO,
+    g :: Binomial
+)
+    print(io, g.element, " : c", g.cost)
+end
+
 #
 # Implementation of the AbstractVector interface for Binomials
 #
@@ -288,6 +295,13 @@ function reduce!(
     return reduced_to_zero
 end
 
+function opposite!(
+    g :: Binomial
+)
+    g.element .= .-(g.element)
+    g.cost = -g.cost
+end
+
 function degrees(
     g :: Binomial,
     A :: Array{Int, 2}
@@ -308,12 +322,51 @@ function degrees(
     return A * positive_g, A * negative_g
 end
 
+"""
+Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem
+is in the particular form given in Thomas and Weismantel (1997), Section 3.
+"""
 function lattice_generator(
     i :: Int,
     A :: Array{Int, 2},
     c :: Array{Int}
 ) :: Binomial
-    #TODO implement this...
+    #This assumes inequality + binary constraints
+    #It is enough for my current experiments, but I should generalize this
+    m = size(A, 1)
+    n = size(A, 2)
+    v = zeros(Int, n)
+    v[i] = 1
+    r = zeros(Int, n)
+    r[i] = -1
+    s = copy(A[:, i])
+    g = vcat(v, s, r)
+    if ndims(c) == 1
+        cost = c[i]
+    else #c is two-dimensional
+        @assert ndims(c) == 2
+        cost = c[1, i]
+    end
+    return Binomial(g, cost)
+end
+
+"""
+Computes bitsets with positive and negative supports of `g`.
+"""
+function supports(
+    g :: Binomial
+) :: Tuple{FastBitSet, FastBitSet}
+    pos_supp = Int[]
+    neg_supp = Int[]
+    for i in length(g)
+        if g[i] > 0
+            push!(pos_supp, i)
+        elseif g[i] < 0
+            push!(neg_supp, i)
+        end
+    end
+    bitset_length = length(g)
+    return makebitset(bitset_length, pos_supp), makebitset(bitset_length, neg_supp)
 end
 
 end
