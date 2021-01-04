@@ -6,7 +6,7 @@ TODO there are multiple implementations of sparse subtraction of GradedBinomials
 here. I should probably check whether I need them all
 """
 module GradedBinomials
-export GradedBinomial, lattice_generator, isfeasible, fourti2_form, supports
+export GradedBinomial, lattice_generator_graded, fourti2_form, supports
 
 using StaticArrays
 using IPGBs.FastBitSets
@@ -103,59 +103,6 @@ end
 #
 # Additional functions for a GradedBinomial
 #
-
-"""
-Returns true iff g is smaller than h in the tiebreaking order (grevlex).
-Assumes that g.cost == h.cost, that is, that there is a tie.
-
-I don't really understand why this works, it doesn't look like grevlex to me.
-But it gives precisely the same results as 4ti2, so I guess I'll keep it.
-Commented below is an implementation which does not give the same results as
-4ti2, but makes more sense to me.
-"""
-function lt_tiebreaker(
-    g :: GradedBinomial,
-    h :: GradedBinomial
-) :: Bool
-    @assert g.cost == h.cost
-    gsmaller :: Int = 0 #-1 when g < h, 0 when g = h, 1 when g > h
-    sum_g :: Int = 0
-    sum_h :: Int = 0
-    # Compute cumulative sums for g.element and h.element
-    #the smallest one is the one with lowest cumulative sum at the farthest
-    #point where they don't tie.
-    for i in 1:length(g)
-        sum_g += g[i]
-        sum_h += h[i]
-        if sum_g < sum_h
-            gsmaller = -1
-            break
-        elseif sum_g > sum_h
-            gsmaller = 1
-            break
-        end
-    end
-    return gsmaller == -1 ? true : false
-    #for i in 1:length(g)
-    #    sum_g += g[i]
-    #    sum_h += h[i]
-    #end
-    #if sum_g < sum_h
-    #    return true
-    #elseif sum_g > sum_h
-    #    return false
-    #end
-    #for i in 1:length(g)
-    #    sum_g -= g[i]
-    #    sum_h -= h[i]
-    #    if sum_g < sum_h
-    #        return true
-    #    elseif sum_g > sum_h
-    #        return false
-    #    end
-    #end
-    #return false #If they are equal wrt grevlex at this point, g == h
-end
 
 """
 Decomposes g = v+ - v-, where both v+ and v- are non-negative arrays.
@@ -380,7 +327,8 @@ function IPGBs.GBElements.reduce!(
     h :: GradedBinomial;
     negative :: Bool = false
 )
-    if negative || g.cost < h.cost || (g.cost == h.cost && lt_tiebreaker(g, h))
+    if negative || g.cost < h.cost ||
+        (g.cost == h.cost && lt_tiebreaker(g, h))
         reduce_negative!(g, h)
         return
     end
@@ -555,7 +503,7 @@ end
 """
 Vector in Z^n with i-th coordinate 1 and remaining coordinates 0.
 """
-function IPGBs.GBElements.lattice_generator(
+function lattice_generator_graded(
     i :: Int,
     A :: Array{Int, 2},
     c :: Array{Int}

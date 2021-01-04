@@ -3,7 +3,7 @@ This module defines all the binomial data structures used in my implementations
 of Buchberger's algorithm and Signature-based algorithms.
 """
 module GBElements
-export GBElement, regular_reducible, iszero, degree_reducible, getfilter
+export GBElement, regular_reducible, degree_reducible, getfilter, lattice_generator_binomial, lt_tiebreaker
 
 #
 # Functions dealing with reducibility of any monomial or binomial-like vector-based
@@ -34,9 +34,6 @@ end
 Checks whether `reducer` divides `g`, using the filter of `reducer` for
 efficiency. When fullfilter = true, checks if g.head >= reducer.head and
 g.tail >= reducer.tail coordinate-wise, while also checking a degree criterion.
-
-TODO I need something else besides fullfilter to tell if I should use degree_red
-and reg_red, because my new Binomial structure shouldn't use fullfilter
 """
 function reduces(
     g :: T,
@@ -59,20 +56,20 @@ function reduces(
         if !degree_reducible(reducer, g, negative=negative)
             return false
         end
-        #This is used in signature-based algorithms. Non-signature algorithms
-        #simply return true here
-        if !regular_reducible(reducer, g, gb)
-            println("Singular reducer found")
-            @show reducer reducer.signature
-            @show g g.signature
-            return false
-        end
     else
         for i in filter
             if sign * g[i] < reducer[i]
                 return false
             end
         end
+    end
+    #This is used in signature-based algorithms. Non-signature algorithms
+    #simply return true here
+    if !regular_reducible(reducer, g, gb)
+        println("Singular reducer found")
+        @show reducer reducer.signature
+        @show g g.signature
+        return false
     end
     return true
 end
@@ -146,6 +143,59 @@ function reduce!(
         end
     end
     return reduced_to_zero
+end
+
+"""
+Returns true iff g is smaller than h in the tiebreaking order (grevlex).
+Assumes that g.cost == h.cost, that is, that there is a tie.
+
+I don't really understand why this works, it doesn't look like grevlex to me.
+But it gives precisely the same results as 4ti2, so I guess I'll keep it.
+Commented below is an implementation which does not give the same results as
+4ti2, but makes more sense to me.
+"""
+function lt_tiebreaker(
+    g :: T,
+    h :: T
+) :: Bool where {T <: AbstractVector{Int}}
+    @assert g.cost == h.cost
+    gsmaller :: Int = 0 #-1 when g < h, 0 when g = h, 1 when g > h
+    sum_g :: Int = 0
+    sum_h :: Int = 0
+    # Compute cumulative sums for g.element and h.element
+    #the smallest one is the one with lowest cumulative sum at the farthest
+    #point where they don't tie.
+    for i in 1:length(g)
+        sum_g += g[i]
+        sum_h += h[i]
+        if sum_g < sum_h
+            gsmaller = -1
+            break
+        elseif sum_g > sum_h
+            gsmaller = 1
+            break
+        end
+    end
+    return gsmaller == -1 ? true : false
+    #for i in 1:length(g)
+    #    sum_g += g[i]
+    #    sum_h += h[i]
+    #end
+    #if sum_g < sum_h
+    #    return true
+    #elseif sum_g > sum_h
+    #    return false
+    #end
+    #for i in 1:length(g)
+    #    sum_g -= g[i]
+    #    sum_h -= h[i]
+    #    if sum_g < sum_h
+    #        return true
+    #    elseif sum_g > sum_h
+    #        return false
+    #    end
+    #end
+    #return false #If they are equal wrt grevlex at this point, g == h
 end
 
 """
@@ -326,7 +376,7 @@ end
 Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem
 is in the particular form given in Thomas and Weismantel (1997), Section 3.
 """
-function lattice_generator(
+function lattice_generator_binomial(
     i :: Int,
     A :: Array{Int, 2},
     c :: Array{Int}

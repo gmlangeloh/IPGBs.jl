@@ -130,28 +130,51 @@ function supports(
     return pos_supps, neg_supps
 end
 
+function build_sbin(
+    i :: Int,
+    j :: Int,
+    gb :: Vector{T}
+) :: T where {T <: AbstractVector{Int}}
+    v = gb[i]
+    w = gb[j]
+    if v.cost < w.cost
+        r = w - v #TODO these are relatively expensive
+    elseif w.cost < v.cost
+        r = v - w
+    else #w.cost == v.cost
+        if GBElements.lt_tiebreaker(v, w)
+            r = w - v
+        else
+            r = v - w
+        end
+    end
+    return r
+end
+
 """
 Computes a test set / Gröbner Basis for the IP:
 max C^T * x
 s.t. A * x <= b
 x <= u
 
-TODO add some parameter allowing me to choose between GradedBinomials or
-Binomials
-TODO change isfeasible so the call isn't ambiguous
-TODO change fullfilter stuff
-TODO update tiebreaker to work with Binomials
-TODO check for typing before trying to call fullform at the end
+Structure refers to the data structure used to represent binomials internally.
+It can be either `Binomial` or `GradedBinomial`.
 """
 function buchberger(
     A :: Array{Int, 2},
     b :: Vector{Int},
     C :: Array{Int, 2},
     u :: Vector{Int};
+    structure :: DataType = Binomial
     auto_reduce_freq :: Int = 2500
 ) :: Vector{Vector{Int}}
+    @assert structure == Binomial || structure == GradedBinomial
     n = size(A, 2)
-    gb = [ lattice_generator(i, A, C) for i in 1:n ]
+    if structure == Binomial
+        gb = [ lattice_generator_binomial(i, A, C) for i in 1:n ]
+    else
+        gb = [ lattice_generator_graded(i, A, C) for i in 1:n ]
+    end
     gb = filter(g -> isfeasible(g, A, b, u), gb)
     positive_supports, negative_supports = supports(gb)
     reducer = support_tree(gb, fullfilter=true)
@@ -159,25 +182,14 @@ function buchberger(
     iteration_count = 0
     spair_count = 0
     zero_reductions = 0
+    #Main loop: generate all relevant S-binomials and reduce them
     while i <= length(gb)
         for j in 1:(i-1)
             iteration_count += 1
             if is_support_reducible(i, j, positive_supports, negative_supports)
                 continue
             end
-            v = gb[i]
-            w = gb[j]
-            if v.cost < w.cost
-                r = w - v #TODO these are relatively expensive
-            elseif w.cost < v.cost
-                r = v - w
-            else #w.cost == v.cost
-                if GBElements.lt_tiebreaker(v, w)
-                    r = w - v
-                else
-                    r = v - w
-                end
-            end
+            r = build_sbin(i, j, gb)
             if isfeasible(r, A, b, u)
                 spair_count += 1
                 SupportTrees.reduce!(r, gb, reducer)
@@ -195,8 +207,14 @@ function buchberger(
         i += 1
     end
     @info "Buchberger: S-binomials reduced" iteration_count spair_count zero_reductions
-    minimal_basis!(gb, reducer)
-    return [ -GBElements.fullform(g) for g in gb ]
+    #Convert the basis to the same format 4ti2 uses
+    minimal_basis!(gb, reducer) #TODO use reduced when it works!
+    if structure == Binomial
+        output_basis = [ -g.element for g in gb ]
+    else
+        output_basis = [ -GradedBinomials.fullform(g) for g in gb ]
+    end
+    return output_basis
 end
 
 end
