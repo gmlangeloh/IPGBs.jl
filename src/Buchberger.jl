@@ -7,10 +7,10 @@ export buchberger
 
 using IPGBs.FastBitSets
 using IPGBs.GBElements
+using IPGBs.GBTools
 using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 
-using LinearAlgebra
 using TimerOutputs
 
 """
@@ -129,38 +129,6 @@ function supports(
 end
 
 """
-Transforms a problem in the form:
-max C * x
-s.t. Ax <= b
-0 <= x <= u
-
-to something of the form
-max C * x
-s.t. Ax == b
-x == u
-
-by adding slack variables.
-"""
-function normalize(
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{Int, 2},
-    u :: Vector{Int}
-) Tuple{Array{Int, 2}, Vector{Int}, Array{Int, 2}, Vector{Int}}
-    m, n = size(A)
-    In = Matrix{Int}(I, n, n)
-    Zn = zeros(Int, n, n)
-    Im = Matrix{Int}(I, m, m)
-    Znm = zeros(Int, n, m)
-    Zmn = zeros(Int, m, n)
-    new_A = [A Im Zmn; In Znm In]
-    new_b = [b; u]
-    new_C = [C zeros(Int, size(C, 1), n + m)]
-    new_u = [u; [typemax(Int) for i in 1:(n+m)]]
-    return new_A, new_b, new_C, new_u
-end
-
-"""
 Builds the S-binomial given by gb[i] and gb[j].
 """
 function build_sbin(
@@ -210,7 +178,7 @@ function buchberger(
         C = -C
         minimization = true
         gb = [ lattice_generator_binomial(i, A, C) for i in 1:n ]
-        A, b, C, u = normalize(A, b, C, u)
+        A, b, C, u = GBTools.normalize(A, b, C, u)
     else
         minimization = false
         gb = [ lattice_generator_graded(i, A, C) for i in 1:n ]

@@ -3,10 +3,13 @@ An implementation of a Signature-based algorithm for Gröbner bases of toric
 ideals.
 """
 module SignatureAlgorithms
+export siggb
 
 using DataStructures
 
 using IPGBs.GBElements
+using IPGBs.GBTools
+using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 using IPGBs.SignaturePolynomials
 
@@ -16,15 +19,17 @@ assuming all data is non-negative.
 """
 function truncated_generators(
     A :: Array{Int, 2},
-    C :: Array{Int, 2}
-) :: Vector{SigPoly}
-    generators = Vector{SigPoly}()
+    C :: Array{Int, 2},
+    structure :: DataType,
+    lattice_generator :: Function
+)
+    generators = Vector{SigPoly{structure}}()
     n = size(A, 2)
     coef = zeros(Int, n) #Coefficient of the signatures of these generators
     for i in 1:n
         e = lattice_generator(i, A, C)
         s = Signature(i, coef)
-        push!(generators, SigPoly(e, s))
+        push!(generators, SigPoly{structure}(e, s))
     end
     return generators
 end
@@ -49,9 +54,10 @@ end
 Create priority queue and add all regular S-pairs built from generators to it.
 """
 function make_priority_queue(
-    generators :: SigBasis,
+    generators :: SigBasis{T},
     module_ordering :: ModuleMonomialOrdering
-) #TODO type this, BinaryHeap...
+) where {T <: GBElement}
+    #TODO type this, BinaryHeap...
     heap = BinaryHeap{SPair}(module_ordering, [])
     for i in 1:length(generators)
         for j in 1:(i-1)
@@ -65,9 +71,9 @@ function make_priority_queue(
 end
 
 function update_queue!(
-    spairs,
-    gb :: SigBasis
-)
+    spairs, #TODO type this thing. It is supposed to be the heap
+    gb :: SigBasis{T}
+) where {T <: GBElement}
     n = length(gb)
     for i in 1:(n-1)
         sp = regular_spair(i, n, gb)
@@ -107,15 +113,16 @@ function post_criteria(
 end
 
 function signature_algorithm(
-    generators :: Vector{SigPoly},
+    generators :: Vector{SigPoly{T}},
     order :: Array{Int, 2},
     module_ordering :: ModuleMonomialOrdering,
     A :: Array{Int, 2},
     b :: Vector{Int},
-    u :: Vector{Int}
-) :: Vector{Vector{Int}}
+    u :: Vector{Int},
+    structure :: DataType
+) :: Vector{Vector{Int}} where {T <: GBElement}
     println("STARTING")
-    reducer = support_tree(generators, fullfilter=true)
+    reducer = support_tree(generators, fullfilter=(structure == GradedBinomial))
     gb = SigBasis(copy(generators), module_ordering, reducer)
     spairs = make_priority_queue(gb, module_ordering)
     syzygies = Vector{Signature}() #TODO maybe this should be some other
@@ -143,11 +150,11 @@ function signature_algorithm(
         @show length(gb)
         @show sp.i sp.j
         @show p p.signature
-        SupportTrees.reduce!(p, gb, gb.reduction_tree)
+        reduced_to_zero = SupportTrees.reduce!(p, gb, gb.reduction_tree)
         reduction_count += 1
         println("after")
         @show p p.signature
-        if SignaturePolynomials.iszero(p)
+        if reduced_to_zero #SignaturePolynomials.iszero(p)
             println("new syzygy")
             @show p.signature
             push!(syzygies, p.signature)
@@ -171,10 +178,24 @@ function siggb(
     b :: Vector{Int},
     C :: Array{Int, 2},
     u :: Vector{Int};
-    module_order :: ModuleMonomialOrder = SignaturePolynomials.ltpot
+    module_order :: ModuleMonomialOrder = SignaturePolynomials.ltpot,
+    structure :: DataType = Binomial
 ) :: Vector{Vector{Int}}
     order = make_monomial_order(C)
-    generators = truncated_generators(A, C)
+    if structure == Binomial
+        C = -C
+        minimization = true
+        lattice_generator = lattice_generator_binomial
+        generators = truncated_generators(
+            A, C, structure, lattice_generator_binomial
+        )
+        A, b, C, u = GBTools.normalize(A, b, C, u)
+    else
+        minimization = false
+        generators = truncated_generators(
+            A, C, structure, lattice_generator_graded
+        )
+    end
     #We can check the comparisons between signatures
     #for i in 1:length(generators)
     #    for j in 1:(i-1)
@@ -185,8 +206,9 @@ function siggb(
     #    end
     #end
     sig_ordering = ModuleMonomialOrdering(C, module_order, generators)
+    #TODO eventtually I should pass the minimization parameter along
     return signature_algorithm(
-        generators, order, sig_ordering, A, b, u
+        generators, order, sig_ordering, A, b, u, structure
     )
 end
 

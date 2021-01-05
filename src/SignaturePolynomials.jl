@@ -1,6 +1,7 @@
 """
 Implementation of the basic signature-polynomial pairs structures.
 
+TODO generalize all of this from GradedBinomial to any GBElement
 TODO implement a getfilter method for SigPolys
 """
 module SignaturePolynomials
@@ -79,8 +80,8 @@ end
 """
 Represents a polynomial with its signature. Used in signature-based algorithms.
 """
-struct SigPoly <: GBElement
-    polynomial :: GradedBinomial
+struct SigPoly{T <: GBElement} <: GBElement
+    polynomial :: T
     signature :: Signature
 end
 
@@ -89,8 +90,8 @@ Returns the representation of this SigPoly as a vector of integers, dropping its
 signature.
 """
 function projection(
-    sigpoly :: SigPoly
-) :: Vector{Int}
+    sigpoly :: SigPoly{T}
+) :: Vector{Int} where {T <: GBElement}
     return sigpoly.polynomial.element
 end
 
@@ -100,29 +101,29 @@ end
 #
 
 function Base.size(
-    g :: SigPoly
-) :: Tuple
+    g :: SigPoly{T}
+) :: Tuple where {T <: GBElement}
     return size(g.polynomial)
 end
 
 function Base.getindex(
-    g :: SigPoly,
+    g :: SigPoly{T},
     i :: Int
-) :: Int
+) :: Int where {T <: GBElement}
     return g.polynomial[i]
 end
 
 function Base.setindex(
-    g :: SigPoly,
+    g :: SigPoly{T},
     v :: Int,
     i :: Int
-)
+) where {T <: GBElement}
     g.polynomial[i] = v
 end
 
 function Base.length(
-    g :: SigPoly
-) :: Int
+    g :: SigPoly{T}
+) :: Int where {T <: GBElement}
     return length(g.polynomial)
 end
 
@@ -265,43 +266,43 @@ end
 # reduction process. It takes the module ordering along in a convenient way.
 #
 
-struct SigBasis <: AbstractVector{SigPoly}
-    basis :: Vector{SigPoly}
+struct SigBasis{T <: GBElement} <: AbstractVector{SigPoly{T}}
+    basis :: Vector{SigPoly{T}}
     module_ordering :: ModuleMonomialOrdering
-    reduction_tree :: SupportTree{SigPoly}
+    reduction_tree :: SupportTree{SigPoly{T}}
 end
 
 function Base.size(
-    gb :: SigBasis
-) :: Tuple
+    gb :: SigBasis{T}
+) :: Tuple where {T <: GBElement}
     return size(gb.basis)
 end
 
 function Base.getindex(
-    gb :: SigBasis,
+    gb :: SigBasis{T},
     i :: Int
-) :: SigPoly
+) :: SigPoly{T} where {T <: GBElement}
     return gb.basis[i]
 end
 
 function Base.setindex(
-    gb :: SigBasis,
-    g :: SigPoly,
+    gb :: SigBasis{T},
+    g :: SigPoly{T},
     i :: Int
-)
+) where {T <: GBElement}
     gb.basis[i] = g
 end
 
 function Base.length(
-    gb :: SigBasis
-) :: Int
+    gb :: SigBasis{T}
+) :: Int where {T <: GBElement}
     return length(gb.basis)
 end
 
 function Base.push!(
-    gb :: SigBasis,
-    g :: SigPoly
-)
+    gb :: SigBasis{T},
+    g :: SigPoly{T}
+) where {T <: GBElement}
     push!(gb.basis, g)
     push!(gb.module_ordering.generators, g)
     addbinomial!(gb.reduction_tree, gb[length(gb)])
@@ -312,8 +313,8 @@ end
 #
 
 function iszero(
-    g :: SigPoly
-) :: Bool
+    g :: SigPoly{T}
+) :: Bool where {T <: GBElement}
     return GBElements.iszero(g.polynomial)
 end
 
@@ -325,10 +326,10 @@ TODO I still need to pass on the fact that the thing is singular s-reducible
 which will happen in the SupportTree somehow...
 """
 function GBElements.regular_reducible(
-    reducer :: SigPoly,
-    g :: SigPoly,
-    gb :: SigBasis
-) :: Bool
+    reducer :: SigPoly{T},
+    g :: SigPoly{T},
+    gb :: SigBasis{T}
+) :: Bool where {T <: GBElement}
     #Compute the multiplication factor
     n = length(reducer)
     factor = zeros(Int, n)
@@ -357,22 +358,25 @@ end
 """
 Computes g -= h in-place, assumes this is a regular reduction, so that
 sig(g - h) = sig(g).
+
+Returns true iff `g` reduced to zero.
 """
 function GBElements.reduce!(
-    g :: SigPoly,
-    h :: SigPoly
-)
-    GBElements.reduce!(g.polynomial, h.polynomial)
+    g :: SigPoly{T},
+    h :: SigPoly{T}
+) :: Bool where {T <: GBElement}
     #No need to update signature, as we assume it won't change
+    return GBElements.reduce!(g.polynomial, h.polynomial)
 end
 
 function GBElements.degree_reducible(
-    g :: SigPoly,
-    h :: SigPoly;
+    g :: SigPoly{T},
+    h :: SigPoly{T};
     negative :: Bool = false
-) :: Bool
-    return GBElements.degree_reducible(g.polynomial, h.polynomial,
-                                       negative=negative)
+) :: Bool where {T <: GBElement}
+    return GBElements.degree_reducible(
+        g.polynomial, h.polynomial, negative=negative
+    )
 end
 
 """
@@ -380,8 +384,8 @@ Builds concrete S-pair from an `SPair` struct.
 """
 function build_spair(
     spair :: SPair,
-    generators :: SigBasis
-) :: SigPoly
+    generators :: SigBasis{T}
+) :: SigPoly{T} where {T <: GBElement}
     g_i = generators[spair.i].polynomial
     g_j = generators[spair.j].polynomial
     if g_i.cost < g_j.cost
@@ -406,8 +410,8 @@ Returns (a, b) for SPair(i, j) = ag_i + bg_j.
 function spair_coefs(
     i :: Int,
     j :: Int,
-    gb :: SigBasis
-) :: Tuple{Vector{Int}, Vector{Int}}
+    gb :: SigBasis{T}
+) :: Tuple{Vector{Int}, Vector{Int}} where {T <: GBElement}
     n = length(gb[i].polynomial)
     i_coef = zeros(Int, n)
     j_coef = zeros(Int, n)
@@ -425,8 +429,8 @@ Creates an SPair S(i, j) if it is regular, otherwise returns `nothing`.
 function regular_spair(
     i :: Int,
     j :: Int,
-    gb :: SigBasis
-) :: Union{SPair, Nothing}
+    gb :: SigBasis{T}
+) :: Union{SPair, Nothing} where {T <: GBElement}
     i_coef, j_coef = spair_coefs(i, j, gb)
     i_sig = i_coef * gb[i].signature
     j_sig = j_coef * gb[j].signature
