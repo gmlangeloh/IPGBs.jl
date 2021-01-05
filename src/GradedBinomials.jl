@@ -175,7 +175,7 @@ function GBElements.degree_reducible(
     return true
 end
 
-function iszero(
+function GBElements.iszero(
     g :: GradedBinomial
 ) :: Bool
     return isempty(g.head)
@@ -226,7 +226,7 @@ supposed to be reduced by h but g.cost < h.cost.
 function reduce_negative!(
     g :: GradedBinomial,
     h :: GradedBinomial
-)
+) :: Bool
     g_h, g_t, h_h, h_t = (1, 1, 1, 1)
     while g_h <= length(g.head) || g_t <= length(g.tail) ||
         h_h <= length(h.head) || h_t <= length(h.tail)
@@ -317,20 +317,22 @@ function reduce_negative!(
         g.positive_degree[i] = h.negative_degree[i] - g.positive_degree[i]
         g.negative_degree[i] = h.positive_degree[i] - g.negative_degree[i]
     end
+    return GBElements.iszero(g)
 end
 
 """
 Computes g -= h in place.
+
+Returns true iff g reduced to zero.
 """
 function GBElements.reduce!(
     g :: GradedBinomial,
     h :: GradedBinomial;
     negative :: Bool = false
-)
+) :: Bool
     if negative || g.cost < h.cost ||
         (g.cost == h.cost && lt_tiebreaker(g, h))
-        reduce_negative!(g, h)
-        return
+        return reduce_negative!(g, h)
     end
     g_h, g_t, h_h, h_t = (1, 1, 1, 1)
     while h_h <= length(h.head) || h_t <= length(h.tail)
@@ -351,10 +353,14 @@ function GBElements.reduce!(
         i = 1
         while i <= 2 && L[i][1] == min_idx
             if L[i][2] == 3
-                g.element[min_idx] -= h.element[min_idx]
+                g[min_idx] -= h.element[min_idx]
+                if g[min_idx] != 0
+                end
                 h_h += 1
             elseif L[i][2] == 4
-                g.element[min_idx] -= h.element[min_idx]
+                g[min_idx] -= h.element[min_idx]
+                if g[min_idx] != 0
+                end
                 h_t += 1
             end
             i += 1
@@ -366,7 +372,7 @@ function GBElements.reduce!(
         while g_t <= length(g.tail) && g.tail[g_t] < min_idx
             g_t += 1
         end
-        if g.element[min_idx] > 0 #Insert in head, remove from tail
+        if g[min_idx] > 0 #Insert in head, remove from tail
             if g_h > length(g.head)
                 push!(g.head, min_idx)
             elseif g.head[g_h] > min_idx
@@ -375,7 +381,7 @@ function GBElements.reduce!(
             if g_t <= length(g.tail) && g.tail[g_t] == min_idx
                 deleteat!(g.tail, g_t)
             end
-        elseif g.element[min_idx] < 0 #Insert in tail, remove from head
+        elseif g[min_idx] < 0 #Insert in tail, remove from head
             if g_t > length(g.tail)
                 push!(g.tail, min_idx)
             elseif g.tail[g_t] > min_idx
@@ -384,7 +390,7 @@ function GBElements.reduce!(
             if g_h <= length(g.head) && g.head[g_h] == min_idx
                 deleteat!(g.head, g_h)
             end
-        else #g.element[min_idx] == 0 #Remove from head and tail
+        else #g[min_idx] == 0 #Remove from head and tail
             if g_h <= length(g.head) && g.head[g_h] == min_idx
                 deleteat!(g.head, g_h)
             elseif g_t <= length(g.tail) && g.tail[g_t] == min_idx
@@ -399,6 +405,7 @@ function GBElements.reduce!(
         g.positive_degree[i] -= h.negative_degree[i]
         g.negative_degree[i] -= h.positive_degree[i]
     end
+    return GBElements.iszero(g)
 end
 
 """

@@ -4,7 +4,7 @@ of Buchberger's algorithm and Signature-based algorithms.
 """
 module GBElements
 export GBElement, Binomial, regular_reducible, degree_reducible, getfilter,
-    lattice_generator_binomial, lt_tiebreaker, isfeasible
+    lattice_generator_binomial, lt_tiebreaker, isfeasible, iszero
 
 using IPGBs.FastBitSets
 
@@ -286,6 +286,15 @@ function Base.show(
     print(io, g.element, " : c", g.cost)
 end
 
+function Base.:-(
+    g :: Binomial,
+    h :: Binomial
+) :: Binomial
+    new_element = g.element - h.element
+    new_cost = g.cost - h.cost
+    return Binomial(new_element, new_cost)
+end
+
 #
 # Implementation of the AbstractVector interface for Binomials
 #
@@ -344,7 +353,15 @@ function reduce!(
     negative :: Bool = false
 ) :: Bool
     reduced_to_zero = reduce!(g.element, h.element)
-    g.cost -= h.cost
+    if reduced_to_zero
+        return true
+    end
+    if g.cost > h.cost || (g.cost == h.cost && lt_tiebreaker(h, g))
+        g.cost -= h.cost
+    else
+        g.cost -= h.cost
+        opposite!(g)
+    end
     return reduced_to_zero
 end
 
@@ -353,6 +370,26 @@ function opposite!(
 )
     g.element .= .-(g.element)
     g.cost = -g.cost
+end
+
+function orientate!(
+    g :: Binomial
+)
+    #TODO needs a tiebreaker for when to orientate if g == 0
+    if g.cost < 0
+        opposite!(g)
+    end
+end
+
+function iszero(
+    g :: Binomial
+) :: Bool
+    for gi in g
+        if gi != 0
+            return false
+        end
+    end
+    return true
 end
 
 function degrees(
@@ -392,7 +429,7 @@ function lattice_generator_binomial(
     v[i] = 1
     r = zeros(Int, n)
     r[i] = -1
-    s = copy(A[:, i])
+    s = -copy(A[:, i])
     g = vcat(v, s, r)
     if ndims(c) == 1
         cost = c[i]
@@ -400,7 +437,11 @@ function lattice_generator_binomial(
         @assert ndims(c) == 2
         cost = c[1, i]
     end
-    return Binomial(g, cost)
+    b = Binomial(g, cost)
+    #The problem may be in minimization form, or have negative costs
+    #Thus b may have negative cost, in that case we need to change its orientation
+    orientate!(b)
+    return b
 end
 
 """
@@ -411,7 +452,7 @@ function supports(
 ) :: Tuple{FastBitSet, FastBitSet}
     pos_supp = Int[]
     neg_supp = Int[]
-    for i in length(g)
+    for i in 1:length(g)
         if g[i] > 0
             push!(pos_supp, i)
         elseif g[i] < 0

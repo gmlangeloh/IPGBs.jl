@@ -42,7 +42,7 @@ function minimal_basis!(
         g = gb[i]
         if find_reducer(g, gb, tree, skipbinomial=g) != nothing
             deleteat!(gb, i)
-            removebinomial!(tree, gb[i])
+            removebinomial!(tree, g)
         end
     end
 end
@@ -64,10 +64,8 @@ function reduced_basis!(
         while reducing #&& it < 100
             #TODO I'm getting wrong reducers here
             h = find_reducer(g, gb, tree, negative=true)
-            @show g GBElements.fullform(g)
+            @show g
             if h != nothing
-                @show h GBElements.fullform(h)
-            else
                 @show h
             end
             if h != nothing
@@ -78,8 +76,8 @@ function reduced_basis!(
                 reducing = false
             end
         end
-        println("post reduction")
-        @show g
+        #println("post reduction")
+        #@show g
     end
 end
 
@@ -105,6 +103,8 @@ function update_basis!(
 end
 
 """
+Returns true if (i, j) should be discarded.
+
 In a maximization problem, if (i, j) ..
 
 TODO actually document this thing, it's not that trivial
@@ -113,8 +113,14 @@ function is_support_reducible(
     i :: Int,
     j :: Int,
     positive_supports :: Vector{FastBitSet},
-    negative_supports :: Vector{FastBitSet}
+    negative_supports :: Vector{FastBitSet},
+    minimization :: Bool
 ) :: Bool
+    if minimization
+        return !disjoint(negative_supports[i], negative_supports[j]) ||
+            disjoint(positive_supports[i], positive_supports[j])
+    end
+    #Maximization problem
     return disjoint(negative_supports[i], negative_supports[j]) ||
         !disjoint(positive_supports[i], positive_supports[j])
 end
@@ -164,6 +170,9 @@ function normalize(
     return new_A, new_b, new_C, new_u
 end
 
+"""
+Builds the S-binomial given by gb[i] and gb[j].
+"""
 function build_sbin(
     i :: Int,
     j :: Int,
@@ -205,14 +214,20 @@ function buchberger(
     @assert structure == Binomial || structure == GradedBinomial
     n = size(A, 2)
     if structure == Binomial
+        #The reductions without fullfilter only work correctly if the problem
+        #is in minimization form. Thus we take the opposite of C instead, as
+        #this is easier than changing everything else
+        C = -C
+        minimization = true
         gb = [ lattice_generator_binomial(i, A, C) for i in 1:n ]
         A, b, C, u = normalize(A, b, C, u)
     else
+        minimization = false
         gb = [ lattice_generator_graded(i, A, C) for i in 1:n ]
     end
     gb = filter(g -> isfeasible(g, A, b, u), gb)
     positive_supports, negative_supports = supports(gb)
-    reducer = support_tree(gb, fullfilter=true)
+    reducer = support_tree(gb, fullfilter=(structure == GradedBinomial))
     i = 1
     iteration_count = 0
     spair_count = 0
@@ -221,14 +236,22 @@ function buchberger(
     while i <= length(gb)
         for j in 1:(i-1)
             iteration_count += 1
-            if is_support_reducible(i, j, positive_supports, negative_supports)
+            #TODO check if I have to change this!
+            if is_support_reducible(
+                i, j, positive_supports, negative_supports, minimization
+            )
                 continue
             end
             r = build_sbin(i, j, gb)
             if isfeasible(r, A, b, u)
                 spair_count += 1
-                SupportTrees.reduce!(r, gb, reducer)
-                if GBElements.iszero(r)
+                #println("before reduction")
+                #@show r
+                reduced_to_zero = SupportTrees.reduce!(r, gb, reducer)
+                #println("after reduction")
+                #@show r
+                #TODO should do a better job with iszero here!
+                if reduced_to_zero#GBElements.iszero(r)
                     zero_reductions += 1
                     continue
                 end
@@ -243,9 +266,9 @@ function buchberger(
     end
     @info "Buchberger: S-binomials reduced" iteration_count spair_count zero_reductions
     #Convert the basis to the same format 4ti2 uses
-    minimal_basis!(gb, reducer) #TODO use reduced when it works!
+    reduced_basis!(gb, reducer) #TODO use reduced when it works!
     if structure == Binomial
-        output_basis = [ -g.element for g in gb ]
+        output_basis = gb
     else
         output_basis = [ -GradedBinomials.fullform(g) for g in gb ]
     end

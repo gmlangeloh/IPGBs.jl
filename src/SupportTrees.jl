@@ -247,11 +247,11 @@ function reduce!(
     tree :: SupportTree{T};
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing
-) where {T <: GBElement, S <: AbstractVector{T}}
+) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
     reducer = find_reducer(binomial, gb, tree, skipbinomial=skipbinomial)
-    #@show reducer
+    reduced_to_zero = false
     while reducer != nothing
-        GBElements.reduce!(binomial, reducer)
+        reduced_to_zero = GBElements.reduce!(binomial, reducer)
         if reduction_count != nothing
             for i in 1:length(gb)
                 if gb[i] === reducer
@@ -260,8 +260,12 @@ function reduce!(
                 end
             end
         end
+        if reduced_to_zero
+            break
+        end
         reducer = find_reducer(binomial, gb, tree, skipbinomial=skipbinomial)
     end
+    return reduced_to_zero
 end
 
 end
