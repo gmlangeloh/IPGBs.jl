@@ -50,7 +50,7 @@ end
 """
 Updates gb to a reduced Gröbner Basis.
 
-TODO bugfix this, it doesn't terminate (at least not in reasonable time)
+TODO bugfix this, it doesn't terminate or is just buggy overall
 """
 function reduced_basis!(
     gb :: Vector{T},
@@ -60,24 +60,14 @@ function reduced_basis!(
     for i in length(gb):-1:1
         g = gb[i]
         reducing = true
-        #println("Reducing new element ", i)
-        while reducing #&& it < 100
-            #TODO I'm getting wrong reducers here
+        while reducing
             h = find_reducer(g, gb, tree, negative=true)
-            @show g
             if h != nothing
-                @show h
-            end
-            if h != nothing
-                GBElements.reduce!(g, h, negative=true) #TODO I think that's it? Check.
-                println("new g")
-                @show g GBElements.fullform(g)
+                GBElements.reduce!(g, h, negative=true)
             else
                 reducing = false
             end
         end
-        #println("post reduction")
-        #@show g
     end
 end
 
@@ -236,7 +226,6 @@ function buchberger(
     while i <= length(gb)
         for j in 1:(i-1)
             iteration_count += 1
-            #TODO check if I have to change this!
             if is_support_reducible(
                 i, j, positive_supports, negative_supports, minimization
             )
@@ -245,13 +234,8 @@ function buchberger(
             r = build_sbin(i, j, gb)
             if isfeasible(r, A, b, u)
                 spair_count += 1
-                #println("before reduction")
-                #@show r
                 reduced_to_zero = SupportTrees.reduce!(r, gb, reducer)
-                #println("after reduction")
-                #@show r
-                #TODO should do a better job with iszero here!
-                if reduced_to_zero#GBElements.iszero(r)
+                if reduced_to_zero
                     zero_reductions += 1
                     continue
                 end
@@ -266,10 +250,11 @@ function buchberger(
     end
     @info "Buchberger: S-binomials reduced" iteration_count spair_count zero_reductions
     #Convert the basis to the same format 4ti2 uses
-    reduced_basis!(gb, reducer) #TODO use reduced when it works!
     if structure == Binomial
+        reduced_basis!(gb, reducer)
         output_basis = gb
     else
+        minimal_basis!(gb, reducer)
         output_basis = [ -GradedBinomials.fullform(g) for g in gb ]
     end
     return output_basis

@@ -86,8 +86,11 @@ function reduction_factor(
     negative :: Bool = false
 ) :: Int where {T <: AbstractVector{Int}}
     i = 1
-    while reducer[i] <= 0
+    while i <= length(reducer) && reducer[i] <= 0
         i += 1
+    end
+    if i > length(reducer)
+        return negative ? -1 : 1
     end
     factor = Int(floor(binomial[i] / reducer[i]))
     if (!negative && factor == 1) || (negative && factor == -1)
@@ -353,15 +356,17 @@ function reduce!(
     negative :: Bool = false
 ) :: Bool
     reduced_to_zero = reduce!(g.element, h.element)
-    if reduced_to_zero
-        return true
-    end
-    if g.cost > h.cost || (g.cost == h.cost && lt_tiebreaker(h, g))
-        g.cost -= h.cost
-    else
-        g.cost -= h.cost
-        opposite!(g)
-    end
+    #if reduced_to_zero
+    #    return true
+    #end
+    #if g.cost > h.cost || (g.cost == h.cost && lt_tiebreaker(h, g))
+    #    g.cost -= h.cost
+    #else
+    #    g.cost -= h.cost
+    #    opposite!(g)
+    #end
+    g.cost -= h.cost
+    orientate!(g)
     return reduced_to_zero
 end
 
@@ -372,11 +377,37 @@ function opposite!(
     g.cost = -g.cost
 end
 
+"""
+Returns true iff g is oriented in a compatible way to grevlex with xn > xn-1 ...
+> x1
+"""
+function grevlex(
+    g :: Binomial
+) :: Bool
+    sum_g = sum(g)
+    if sum_g > 0
+        return true
+    elseif sum_g < 0
+        return false
+    end
+    i = 1
+    while sum_g == 0 && i < length(g)
+        sum_g -= g[i]
+        if sum_g > 0
+            return true
+        elseif sum_g < 0
+            return false
+        end
+        i += 1
+    end
+    return true
+end
+
 function orientate!(
     g :: Binomial
 )
-    #TODO needs a tiebreaker for when to orientate if g == 0
-    if g.cost < 0
+    #Applies tiebreaker by grevlex in case the cost is 0
+    if g.cost < 0 || (g.cost == 0 && !grevlex(g))
         opposite!(g)
     end
 end
