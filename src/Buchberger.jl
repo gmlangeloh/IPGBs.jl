@@ -8,6 +8,7 @@ export buchberger
 using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.GBTools
+using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 
@@ -40,7 +41,10 @@ function minimal_basis!(
 ) where  {T <: GBElement}
     for i in length(gb):-1:1
         g = gb[i]
-        if find_reducer(g, gb, tree, skipbinomial=g) != nothing
+        red = find_reducer(g, gb, tree, skipbinomial=g)
+        if red != nothing
+            @show red
+            @show g
             deleteat!(gb, i)
             removebinomial!(tree, g)
         end
@@ -183,7 +187,7 @@ function buchberger(
         minimization = false
         gb = [ lattice_generator_graded(i, A, C) for i in 1:n ]
     end
-    gb = filter(g -> isfeasible(g, A, b, u), gb)
+    gb = Base.filter(g -> isfeasible(g, A, b, u), gb)
     positive_supports, negative_supports = supports(gb)
     reducer = support_tree(gb, fullfilter=(structure == GradedBinomial))
     i = 1
@@ -200,6 +204,9 @@ function buchberger(
                 continue
             end
             r = build_sbin(i, j, gb)
+            if i == 6 && j == 1
+                @show r
+            end
             if isfeasible(r, A, b, u)
                 spair_count += 1
                 reduced_to_zero = SupportTrees.reduce!(r, gb, reducer)
@@ -219,7 +226,7 @@ function buchberger(
     @info "Buchberger: S-binomials reduced" iteration_count spair_count zero_reductions
     #Convert the basis to the same format 4ti2 uses
     if structure == Binomial
-        reduced_basis!(gb, reducer)
+        minimal_basis!(gb, reducer)
         output_basis = gb
     else
         minimal_basis!(gb, reducer)

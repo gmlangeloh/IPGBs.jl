@@ -1,17 +1,207 @@
 """
 This module defines all the binomial data structures used in my implementations
 of Buchberger's algorithm and Signature-based algorithms.
+
+TODO separate modules GBElements and Binomials
+TODO make GBElements a consistent interface
 """
 module GBElements
-export GBElement, Binomial, regular_reducible, degree_reducible, getfilter,
+export GBElement, Binomial, regular_reducible, degree_reducible, filter,
     lattice_generator_binomial, lt_tiebreaker, isfeasible, is_zero, leading_term,
     head
 
 using IPGBs.FastBitSets
 
+"""
+Abstract type used for GB computations. It is meant to generalize both binomials
+and binomials with signature, in order to simplify the implementation of
+reduction algorithms.
+"""
+abstract type GBElement <: AbstractVector{Int} end
+
+#
+# Hard contract: a GBElement must implement at least the following functions.
+#
+
+#TODO will I even have anything here?
+
+#
+# Soft contract: concrete GBElements may reimplement these if necessary
+#
+
+"""
+Computes the leading term of this GBElement as a vector.
+"""
+function leading_term(
+    g :: GBElement
+) :: Vector{Int}
+    lt = zeros(Int, length(g))
+    for i in 1:length(g)
+        if g[i] > 0
+            lt[i] = g[i]
+        end
+    end
+    return lt
+end
+
+"""
+The indices of the positive support of `g`. Or indices of the support of
+leading_term(g)
+
+TODO could probably turn this into an iterator instead, would be more efficient
+"""
+function head(
+    g :: GBElement
+) :: Vector{Int}
+    head = Int[]
+    for i in 1:length(g)
+        if g[i] > 0
+            push!(head, i)
+        end
+    end
+    return head
+end
+
+
+"""
+Returns true iff this binomial is zero, that is, all of its coordinates are 0.
+"""
+function is_zero(
+    g :: GBElement
+) :: Bool
+    for gi in g
+        if gi != 0
+            return false
+        end
+    end
+    return true
+end
+
+function opposite!(
+    g :: GBElement
+)
+    for i in 1:length(g)
+        g[i] = -g[i]
+    end
+end
+
+function degrees(
+    g :: GBElement,
+    A :: Array{Int, 2}
+) :: Tuple{Vector{Int}, Vector{Int}}
+    #Get the positive and negative parts of g
+    positive_g = Int[]
+    negative_g = Int[]
+    for i in 1:length(g)
+        if g[i] > 0
+            push!(positive_g, g[i])
+            push!(negative_g, 0)
+        else
+            push!(negative_g, g[i])
+            push!(positive_g, 0)
+        end
+    end
+    #Compute the degrees of positive_g and negative_g by A
+    return A * positive_g, A * negative_g
+end
+
+"""
+Computes bitsets with positive and negative supports of `g`.
+"""
+function supports(
+    g :: GBElement
+) :: Tuple{FastBitSet, FastBitSet}
+    pos_supp = Int[]
+    neg_supp = Int[]
+    for i in 1:length(g)
+        if g[i] > 0
+            push!(pos_supp, i)
+        elseif g[i] < 0
+            push!(neg_supp, i)
+        end
+    end
+    bitset_length = length(g)
+    return makebitset(bitset_length, pos_supp), makebitset(bitset_length, neg_supp)
+end
+
+"""
+This is only relevant when we consider the implicit representation of binomials.
+For this explicit representation, we can always return true.
+"""
+function degree_reducible(
+    g :: T,
+    h :: T,
+    negative :: Bool = false
+) :: Bool where {T <: GBElement}
+    return true
+end
+
+
+"""
+Returns true iff `reducer` is regular wrt `g`, that is, sig(reducer) < sig(g).
+This is used when checking for regular reductions in a signature-based
+algorithm. For a non-signature-based algorithm, and thus a generic GBElement,
+this is always true.
+"""
+function regular_reducible(
+    reducer :: T,
+    g :: T,
+    gb :: S
+) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
+    return true
+end
+
+#
+# Additional GBElement logic
+#
+
+"""
+Checks whether v is bounded coordinate by coordinate by u.
+"""
+function le_upperbound(
+    v :: GBElement,
+    u :: Vector{Int}
+) :: Bool
+    for i in 1:length(v)
+        if v[i] > 0 && v[i] > u[i]
+            return false
+        elseif v[i] < 0 && -v[i] > u[i]
+            return false
+        end
+    end
+    return true
+end
+
+"""
+Returns true iff v1 <= v2 coordinate-wise.
+"""
+function le_coordinatewise(
+    v1 :: Vector{Int},
+    v2 :: Vector{Int}
+) :: Bool
+    return all(i -> v1[i] <= v2[i], keys(v1))
+end
+
+"""
+Returns true iff v should be considered for reduction in a truncated GB
+algorithm.
+"""
+function isfeasible(
+    v :: GBElement,
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    u :: Vector{Int}
+) :: Bool
+    head, tail = degrees(v, A)
+    return le_coordinatewise(head, b) && le_coordinatewise(tail, b) &&
+        le_upperbound(v, u)
+        #sparse_le(v.head, v.element, u) && sparse_le(v.tail, v.element, u)
+end
+
 #
 # Functions dealing with reducibility of any monomial or binomial-like vector-based
-# structure
+# structure. Work for any GBElement or, more generically, any AbstractVector{Int}
+# This means they support monomials as well
 #
 
 """
@@ -21,7 +211,7 @@ appearing in its leading term.
 If fullfilter = true, include the indices of variables appearing in its
 trailing term.
 """
-function getfilter(
+function filter(
     binomial :: T;
     fullfilter :: Bool = false
 ) :: Vector{Int} where {T <: AbstractVector{Int}}
@@ -203,329 +393,6 @@ function lt_tiebreaker(
     #    end
     #end
     #return false #If they are equal wrt grevlex at this point, g == h
-end
-
-"""
-Abstract type used for GB computations. It is meant to generalize both binomials
-and binomials with signature, in order to simplify the implementation of
-reduction algorithms.
-"""
-abstract type GBElement <: AbstractVector{Int} end
-
-"""
-Returns true iff `reducer` is regular wrt `g`, that is, sig(reducer) < sig(g).
-This is used when checking for regular reductions in a signature-based
-algorithm. For a non-signature-based algorithm, and thus a generic GBElement,
-this is always true.
-"""
-function regular_reducible(
-    reducer :: T,
-    g :: T,
-    gb :: S
-) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
-    return true
-end
-
-#"""
-#Checks whether element is smaller coordinate-wise than u only considering the
-#given indices.
-#"""
-#function sparse_le(
-#    indices :: Vector{Int},
-#    element :: Vector{Int},
-#    u :: Vector{Int}
-#) :: Bool
-#    return all(i -> abs(element[i]) <= u[i], indices)
-#end
-
-function le_upperbound(
-    v :: T,
-    u :: Vector{Int}
-) :: Bool where {T <: GBElement}
-    for i in 1:length(v)
-        if v[i] > 0 && v[i] > u[i]
-            return false
-        elseif v[i] < 0 && -v[i] > u[i]
-            return false
-        end
-    end
-    return true
-end
-
-"""
-Returns true iff v1 <= v2 coordinate-wise.
-"""
-function le_coordinatewise(
-    v1 :: Vector{Int},
-    v2 :: Vector{Int}
-) :: Bool
-    return all(i -> v1[i] <= v2[i], keys(v1))
-end
-
-"""
-Returns true iff v should be considered for reduction in a truncated GB
-algorithm.
-"""
-function isfeasible(
-    v :: T,
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    u :: Vector{Int}
-) :: Bool where {T <: GBElement}
-    head, tail = degrees(v, A)
-    return le_coordinatewise(head, b) && le_coordinatewise(tail, b) &&
-        le_upperbound(v, u)
-        #sparse_le(v.head, v.element, u) && sparse_le(v.tail, v.element, u)
-end
-
-mutable struct Binomial <: GBElement
-    element :: Vector{Int}
-    cost :: Int
-end
-
-function Base.show(
-    io :: IO,
-    g :: Binomial
-)
-    print(io, g.element, " : c", g.cost)
-end
-
-function Base.:-(
-    g :: Binomial,
-    h :: Binomial
-) :: Binomial
-    new_element = g.element - h.element
-    new_cost = g.cost - h.cost
-    return Binomial(new_element, new_cost)
-end
-
-#
-# Implementation of the AbstractVector interface for Binomials
-#
-
-function Base.size(
-    g :: Binomial
-) :: Tuple
-    return size(g.element)
-end
-
-function Base.getindex(
-    g :: Binomial,
-    i :: Int
-) :: Int
-    return g.element[i]
-end
-
-function Base.setindex!(
-    g :: Binomial,
-    v :: Int,
-    i :: Int
-)
-    g.element[i] = v
-end
-
-function Base.length(
-    g :: Binomial
-) :: Int
-    return length(g.element)
-end
-
-#
-# Other methods for Binomial
-#
-
-"""
-This is only relevant when we consider the implicit representation of binomials.
-For this explicit representation, we can always return true.
-"""
-function degree_reducible(
-    g :: Binomial,
-    h :: Binomial,
-    negative :: Bool = false
-) :: Bool
-    return true
-end
-
-"""
-In addition to applying the reduction itself, we update the cost.
-
-Returns true iff `binomial` reduced to 0.
-"""
-function reduce!(
-    g :: Binomial,
-    h :: Binomial;
-    negative :: Bool = false
-) :: Bool
-    reduced_to_zero = reduce!(g.element, h.element)
-    #if reduced_to_zero
-    #    return true
-    #end
-    #if g.cost > h.cost || (g.cost == h.cost && lt_tiebreaker(h, g))
-    #    g.cost -= h.cost
-    #else
-    #    g.cost -= h.cost
-    #    opposite!(g)
-    #end
-    g.cost -= h.cost
-    orientate!(g)
-    return reduced_to_zero
-end
-
-function opposite!(
-    g :: Binomial
-)
-    g.element .= .-(g.element)
-    g.cost = -g.cost
-end
-
-"""
-Returns true iff g is oriented in a compatible way to grevlex with xn > xn-1 ...
-> x1
-"""
-function grevlex(
-    g :: Binomial
-) :: Bool
-    sum_g = sum(g)
-    if sum_g > 0
-        return true
-    elseif sum_g < 0
-        return false
-    end
-    i = 1
-    while sum_g == 0 && i < length(g)
-        sum_g -= g[i]
-        if sum_g > 0
-            return true
-        elseif sum_g < 0
-            return false
-        end
-        i += 1
-    end
-    return true
-end
-
-function orientate!(
-    g :: Binomial
-)
-    #Applies tiebreaker by grevlex in case the cost is 0
-    if g.cost < 0 || (g.cost == 0 && !grevlex(g))
-        opposite!(g)
-    end
-end
-
-"""
-Returns true iff this binomial is zero, that is, all of its coordinates are 0.
-"""
-function is_zero(
-    g :: Binomial
-) :: Bool
-    for gi in g
-        if gi != 0
-            return false
-        end
-    end
-    return true
-end
-
-function degrees(
-    g :: Binomial,
-    A :: Array{Int, 2}
-) :: Tuple{Vector{Int}, Vector{Int}}
-    #Get the positive and negative parts of g
-    positive_g = Int[]
-    negative_g = Int[]
-    for i in 1:length(g)
-        if g[i] > 0
-            push!(positive_g, g[i])
-            push!(negative_g, 0)
-        else
-            push!(negative_g, g[i])
-            push!(positive_g, 0)
-        end
-    end
-    #Compute the degrees of positive_g and negative_g by A
-    return A * positive_g, A * negative_g
-end
-
-function leading_term(
-    g :: Binomial
-) :: Vector{Int}
-    lt = zeros(Int, length(g))
-    for i in 1:length(g)
-        if g[i] > 0
-            lt[i] = g[i]
-        end
-    end
-    return lt
-end
-
-"""
-The indices of the positive support of `g`. Or indices of the support of
-leading_term(g)
-
-TODO could probably turn this into an iterator instead, would be more efficient
-"""
-function head(
-    g :: Binomial
-) :: Vector{Int}
-    head = Int[]
-    for i in 1:length(g)
-        if g[i] > 0
-            push!(head, i)
-        end
-    end
-    return head
-end
-
-"""
-Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem
-is in the particular form given in Thomas and Weismantel (1997), Section 3.
-"""
-function lattice_generator_binomial(
-    i :: Int,
-    A :: Array{Int, 2},
-    c :: Array{Int}
-) :: Binomial
-    #This assumes inequality + binary constraints
-    #It is enough for my current experiments, but I should generalize this
-    m = size(A, 1)
-    n = size(A, 2)
-    v = zeros(Int, n)
-    v[i] = 1
-    r = zeros(Int, n)
-    r[i] = -1
-    s = -copy(A[:, i])
-    g = vcat(v, s, r)
-    if ndims(c) == 1
-        cost = c[i]
-    else #c is two-dimensional
-        @assert ndims(c) == 2
-        cost = c[1, i]
-    end
-    b = Binomial(g, cost)
-    #The problem may be in minimization form, or have negative costs
-    #Thus b may have negative cost, in that case we need to change its orientation
-    orientate!(b)
-    return b
-end
-
-"""
-Computes bitsets with positive and negative supports of `g`.
-"""
-function supports(
-    g :: Binomial
-) :: Tuple{FastBitSet, FastBitSet}
-    pos_supp = Int[]
-    neg_supp = Int[]
-    for i in 1:length(g)
-        if g[i] > 0
-            push!(pos_supp, i)
-        elseif g[i] < 0
-            push!(neg_supp, i)
-        end
-    end
-    bitset_length = length(g)
-    return makebitset(bitset_length, pos_supp), makebitset(bitset_length, neg_supp)
 end
 
 end

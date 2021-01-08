@@ -109,10 +109,10 @@ function addbinomial!(
     binomial :: T
 ) where {T <: AbstractVector{Int}}
     current = tree.root
-    filter = getfilter(binomial, fullfilter=tree.fullfilter)
+    binomial_filter = GBElements.filter(binomial, fullfilter=tree.fullfilter)
     #Search for a path in the tree labeled by the indices in the filter
     #Create any missing nodes in this path
-    for i in filter
+    for i in binomial_filter
         j = 1
         while j <= length(current.children) && current.children[j][1] != i
             j += 1
@@ -128,7 +128,7 @@ function addbinomial!(
     end
     push!(current.binomial_list, binomial)
     if isempty(current.filter) #Set current node's filter if it wasn't already
-        for i in filter #current.filter = filter
+        for i in binomial_filter #current.filter = f
             push!(current.filter, i)
         end
     end
@@ -146,8 +146,8 @@ function removebinomial!(
     binomial :: T
 ) where {T <: AbstractVector{Int}}
     current = tree.root
-    filter = getfilter(binomial, fullfilter=tree.fullfilter)
-    for i in filter
+    binomial_filter = GBElements.filter(binomial, fullfilter=tree.fullfilter)
+    for i in binomial_filter
         j = 1
         while j <= length(current.children) && current.children[j][1] != i
             j += 1

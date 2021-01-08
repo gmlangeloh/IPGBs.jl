@@ -2,6 +2,7 @@ module IPGBs
 
 include("./FastBitSets.jl")
 include("./GBElements.jl")
+include("./Binomials.jl")
 include("./GradedBinomials.jl")
 include("./SupportTrees.jl")
 include("./GBTools.jl")

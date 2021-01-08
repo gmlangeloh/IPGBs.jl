@@ -26,7 +26,7 @@ mutable struct GradedBinomial <: GBElement
     negative_degree :: Vector{Int} #Degree of the negative part of this element
 end
 
-function getfilter(
+function filter(
     binomial :: GradedBinomial;
     fullfilter :: Bool = false
 ) :: Vector{Int}
@@ -186,7 +186,7 @@ function GBElements.leading_term(
 end
 
 GBElements.head(g :: GradedBinomial) = g.head
-GBElements.is_zero(g :: GradedBinomial) isempty(head(g))
+GBElements.is_zero(g :: GradedBinomial) = isempty(head(g))
 
 function Base.show(
     io :: IO,

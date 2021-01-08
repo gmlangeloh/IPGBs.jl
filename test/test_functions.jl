@@ -1,5 +1,6 @@
 using IPGBs
 using IPGBs.GBElements
+using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.Buchberger
 using IPGBs.FourTi2
@@ -86,5 +87,5 @@ function test_siggb(
     )
     println("Buchberger results")
     @show length(bgb) time
-    return gb, rgb, bgb
+    return gb, fourti2gb, bgb
 end

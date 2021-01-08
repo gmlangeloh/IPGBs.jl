@@ -9,6 +9,7 @@ using DataStructures
 
 using IPGBs.GBElements
 using IPGBs.GBTools
+using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 using IPGBs.SignaturePolynomials
@@ -161,7 +162,7 @@ function signature_algorithm(
         reduction_count += 1
         println("after")
         @show p p.signature
-        if reduced_to_zero #SignaturePolynomials.iszero(p)
+        if reduced_to_zero
             println("new syzygy")
             @show p.signature
             push!(syzygies, p.signature)
@@ -177,7 +178,12 @@ function signature_algorithm(
     end
     #Return the representation of each element as an integer vector
     @show reduction_count
-    return projection.(gb)
+    if structure == Binomial
+        output_basis = projection.(gb)
+    else
+        output_basis = [ -GradedBinomials.fullform(g.polynomial) for g in gb ]
+    end
+    return output_basis
 end
 
 function siggb(

@@ -1,7 +1,6 @@
 """
 Implementation of the basic signature-polynomial pairs structures.
 
-TODO generalize all of this from GradedBinomial to any GBElement
 TODO implement a getfilter method for SigPolys
 """
 module SignaturePolynomials
@@ -10,6 +9,7 @@ export Signature, SigPoly, SigBasis, ModuleMonomialOrdering, SPair,
     divides
 
 using IPGBs.GBElements
+using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 
