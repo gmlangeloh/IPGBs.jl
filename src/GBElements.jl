@@ -4,7 +4,8 @@ of Buchberger's algorithm and Signature-based algorithms.
 """
 module GBElements
 export GBElement, Binomial, regular_reducible, degree_reducible, getfilter,
-    lattice_generator_binomial, lt_tiebreaker, isfeasible, iszero
+    lattice_generator_binomial, lt_tiebreaker, isfeasible, is_zero, leading_term,
+    head
 
 using IPGBs.FastBitSets
 
@@ -412,7 +413,10 @@ function orientate!(
     end
 end
 
-function iszero(
+"""
+Returns true iff this binomial is zero, that is, all of its coordinates are 0.
+"""
+function is_zero(
     g :: Binomial
 ) :: Bool
     for gi in g
@@ -441,6 +445,36 @@ function degrees(
     end
     #Compute the degrees of positive_g and negative_g by A
     return A * positive_g, A * negative_g
+end
+
+function leading_term(
+    g :: Binomial
+) :: Vector{Int}
+    lt = zeros(Int, length(g))
+    for i in 1:length(g)
+        if g[i] > 0
+            lt[i] = g[i]
+        end
+    end
+    return lt
+end
+
+"""
+The indices of the positive support of `g`. Or indices of the support of
+leading_term(g)
+
+TODO could probably turn this into an iterator instead, would be more efficient
+"""
+function head(
+    g :: Binomial
+) :: Vector{Int}
+    head = Int[]
+    for i in 1:length(g)
+        if g[i] > 0
+            push!(head, i)
+        end
+    end
+    return head
 end
 
 """

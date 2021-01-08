@@ -6,7 +6,7 @@ TODO implement a getfilter method for SigPolys
 """
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering, SPair,
-    ModuleMonomialOrder, regular_spair, build_spair, projection, iszero,
+    ModuleMonomialOrder, regular_spair, build_spair, projection, is_zero,
     divides
 
 using IPGBs.GBElements
@@ -127,12 +127,12 @@ function Base.length(
     return length(g.polynomial)
 end
 
-struct ModuleMonomialOrdering <: Base.Ordering
+struct ModuleMonomialOrdering{T <: GBElement} <: Base.Ordering
     monomial_order :: Array{Int, 2}
     module_order :: ModuleMonomialOrder
     #TODO I should make sure this is a reference to the same GB object that
     #is incrementally built in my signature algorithm
-    generators :: Vector{SigPoly}
+    generators :: Vector{SigPoly{T}}
 end
 
 function Base.lt(
@@ -190,8 +190,8 @@ function ltpot_lt(
     s1 :: Signature,
     s2 :: Signature,
     monomial_order :: Array{Int, 2},
-    generators :: Vector{SigPoly}
-) :: Bool
+    generators :: Vector{SigPoly{T}}
+) :: Bool where {T <: GBElement}
     lt_s1 = image_leading_term(s1, generators)
     lt_s2 = image_leading_term(s2, generators)
     weighted_lts1 = monomial_order * lt_s1
@@ -210,15 +210,14 @@ element of index i to the i-th element of generators.
 """
 function image_leading_term(
     s :: Signature,
-    generators :: Vector{SigPoly}
-) :: Vector{Int}
+    generators :: Vector{SigPoly{T}}
+) :: Vector{Int} where {T <: GBElement}
     @assert s.index <= length(generators)
     gen = generators[s.index].polynomial
     @assert length(s.monomial) == length(gen)
     image_lt = copy(s.monomial)
-    for i in gen.head
-        image_lt[i] += gen[i]
-    end
+    gen_lt = leading_term(gen)
+    image_lt += gen_lt
     return image_lt
 end
 
@@ -229,9 +228,9 @@ function signature_lt(
     sig1 :: Signature,
     sig2 :: Signature,
     monomial_order :: Array{Int, 2},
-    generators :: Vector{SigPoly},
+    generators :: Vector{SigPoly{T}},
     module_order :: ModuleMonomialOrder
-) :: Bool
+) :: Bool where {T <: GBElement}
     if module_order == pot
         return pot_lt(sig1, sig2, monomial_order)
     elseif module_order == ltpot
@@ -312,11 +311,7 @@ end
 # Implementation of the GBElement interface for SigPolys
 #
 
-function iszero(
-    g :: SigPoly{T}
-) :: Bool where {T <: GBElement}
-    return GBElements.iszero(g.polynomial)
-end
+GBElements.is_zero(g :: SigPoly{GBElement}) = GBElements.is_zero(g.polynomial)
 
 """
 Checks whether a * reducer.signature < g.signature wrt a given module monomial
@@ -333,7 +328,7 @@ function GBElements.regular_reducible(
     #Compute the multiplication factor
     n = length(reducer)
     factor = zeros(Int, n)
-    for i in g.polynomial.head
+    for i in head(g.polynomial)
         factor[i] = g[i] - reducer[i]
         @assert factor[i] >= 0
     end
@@ -395,7 +390,7 @@ function build_spair(
     else
         #Do a tiebreaker
         #TODO Maybe I should pass the whole matrix C here for tiebreaking...
-        if GBElements.tiebreaking(g_i, g_j)
+        if GBElements.lt_tiebreaker(g_i, g_j)
             s = g_j - g_i
         else
             s = g_i - g_j

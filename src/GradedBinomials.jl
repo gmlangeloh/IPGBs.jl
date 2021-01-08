@@ -175,11 +175,18 @@ function GBElements.degree_reducible(
     return true
 end
 
-function GBElements.iszero(
+function GBElements.leading_term(
     g :: GradedBinomial
-) :: Bool
-    return isempty(g.head)
+) :: Vector{Int}
+    lt = zeros(Int, length(g))
+    for i in g.head
+        lt[i] = g[i]
+    end
+    return lt
 end
+
+GBElements.head(g :: GradedBinomial) = g.head
+GBElements.is_zero(g :: GradedBinomial) isempty(head(g))
 
 function Base.show(
     io :: IO,
@@ -317,7 +324,7 @@ function reduce_negative!(
         g.positive_degree[i] = h.negative_degree[i] - g.positive_degree[i]
         g.negative_degree[i] = h.positive_degree[i] - g.negative_degree[i]
     end
-    return GBElements.iszero(g)
+    return GBElements.is_zero(g)
 end
 
 """
@@ -405,7 +412,7 @@ function GBElements.reduce!(
         g.positive_degree[i] -= h.negative_degree[i]
         g.negative_degree[i] -= h.positive_degree[i]
     end
-    return GBElements.iszero(g)
+    return GBElements.is_zero(g)
 end
 
 """

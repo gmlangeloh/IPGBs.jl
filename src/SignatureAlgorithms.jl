@@ -25,7 +25,14 @@ function truncated_generators(
 )
     generators = Vector{SigPoly{structure}}()
     n = size(A, 2)
-    coef = zeros(Int, n) #Coefficient of the signatures of these generators
+    # This assumes binary constraints
+    # TODO generalize this
+    if structure == Binomial
+        num_vars = 2 * n + size(A, 1) #orig variables, slacks and binary slacks
+    else
+        num_vars = n
+    end
+    coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
     for i in 1:n
         e = lattice_generator(i, A, C)
         s = Signature(i, coef)
