@@ -41,9 +41,9 @@ function minimal_basis!(
 ) where  {T <: GBElement}
     for i in length(gb):-1:1
         g = gb[i]
-        red = find_reducer(g, gb, tree, skipbinomial=g)
-        if red != nothing
-            @show red
+        reducer = find_reducer(g, gb, tree, skipbinomial=g)
+        if !isnothing(reducer)
+            @show reducer
             @show g
             deleteat!(gb, i)
             removebinomial!(tree, g)
@@ -66,7 +66,7 @@ function reduced_basis!(
         reducing = true
         while reducing
             h = find_reducer(g, gb, tree, negative=true)
-            if h != nothing
+            if !isnothing(h)
                 GBElements.reduce!(g, h, negative=true)
             else
                 reducing = false
@@ -204,9 +204,6 @@ function buchberger(
                 continue
             end
             r = build_sbin(i, j, gb)
-            if i == 6 && j == 1
-                @show r
-            end
             if isfeasible(r, A, b, u)
                 spair_count += 1
                 reduced_to_zero = SupportTrees.reduce!(r, gb, reducer)

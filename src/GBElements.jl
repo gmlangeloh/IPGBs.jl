@@ -2,7 +2,6 @@
 This module defines all the binomial data structures used in my implementations
 of Buchberger's algorithm and Signature-based algorithms.
 
-TODO separate modules GBElements and Binomials
 TODO make GBElements a consistent interface
 """
 module GBElements
@@ -61,7 +60,6 @@ function head(
     end
     return head
 end
-
 
 """
 Returns true iff this binomial is zero, that is, all of its coordinates are 0.

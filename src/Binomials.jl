@@ -4,9 +4,6 @@ export Binomial, lattice_generator_binomial
 
 using IPGBs.GBElements
 
-#TODO put all the code specific to binomials here
-#Implement all that I can for a generic GBElement
-
 mutable struct Binomial <: GBElement
     element :: Vector{Int}
     cost :: Int

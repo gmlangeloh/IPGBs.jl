@@ -70,7 +70,7 @@ function make_priority_queue(
     for i in 1:length(generators)
         for j in 1:(i-1)
             sp = regular_spair(i, j, generators)
-            if sp != nothing
+            if !isnothing(sp)
                 push!(heap, sp)
             end
         end
@@ -85,7 +85,7 @@ function update_queue!(
     n = length(gb)
     for i in 1:(n-1)
         sp = regular_spair(i, n, gb)
-        if sp != nothing
+        if !isnothing(sp)
             push!(spairs, sp)
         end
     end
@@ -138,10 +138,10 @@ function signature_algorithm(
     #Koszul syzygies initially.
     reduction_count = 0
     previous_sig = nothing
-    while !isempty(spairs)
+    while !isempty(spairs) && reduction_count <= 10
         sp = pop!(spairs)
         #Process each signature only once
-        if previous_sig != nothing && isequal(previous_sig, sp.signature)
+        if !isnothing(previous_sig) && isequal(previous_sig, sp.signature)
             continue
         end
         previous_sig = sp.signature

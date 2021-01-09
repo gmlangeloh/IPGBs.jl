@@ -207,7 +207,7 @@ function find_reducer(
                 g, gb, child, fullfilter=fullfilter, skipbinomial=skipbinomial,
                 negative=negative
             )
-            if reducer != nothing #Found a reducer, return it
+            if !isnothing(reducer) #Found a reducer, return it
                 return reducer
             end
         end
@@ -218,7 +218,7 @@ function find_reducer(
         #parameter to be skipped, skip it.
         # This is useful in inter-reductions, where the element should not be
         #used to reduce itself.
-        if skipbinomial != nothing && reducer === skipbinomial
+        if !isnothing(skipbinomial) && reducer === skipbinomial
             continue
         end
         if GBElements.reduces(
@@ -250,9 +250,9 @@ function reduce!(
 ) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
     reducer = find_reducer(binomial, gb, tree, skipbinomial=skipbinomial)
     reduced_to_zero = false
-    while reducer != nothing
+    while !isnothing(reducer)
         reduced_to_zero = GBElements.reduce!(binomial, reducer)
-        if reduction_count != nothing
+        if !isnothing(reduction_count)
             for i in 1:length(gb)
                 if gb[i] === reducer
                     reduction_count[i] += 1
