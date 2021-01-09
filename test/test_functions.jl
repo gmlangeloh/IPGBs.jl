@@ -23,8 +23,10 @@ function test_buchberger(
         Random.seed!(seed)
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
-    lattice_basis = [ lattice_generator_graded(i, instance.A, instance.C)
-                      for i in 1:size(instance.A, 2)]
+    lattice_basis = [
+        lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
+                                 check_truncation=false)
+        for i in 1:size(instance.A, 2)]
     lattice_4ti2 = fourti2_form(lattice_basis)
 
     #Use 4ti2 to compute a reduced GB for reference
@@ -59,8 +61,10 @@ function test_siggb(
         Random.seed!(seed)
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
-    lattice_basis = [ lattice_generator_graded(i, instance.A, instance.C)
-                      for i in 1:size(instance.A, 2)]
+    lattice_basis = [
+        lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
+                                 check_truncation=false)
+        for i in 1:size(instance.A, 2)]
     lattice_4ti2 = fourti2_form(lattice_basis)
 
     #Use 4ti2 to compute a reduced GB for reference

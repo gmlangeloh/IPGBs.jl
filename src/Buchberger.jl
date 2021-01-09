@@ -156,6 +156,36 @@ function build_sbin(
     return r
 end
 
+function initial_gb(
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    C :: Array{Int, 2},
+    u :: Vector{Int};
+    T :: DataType = Binomial,
+) :: Vector{T}
+    if T == Binomial
+        gb = []
+        #The current matrix A has n + m rows, 2n + m cols, so n = cols - rows
+        num_gens = size(A, 2) - size(A, 1)
+        for i in 1:num_gens
+            gen = lattice_generator_binomial(i, A, b, C, u)
+            if !isnothing(gen)
+                push!(gb, gen)
+            end
+        end
+    else
+        gb = []
+        num_gens = size(A, 2)
+        for i in 1:num_gens
+            gen = lattice_generator_graded(i, A, b, C, u)
+            if !isnothing(gen)
+                push!(gb, gen)
+            end
+        end
+    end
+    return gb
+end
+
 """
 Computes a test set / Gröbner Basis for the IP:
 max C^T * x
@@ -174,20 +204,12 @@ function buchberger(
     auto_reduce_freq :: Int = 2500
 ) :: Vector{Vector{Int}}
     @assert structure == Binomial || structure == GradedBinomial
-    n = size(A, 2)
-    if structure == Binomial
-        #The reductions without fullfilter only work correctly if the problem
-        #is in minimization form. Thus we take the opposite of C instead, as
-        #this is easier than changing everything else
-        C = -C
-        minimization = true
-        gb = [ lattice_generator_binomial(i, A, C) for i in 1:n ]
-        A, b, C, u = GBTools.normalize(A, b, C, u)
-    else
-        minimization = false
-        gb = [ lattice_generator_graded(i, A, C) for i in 1:n ]
-    end
-    gb = Base.filter(g -> isfeasible(g, A, b, u), gb)
+    minimization = structure == Binomial
+    A, b, C, u = GBTools.normalize(
+        A, b, C, u, apply_normalization=minimization
+    )
+    gb = initial_gb(A, b, C, u, T = structure)
+    #gb = Base.filter(g -> isfeasible(g, A, b, u), gb)
     positive_supports, negative_supports = supports(gb)
     reducer = support_tree(gb, fullfilter=(structure == GradedBinomial))
     i = 1

@@ -5,9 +5,8 @@ of Buchberger's algorithm and Signature-based algorithms.
 TODO make GBElements a consistent interface
 """
 module GBElements
-export GBElement, Binomial, regular_reducible, degree_reducible, filter,
-    lattice_generator_binomial, lt_tiebreaker, isfeasible, is_zero, leading_term,
-    head
+export GBElement, regular_reducible, degree_reducible, filter, lt_tiebreaker,
+    isfeasible, is_zero, leading_term, head
 
 using IPGBs.FastBitSets
 

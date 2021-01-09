@@ -85,6 +85,13 @@ struct SigPoly{T <: GBElement} <: GBElement
     signature :: Signature
 end
 
+function Base.show(
+    io :: IO,
+    g :: SigPoly{T}
+) where {T <: GBElement}
+    print(io, g.polynomial, " signature: ", g.signature)
+end
+
 """
 Returns the representation of this SigPoly as a vector of integers, dropping its
 signature.
@@ -332,6 +339,9 @@ function GBElements.regular_reducible(
         factor[i] = g[i] - reducer[i]
         @assert factor[i] >= 0
     end
+
+    @show factor * reducer.signature
+    @show g.signature
 
     #DEBUGGING
     bugged = [

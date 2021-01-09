@@ -134,17 +134,21 @@ is in the particular form given in Thomas and Weismantel (1997), Section 3.
 function lattice_generator_binomial(
     i :: Int,
     A :: Array{Int, 2},
-    c :: Array{Int}
-) :: Binomial
+    b :: Vector{Int},
+    c :: Array{Int},
+    u :: Vector{Int};
+    check_truncation :: Bool = true
+) :: Union{Binomial, Nothing}
     #This assumes inequality + binary constraints
     #It is enough for my current experiments, but I should generalize this
-    m = size(A, 1)
-    n = size(A, 2)
+    #The current matrix A has n + m rows, 2n + m cols. So n = cols - rows
+    n = size(A, 2) - size(A, 1)
+    m = size(A, 1) - n
     v = zeros(Int, n)
     v[i] = 1
     r = zeros(Int, n)
     r[i] = -1
-    s = -copy(A[:, i])
+    s = -copy(A[1:m, i])
     g = vcat(v, s, r)
     if ndims(c) == 1
         cost = c[i]
@@ -152,11 +156,16 @@ function lattice_generator_binomial(
         @assert ndims(c) == 2
         cost = c[1, i]
     end
-    b = Binomial(g, cost)
+    generator = Binomial(g, cost)
     #The problem may be in minimization form, or have negative costs
     #Thus b may have negative cost, in that case we need to change its orientation
-    orientate!(b)
-    return b
+    orientate!(generator)
+    #Check whether the Binomial should be truncated. If it should, just
+    #return nothing instead
+    if !check_truncation || isfeasible(generator, A, b, u)
+        return generator
+    end
+    return nothing
 end
 
 end

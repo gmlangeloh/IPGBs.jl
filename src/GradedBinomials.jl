@@ -520,8 +520,11 @@ Vector in Z^n with i-th coordinate 1 and remaining coordinates 0.
 function lattice_generator_graded(
     i :: Int,
     A :: Array{Int, 2},
-    c :: Array{Int}
-) :: GradedBinomial
+    b :: Vector{Int},
+    c :: Array{Int},
+    u :: Vector{Int};
+    check_truncation :: Bool = true
+) :: Union{GradedBinomial, Nothing}
     n = size(A, 2)
     v = zeros(Int, n)
     v[i] = 1
@@ -533,7 +536,13 @@ function lattice_generator_graded(
     degree = A * v
     pos_degree = A * v
     neg_degree = zeros(Int, length(pos_degree))
-    return GradedBinomial(v, Int[i], Int[], cost, degree, pos_degree, neg_degree)
+    generator = GradedBinomial(
+        v, Int[i], Int[], cost, degree, pos_degree, neg_degree
+    )
+    if !check_truncation || isfeasible(generator, A, b, u)
+        return generator
+    end
+    return nothing
 end
 
 function GBElements.degrees(

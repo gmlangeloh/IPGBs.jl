@@ -20,7 +20,9 @@ assuming all data is non-negative.
 """
 function truncated_generators(
     A :: Array{Int, 2},
+    b :: Vector{Int},
     C :: Array{Int, 2},
+    u :: Vector{Int},
     structure :: DataType,
     lattice_generator :: Function
 )
@@ -35,9 +37,11 @@ function truncated_generators(
     end
     coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
     for i in 1:n
-        e = lattice_generator(i, A, C)
-        s = Signature(i, coef)
-        push!(generators, SigPoly{structure}(e, s))
+        e = lattice_generator(i, A, b, C, u)
+        if !isnothing(e)
+            s = Signature(i, coef)
+            push!(generators, SigPoly{structure}(e, s))
+        end
     end
     return generators
 end
@@ -200,15 +204,21 @@ function siggb(
         minimization = true
         lattice_generator = lattice_generator_binomial
         generators = truncated_generators(
-            A, C, structure, lattice_generator_binomial
+            A, b, C, u, structure, lattice_generator_binomial
         )
+        for gen in generators
+            @show gen
+        end
         A, b, C, u = GBTools.normalize(A, b, C, u)
     else
         minimization = false
         generators = truncated_generators(
-            A, C, structure, lattice_generator_graded
+            A, b, C, u, structure, lattice_generator_graded
         )
     end
+    #Remove generators which aren't necessary due to truncation
+    #TODO find out where do the signatures come from
+    #generators = Base.filter(g -> isfeasible(g, A, b, u), generators)
     #We can check the comparisons between signatures
     #for i in 1:length(generators)
     #    for j in 1:(i-1)
