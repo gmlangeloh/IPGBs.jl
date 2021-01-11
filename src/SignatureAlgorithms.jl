@@ -23,24 +23,25 @@ function truncated_generators(
     b :: Vector{Int},
     C :: Array{Int, 2},
     u :: Vector{Int},
-    structure :: DataType,
+    T :: DataType,
     lattice_generator :: Function
-)
-    generators = Vector{SigPoly{structure}}()
-    n = size(A, 2)
+) :: Vector{SigPoly{T}}
+    generators = Vector{SigPoly{T}}()
     # This assumes binary constraints
-    # TODO generalize this
-    if structure == Binomial
-        num_vars = 2 * n + size(A, 1) #orig variables, slacks and binary slacks
+    if T == Binomial
+        num_gens = size(A, 2) - size(A, 1)
     else
-        num_vars = n
+        num_gens = size(A, 2)
     end
+    num_vars = size(A, 2)
     coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
-    for i in 1:n
+    j = 1
+    for i in 1:num_gens
         e = lattice_generator(i, A, b, C, u)
         if !isnothing(e)
-            s = Signature(i, coef)
-            push!(generators, SigPoly{structure}(e, s))
+            s = Signature(j, coef)
+            push!(generators, SigPoly{T}(e, s))
+            j += 1
         end
     end
     return generators
@@ -190,6 +191,24 @@ function signature_algorithm(
     return output_basis
 end
 
+function initial_gb(
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    C :: Array{Int, 2},
+    u :: Vector{Int};
+    T :: DataType = Binomial,
+) :: Vector{SigPoly{T}}
+    if T == Binomial
+        lattice_generator = lattice_generator_binomial
+    else
+        lattice_generator = lattice_generator_graded
+    end
+    generators = truncated_generators(
+        A, b, C, u, T, lattice_generator
+    )
+    return generators
+end
+
 function siggb(
     A :: Array{Int, 2},
     b :: Vector{Int},
@@ -199,23 +218,28 @@ function siggb(
     structure :: DataType = Binomial
 ) :: Vector{Vector{Int}}
     order = make_monomial_order(C)
-    if structure == Binomial
-        C = -C
-        minimization = true
-        lattice_generator = lattice_generator_binomial
-        generators = truncated_generators(
-            A, b, C, u, structure, lattice_generator_binomial
-        )
-        for gen in generators
-            @show gen
-        end
-        A, b, C, u = GBTools.normalize(A, b, C, u)
-    else
-        minimization = false
-        generators = truncated_generators(
-            A, b, C, u, structure, lattice_generator_graded
-        )
-    end
+    minimization = structure == Binomial
+    A, b, C, u = GBTools.normalize(
+        A, b, C, u, apply_normalization=minimization
+    )
+    generators = initial_gb(A, b, C, u, T = structure)
+    #if structure == Binomial
+    #    C = -C
+    #    minimization = true
+    #    lattice_generator = lattice_generator_binomial
+    #    generators = truncated_generators(
+    #        A, b, C, u, structure, lattice_generator_binomial
+    #    )
+    #    for gen in generators
+    #        @show gen
+    #    end
+    #    A, b, C, u = GBTools.normalize(A, b, C, u)
+    #else
+    #    minimization = false
+    #    generators = truncated_generators(
+    #        A, b, C, u, structure, lattice_generator_graded
+    #    )
+    #end
     #Remove generators which aren't necessary due to truncation
     #TODO find out where do the signatures come from
     #generators = Base.filter(g -> isfeasible(g, A, b, u), generators)
@@ -229,7 +253,7 @@ function siggb(
     #    end
     #end
     sig_ordering = ModuleMonomialOrdering(C, module_order, generators)
-    #TODO eventtually I should pass the minimization parameter along
+    #TODO eventually I should pass the minimization parameter along
     return signature_algorithm(
         generators, order, sig_ordering, A, b, u, structure
     )

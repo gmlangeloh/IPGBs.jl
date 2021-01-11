@@ -219,6 +219,7 @@ function image_leading_term(
     s :: Signature,
     generators :: Vector{SigPoly{T}}
 ) :: Vector{Int} where {T <: GBElement}
+    #TODO the problem is that some elements are removed
     @assert s.index <= length(generators)
     gen = generators[s.index].polynomial
     @assert length(s.monomial) == length(gen)
