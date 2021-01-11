@@ -5,8 +5,7 @@ of Buchberger's algorithm and Signature-based algorithms.
 TODO make GBElements a consistent interface
 """
 module GBElements
-export GBElement, regular_reducible, degree_reducible, filter, lt_tiebreaker,
-    isfeasible, is_zero, leading_term, head
+export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible
 
 using IPGBs.FastBitSets
 
@@ -26,6 +25,9 @@ abstract type GBElement <: AbstractVector{Int} end
 #
 # Soft contract: concrete GBElements may reimplement these if necessary
 #
+
+has_signature(g :: AbstractVector{Int}) = false
+has_signature(g :: GBElement) = false
 
 """
 Computes the leading term of this GBElement as a vector.
@@ -133,20 +135,9 @@ function degree_reducible(
     return true
 end
 
-
-"""
-Returns true iff `reducer` is regular wrt `g`, that is, sig(reducer) < sig(g).
-This is used when checking for regular reductions in a signature-based
-algorithm. For a non-signature-based algorithm, and thus a generic GBElement,
-this is always true.
-"""
-function regular_reducible(
-    reducer :: T,
-    g :: T,
-    gb :: S
-) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
-    return true
-end
+#For generic GBElements which don't has_signature(g), these are preset.
+signature_reducible(g :: GBElement, reducer_sig, gb) = true
+singular_top_reducible(g :: GBElement, reducer_sig) = false
 
 #
 # Additional GBElement logic
@@ -232,7 +223,8 @@ function reduces(
     reducer :: T,
     gb :: S;
     fullfilter :: Bool = true,
-    negative :: Bool = false
+    negative :: Bool = false,
+    params :: Dict = Dict()
 ) :: Bool where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     sign :: Int = negative ? -1 : 1
     if fullfilter
@@ -244,6 +236,9 @@ function reduces(
             end
         end
         #Checks the truncation criterion of Thomas and Weismantel
+        #This is only relevant because certain variables are implicit in this
+        #representation and so this check is necessary to guarantee these variables
+        #are compatible for division
         if !degree_reducible(reducer, g, negative=negative)
             return false
         end
@@ -254,15 +249,42 @@ function reduces(
             end
         end
     end
-    #This is used in signature-based algorithms. Non-signature algorithms
-    #simply return true here
-    if !regular_reducible(reducer, g, gb)
-        println("Singular reducer found")
-        @show reducer reducer.signature
-        @show g g.signature
-        return false
+    #This is used in signature-based algorithms. Non-signature algorithms just
+    #skip this part
+    if has_signature(g)
+        #1. Compute the reduction factor, for efficiency. It will be used in all
+        #of the following tests
+        quotient = monomial_quotient(g, reducer)
+        reducer_sig = quotient * reducer.signature
+        #2. Check if singular. If so, we need to stop looking for reducers
+        if singular_top_reducible(g, reducer_sig)
+            #We set this to true to signal the support tree to stop looking for
+            #reducers
+            params["is_singular"] = true
+            return true #This stops the search. The current reducer won't matter
+        end
+        #3. Check if signature-reducible. This means reducer_sig < sig(g)
+        if !signature_reducible(g, reducer_sig, gb)
+            #In this case, we cannot s-reduce g by reducer, but we should keep
+            #looking for reducers of g
+            return false
+        end
     end
     return true
+end
+
+function monomial_quotient(
+    binomial :: T,
+    reducer :: T
+) :: Vector{Int} where {T <: GBElement}
+    n = length(reducer)
+    quotient = zeros(Int, n)
+    for i in head(binomial)
+        quotient[i] = binomial[i] - reducer[i]
+        #We do assume that reducer divides binomial
+        @assert quotient[i] >= 0
+    end
+    return quotient
 end
 
 """

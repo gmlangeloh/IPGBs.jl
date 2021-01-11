@@ -1,6 +1,10 @@
 """
 Implementation of the basic signature-polynomial pairs structures.
 
+TODO this whole module would probably be cleaner if it was separated in
+multiple modules. One defining signatures, another defining module monomial
+orders, another defining SigPolys and so on.
+
 TODO implement a getfilter method for SigPolys
 """
 module SignaturePolynomials
@@ -84,6 +88,8 @@ struct SigPoly{T <: GBElement} <: GBElement
     polynomial :: T
     signature :: Signature
 end
+
+has_signature(g :: SigPoly{T}) where {T <: GBElement} = true
 
 function Base.show(
     io :: IO,
@@ -219,7 +225,6 @@ function image_leading_term(
     s :: Signature,
     generators :: Vector{SigPoly{T}}
 ) :: Vector{Int} where {T <: GBElement}
-    #TODO the problem is that some elements are removed
     @assert s.index <= length(generators)
     gen = generators[s.index].polynomial
     @assert length(s.monomial) == length(gen)
@@ -320,45 +325,30 @@ end
 #
 
 GBElements.is_zero(g :: SigPoly{GBElement}) = GBElements.is_zero(g.polynomial)
+GBElements.head(g :: SigPoly{GBElement}) = head(g.polynomial)
 
 """
-Checks whether a * reducer.signature < g.signature wrt a given module monomial
-order, where a is a monomial such that a * lt(reducer) == lt(g).
-
-TODO I still need to pass on the fact that the thing is singular s-reducible
-which will happen in the SupportTree somehow...
+Checks whether g is singular top-reducible by some reducer with signature
+reducer_sig. Assumes this reducer divides g.
 """
-function GBElements.regular_reducible(
-    reducer :: SigPoly{T},
+function GBElements.singular_top_reducible(
     g :: SigPoly{T},
+    reducer_sig :: Signature
+) :: Bool where {T <: GBElement}
+    return isequal(g.signature, reducer_sig)
+end
+
+"""
+Checks whether g is signature reducible by a reducer with reducer_sig. This means
+the reducer (after multiplying by a lt quotient) has lower signature than g wrt
+the module monomial ordering.
+"""
+function GBElements.signature_reducible(
+    g :: SigPoly{T},
+    reducer_sig :: Signature,
     gb :: SigBasis{T}
 ) :: Bool where {T <: GBElement}
-    #Compute the multiplication factor
-    n = length(reducer)
-    factor = zeros(Int, n)
-    for i in head(g.polynomial)
-        factor[i] = g[i] - reducer[i]
-        @assert factor[i] >= 0
-    end
-
-    @show factor * reducer.signature
-    @show g.signature
-
-    #DEBUGGING
-    bugged = [
-        [-1, 1, 0, 0, 0, 0],
-        [1, 0, 0, -1, 1, 0],
-        [0, -1, 1, 0, 1, -1]
-    ]
-    if g.polynomial.element in bugged
-        println("bug case?")
-        @show reducer reducer.signature
-        @show g.signature
-        @show factor * reducer.signature
-    end
-
-    return Base.lt(gb.module_ordering, factor * reducer.signature,
-                   g.signature)
+    return Base.lt(gb.module_ordering, reducer_sig, g.signature)
 end
 
 """

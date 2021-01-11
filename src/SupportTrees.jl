@@ -173,7 +173,8 @@ function find_reducer(
     gb :: S,
     tree :: SupportTree{T};
     skipbinomial :: Union{T, Nothing} = nothing,
-    negative :: Bool = false
+    negative :: Bool = false,
+    params :: Dict = Dict()
 ) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     return find_reducer(
         g, gb, tree.root, fullfilter=tree.fullfilter, skipbinomial=skipbinomial,
@@ -198,14 +199,15 @@ function find_reducer(
     node :: SupportNode{T};
     fullfilter :: Bool = false,
     skipbinomial :: Union{T, Nothing} = nothing,
-    negative :: Bool = false
+    negative :: Bool = false,
+    params :: Dict = Dict()
 ) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     for (i, child) in node.children
         if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
             #Look for reducer recursively in the children of this node
             reducer = find_reducer(
                 g, gb, child, fullfilter=fullfilter, skipbinomial=skipbinomial,
-                negative=negative
+                negative=negative, params=params
             )
             if !isnothing(reducer) #Found a reducer, return it
                 return reducer
@@ -222,8 +224,9 @@ function find_reducer(
             continue
         end
         if GBElements.reduces(
-            g, node.filter, reducer, gb, fullfilter=fullfilter,
-            negative=negative)
+            g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
+            params=params
+        )
             return reducer
         end
     end
@@ -232,7 +235,7 @@ end
 
 """
 Fully reduce `binomial` by `gb` in-place, finding its normal form. Uses `tree`
-to speed up the search for reducers.
+to speed up the search for reducers. Returns true iff `binomial` reduces to zero.
 
 `binomial` can also be a monomial.
 
@@ -248,10 +251,21 @@ function reduce!(
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing
 ) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
-    reducer = find_reducer(binomial, gb, tree, skipbinomial=skipbinomial)
-    reduced_to_zero = false
-    while !isnothing(reducer)
-        reduced_to_zero = GBElements.reduce!(binomial, reducer)
+    params = Dict()
+    while true
+        reducer = find_reducer(
+            binomial, gb, tree, skipbinomial=skipbinomial, params=params
+        )
+        #binomial has a singular signature, so it reduces to zero
+        #We can ignore the reducer and just say `binomial` reduces to zero
+        if haskey(params, "is_singular") && params["is_singular"]
+            return true
+        end
+        #No reducer found, terminate search
+        if isnothing(reducer)
+            return false
+        end
+        #Found some reducer, add it to histogram if one is available
         if !isnothing(reduction_count)
             for i in 1:length(gb)
                 if gb[i] === reducer
@@ -260,12 +274,14 @@ function reduce!(
                 end
             end
         end
+        #Now apply the reduction and check if it is a zero reduction
+        reduced_to_zero = GBElements.reduce!(binomial, reducer)
         if reduced_to_zero
-            break
+            return true
         end
-        reducer = find_reducer(binomial, gb, tree, skipbinomial=skipbinomial)
     end
-    return reduced_to_zero
+    @assert false #We should never reach this
+    return false
 end
 
 end
