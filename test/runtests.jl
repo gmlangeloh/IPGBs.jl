@@ -14,6 +14,15 @@ include("./test_functions.jl")
         end
     end
 
+    for s in [ Binomial ] #, GradedBinomial ]
+        for n in [5, 10, 15, 20]
+            println("Signature test for ", s, " structure, n = ", n)
+            gb, fourti2gb, bgb = test_siggb(n, structure=s)
+            @test IPGBs.GBTools.isincluded(bgb, gb)
+            println()
+        end
+    end
+
     #Tests for the signature-based algorithms: compare to Buchberger
     #for s in [ Binomial, GradedBinomial ]
     #    for n in [5, 10, 15, 20, 25]

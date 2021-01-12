@@ -7,6 +7,7 @@ export siggb
 
 using DataStructures
 
+using IPGBs.Buchberger
 using IPGBs.GBElements
 using IPGBs.GBTools
 using IPGBs.Binomials
@@ -119,10 +120,19 @@ Returns true iff this spair is eliminated by some criterion.
 """
 function post_criteria(
     spair :: SPair,
-    syzygies :: Vector{Signature}
-) :: Bool
-    #TODO add other criteria as necessary
-    return signature_criterion(spair, syzygies)
+    gb :: SigBasis{T},
+    syzygies :: Vector{Signature},
+    minimization :: Bool
+) :: Bool where {T <: GBElement}
+    if signature_criterion(spair, syzygies)
+        return true
+    end
+    if Buchberger.is_support_reducible( #GCD criterion
+        spair.i, spair.j, gb.positive_supports, gb.negative_supports, minimization
+    )
+        return true
+    end
+    return false
 end
 
 function signature_algorithm(
@@ -132,9 +142,9 @@ function signature_algorithm(
     A :: Array{Int, 2},
     b :: Vector{Int},
     u :: Vector{Int},
-    structure :: DataType
+    structure :: DataType,
+    minimization :: Bool
 ) :: Vector{Vector{Int}} where {T <: GBElement}
-    println("STARTING")
     reducer = support_tree(generators, fullfilter=(structure == GradedBinomial))
     gb = SigBasis(copy(generators), module_ordering, reducer)
     spairs = make_priority_queue(gb, module_ordering)
@@ -143,51 +153,37 @@ function signature_algorithm(
     #Koszul syzygies initially.
     reduction_count = 0
     previous_sig = nothing
-    while !isempty(spairs) && reduction_count <= 10
+    while !isempty(spairs)
         sp = pop!(spairs)
         #Process each signature only once
         if !isnothing(previous_sig) && isequal(previous_sig, sp.signature)
             continue
         end
         previous_sig = sp.signature
-        if post_criteria(sp, syzygies)
-            #eliminated = build_spair(sp, gb)
-            #@show eliminated
+        if post_criteria(sp, gb, syzygies, minimization)
             continue
         end
         p = build_spair(sp, gb)
-        if !isfeasible(p.polynomial, A, b, u)
+        if !isfeasible(p, A, b, u)
             continue
         end
-        println("before")
-        @show length(gb)
-        @show sp.i sp.j
-        @show p p.signature
         reduced_to_zero = SupportTrees.reduce!(p, gb, gb.reduction_tree)
         reduction_count += 1
-        println("after")
-        @show p p.signature
         if reduced_to_zero
-            println("new syzygy")
-            @show p.signature
             push!(syzygies, p.signature)
         else
             push!(gb, p)
-            #println("new basis")
             update_queue!(spairs, gb)
         end
     end
-    for i in 1:length(gb)
-        g = gb[i]
-        println(i, " ", g.polynomial, " ", g.signature)
-    end
     #Return the representation of each element as an integer vector
-    @show reduction_count
     if structure == Binomial
         output_basis = projection.(gb)
     else
         output_basis = [ -GradedBinomials.fullform(g.polynomial) for g in gb ]
     end
+    @show reduction_count
+    @show length(syzygies)
     return output_basis
 end
 
@@ -223,39 +219,10 @@ function siggb(
         A, b, C, u, apply_normalization=minimization
     )
     generators = initial_gb(A, b, C, u, T = structure)
-    #if structure == Binomial
-    #    C = -C
-    #    minimization = true
-    #    lattice_generator = lattice_generator_binomial
-    #    generators = truncated_generators(
-    #        A, b, C, u, structure, lattice_generator_binomial
-    #    )
-    #    for gen in generators
-    #        @show gen
-    #    end
-    #    A, b, C, u = GBTools.normalize(A, b, C, u)
-    #else
-    #    minimization = false
-    #    generators = truncated_generators(
-    #        A, b, C, u, structure, lattice_generator_graded
-    #    )
-    #end
-    #Remove generators which aren't necessary due to truncation
-    #TODO find out where do the signatures come from
-    #generators = Base.filter(g -> isfeasible(g, A, b, u), generators)
-    #We can check the comparisons between signatures
-    #for i in 1:length(generators)
-    #    for j in 1:(i-1)
-    #        si = generators[i].signature
-    #        sj = generators[j].signature
-    #        r = SignaturePolynomials.ltpot_lt(si, sj, order, generators)
-    #        println(i, " < ", j, " = ", r)
-    #    end
-    #end
     sig_ordering = ModuleMonomialOrdering(C, module_order, generators)
     #TODO eventually I should pass the minimization parameter along
     return signature_algorithm(
-        generators, order, sig_ordering, A, b, u, structure
+        generators, order, sig_ordering, A, b, u, structure, minimization
     )
 end
 

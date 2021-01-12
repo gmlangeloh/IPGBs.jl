@@ -4,14 +4,15 @@ Implementation of the basic signature-polynomial pairs structures.
 TODO this whole module would probably be cleaner if it was separated in
 multiple modules. One defining signatures, another defining module monomial
 orders, another defining SigPolys and so on.
-
-TODO implement a getfilter method for SigPolys
 """
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering, SPair,
     ModuleMonomialOrder, regular_spair, build_spair, projection, is_zero,
     divides
 
+using IPGBs.Buchberger #TODO This should be factored out
+#I shouldn't have to import Buchberger, what I need could be somewhere else
+using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
@@ -282,6 +283,16 @@ struct SigBasis{T <: GBElement} <: AbstractVector{SigPoly{T}}
     basis :: Vector{SigPoly{T}}
     module_ordering :: ModuleMonomialOrdering
     reduction_tree :: SupportTree{SigPoly{T}}
+    #We store the supports here instead of on the elements themselves to avoid
+    #having to compute them unnecessarily or having to compute them after creating
+    #elements and then updating these elements.
+    positive_supports :: Vector{FastBitSet}
+    negative_supports :: Vector{FastBitSet}
+
+    function SigBasis(basis :: Vector{SigPoly{T}}, ordering, tree) where {T}
+        pos_supps, neg_supps = Buchberger.supports(basis)
+        new{T}(basis, ordering, tree, pos_supps, neg_supps)
+    end
 end
 
 function Base.size(
@@ -317,6 +328,9 @@ function Base.push!(
 ) where {T <: GBElement}
     push!(gb.basis, g)
     push!(gb.module_ordering.generators, g)
+    p, n = GBElements.supports(g)
+    push!(gb.positive_supports, p)
+    push!(gb.negative_supports, n)
     addbinomial!(gb.reduction_tree, gb[length(gb)])
 end
 
@@ -326,6 +340,7 @@ end
 
 GBElements.is_zero(g :: SigPoly{GBElement}) = GBElements.is_zero(g.polynomial)
 GBElements.head(g :: SigPoly{GBElement}) = head(g.polynomial)
+GBElements.supports(g :: SigPoly{GBElement}) = GBElements.supports(g.polynomial)
 
 """
 Checks whether g is singular top-reducible by some reducer with signature

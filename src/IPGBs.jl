@@ -1,3 +1,5 @@
+#TODO re-export the relevant functions: the 4ti2 interface and my GB
+#implementations
 module IPGBs
 
 include("./FastBitSets.jl")
@@ -6,10 +8,10 @@ include("./Binomials.jl")
 include("./GradedBinomials.jl")
 include("./SupportTrees.jl")
 include("./GBTools.jl")
+
+include("./Buchberger.jl")
 include("./SignaturePolynomials.jl")
 
-#The modules defining the main user interface
-include("./Buchberger.jl")
 include("./FourTi2.jl")
 include("./SignatureAlgorithms.jl")
 

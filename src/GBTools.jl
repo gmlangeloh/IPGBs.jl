@@ -1,5 +1,3 @@
-#TODO include more conversion functions from my formats to 4ti2 formats
-#This will help automate all the tests I need
 module GBTools
 
 using LinearAlgebra: I

@@ -129,7 +129,7 @@ For this explicit representation, we can always return true.
 """
 function degree_reducible(
     g :: T,
-    h :: T,
+    h :: T;
     negative :: Bool = false
 ) :: Bool where {T <: GBElement}
     return true
