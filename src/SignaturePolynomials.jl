@@ -8,7 +8,7 @@ orders, another defining SigPolys and so on.
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering, SPair,
     ModuleMonomialOrder, regular_spair, build_spair, projection, is_zero,
-    divides
+    divides, koszul
 
 using IPGBs.Buchberger #TODO This should be factored out
 #I shouldn't have to import Buchberger, what I need could be somewhere else
@@ -456,6 +456,27 @@ function regular_spair(
         sig = i_sig
     end
     return SPair(i, j, sig)
+end
+
+"""
+Returns the Koszul signature of the pair of gb indexed by (i, j).
+"""
+function koszul(
+    i :: Int,
+    j :: Int,
+    gb :: SigBasis{T}
+) :: Signature where {T <: GBElement}
+    i_sig = leading_term(gb[j]) * gb[i].signature
+    j_sig = leading_term(gb[i]) * gb[j].signature
+    #The Koszul signature is the largest between i_sig and j_sig
+    i_sig_smaller = signature_lt(
+        i_sig, j_sig, gb.module_ordering.monomial_order, gb.basis,
+        gb.module_ordering.module_order
+    )
+    if i_sig_smaller
+        return j_sig
+    end
+    return i_sig
 end
 
 end

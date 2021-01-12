@@ -107,8 +107,6 @@ function signature_criterion(
 ) :: Bool
     for syz in syzygies
         if divides(syz, spair.signature)
-            #println("Eliminating by sig criterion")
-            #@show spair.i spair.j spair.signature syz
             return true
         end
     end
@@ -118,7 +116,7 @@ end
 """
 Returns true iff this spair is eliminated by some criterion.
 """
-function post_criteria(
+function late_criteria(
     spair :: SPair,
     gb :: SigBasis{T},
     syzygies :: Vector{Signature},
@@ -135,6 +133,35 @@ function post_criteria(
     return false
 end
 
+"""
+Creates a list of all Koszul syzygies of gb.
+"""
+function initial_syzygies(
+    gb :: SigBasis{T}
+) :: Vector{Signature} where {T <: GBElement}
+    syzygies = Vector{Signature}()
+    for i in 1:length(gb)
+        for j in 1:(i-1)
+            push!(syzygies, koszul(i, j, gb))
+        end
+    end
+    return syzygies
+end
+
+"""
+Adds the Koszul syzygies corresponding to the newest element of gb to the
+syzygy list.
+"""
+function update_syzygies!(
+    syzygies :: Vector{Signature},
+    gb :: SigBasis{T}
+) where {T <: GBElement}
+    n = length(gb)
+    for i in 1:(n-1)
+        push!(syzygies, koszul(i, n, gb))
+    end
+end
+
 function signature_algorithm(
     generators :: Vector{SigPoly{T}},
     order :: Array{Int, 2},
@@ -148,9 +175,7 @@ function signature_algorithm(
     reducer = support_tree(generators, fullfilter=(structure == GradedBinomial))
     gb = SigBasis(copy(generators), module_ordering, reducer)
     spairs = make_priority_queue(gb, module_ordering)
-    syzygies = Vector{Signature}() #TODO maybe this should be some other
-    #structure instead of a vector... Also, maybe I should generate the
-    #Koszul syzygies initially.
+    syzygies = initial_syzygies(gb)
     reduction_count = 0
     previous_sig = nothing
     while !isempty(spairs)
@@ -160,7 +185,7 @@ function signature_algorithm(
             continue
         end
         previous_sig = sp.signature
-        if post_criteria(sp, gb, syzygies, minimization)
+        if late_criteria(sp, gb, syzygies, minimization)
             continue
         end
         p = build_spair(sp, gb)
@@ -174,6 +199,7 @@ function signature_algorithm(
         else
             push!(gb, p)
             update_queue!(spairs, gb)
+            update_syzygies!(syzygies, gb)
         end
     end
     #Return the representation of each element as an integer vector
@@ -220,7 +246,6 @@ function siggb(
     )
     generators = initial_gb(A, b, C, u, T = structure)
     sig_ordering = ModuleMonomialOrdering(C, module_order, generators)
-    #TODO eventually I should pass the minimization parameter along
     return signature_algorithm(
         generators, order, sig_ordering, A, b, u, structure, minimization
     )
