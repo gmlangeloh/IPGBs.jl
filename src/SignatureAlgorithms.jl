@@ -177,6 +177,7 @@ function signature_algorithm(
     spairs = make_priority_queue(gb, module_ordering)
     syzygies = initial_syzygies(gb)
     reduction_count = 0
+    zero_reductions = 0
     previous_sig = nothing
     while !isempty(spairs)
         sp = pop!(spairs)
@@ -196,6 +197,7 @@ function signature_algorithm(
         reduction_count += 1
         if reduced_to_zero
             push!(syzygies, p.signature)
+            zero_reductions += 1
         else
             push!(gb, p)
             update_queue!(spairs, gb)
@@ -208,7 +210,7 @@ function signature_algorithm(
     else
         output_basis = [ -GradedBinomials.fullform(g.polynomial) for g in gb ]
     end
-    @show reduction_count
+    @show reduction_count zero_reductions
     @show length(syzygies)
     return output_basis
 end
