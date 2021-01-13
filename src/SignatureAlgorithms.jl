@@ -173,8 +173,8 @@ function signature_algorithm(
     structure :: DataType,
     minimization :: Bool
 ) :: Vector{Vector{Int}} where {T <: GBElement}
-    reducer = support_tree(generators, fullfilter=(structure == GradedBinomial))
-    gb = SigBasis(copy(generators), module_ordering, reducer)
+    #reducer = support_tree(generators, fullfilter=(structure == GradedBinomial))
+    gb :: SigBasis{T} = BinomialSet(generators, module_ordering)
     spairs = make_priority_queue(gb)
     syzygies = initial_syzygies(gb)
     reduction_count = 0
@@ -194,7 +194,7 @@ function signature_algorithm(
         if !isfeasible(p, A, b, u)
             continue
         end
-        reduced_to_zero = SupportTrees.reduce!(p, gb, gb.reduction_tree)
+        reduced_to_zero = SupportTrees.reduce!(p, gb, reduction_tree(gb))
         reduction_count += 1
         if reduced_to_zero
             push!(syzygies, p.signature)

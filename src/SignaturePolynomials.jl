@@ -449,8 +449,7 @@ function regular_spair(
     if i_sig == j_sig #S-pair is singular, eliminate
         return nothing
     end #otherwise s-pair is regular, generate it
-    sig_lt = signature_lt(i_sig, j_sig, gb.module_ordering.monomial_order,
-                          gb.basis, gb.module_ordering.module_order)
+    sig_lt = Base.lt(order(gb), i_sig, j_sig)
     if sig_lt
         sig = j_sig
     else

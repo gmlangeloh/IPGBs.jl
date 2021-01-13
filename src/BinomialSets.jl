@@ -1,9 +1,10 @@
 module BinomialSets
 
-export GBOrder, BinomialSet, order, binomials, is_support_reducible
+export GBOrder, BinomialSet, order, binomials, reduction_tree, is_support_reducible
 
 using IPGBs.FastBitSets
 using IPGBs.GBElements
+using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 
 """
@@ -36,21 +37,17 @@ struct BinomialSet{T <: GBElement, S <: GBOrder} <: AbstractVector{T}
     order :: S
     reduction_tree :: SupportTree{T}
 
-    #TODO not sure I'll ever need these
-    matrix :: Array{Int, 2} #The data defining this toric ideal, matrix * x <= rhs
-    rhs :: Vector{Int}
-
     #We store the supports here instead of on the elements themselves to avoid
     #having to compute them unnecessarily or having to compute them after creating
     #elements and then updating these elements.
     positive_supports :: Vector{FastBitSet}
     negative_supports :: Vector{FastBitSet}
-    function BinomialSet(basis :: Vector{T}, order :: S, tree, matrix, rhs)
-        #TODO should I also build the tree here? Probably
+    function BinomialSet(basis :: Vector{T}, order :: S) where {T, S}
         #TODO also try to build the order
+        tree = support_tree(basis, fullfilter=(T == GradedBinomial))
         pos_supps, neg_supps = supports(basis)
         new{T, S}(
-            basis, order, tree, matrix, rhs, positive_supports, negative_supports
+            basis, order, tree, pos_supps, neg_supps
         )
     end
 end
@@ -61,6 +58,7 @@ end
 
 binomials(bs :: BinomialSet) = bs.basis
 order(bs :: BinomialSet) = bs.order
+reduction_tree(bs :: BinomialSet) = bs.reduction_tree
 #TODO Do I even need to access the others externally?
 
 #
