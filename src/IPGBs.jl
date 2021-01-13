@@ -4,9 +4,10 @@ module IPGBs
 
 include("./FastBitSets.jl")
 include("./GBElements.jl")
+include("./SupportTrees.jl")
+include("./BinomialSets.jl")
 include("./Binomials.jl")
 include("./GradedBinomials.jl")
-include("./SupportTrees.jl")
 include("./GBTools.jl")
 
 include("./Buchberger.jl")

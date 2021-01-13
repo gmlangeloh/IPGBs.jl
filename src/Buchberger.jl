@@ -119,6 +119,7 @@ function is_support_reducible(
         !disjoint(positive_supports[i], positive_supports[j])
 end
 
+#TODO delete this when BinomialSets.jl is integrated here
 function supports(
     B :: Vector{T}
 ) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}} where {T <: GBElement}
