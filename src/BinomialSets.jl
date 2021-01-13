@@ -1,6 +1,7 @@
 module BinomialSets
 
-export GBOrder, BinomialSet, order, binomials, reduction_tree, is_support_reducible
+export GBOrder, BinomialSet, MonomialOrder, order, binomials, reduction_tree,
+    is_support_reducible, fourti2_form
 
 using IPGBs.FastBitSets
 using IPGBs.GBElements
@@ -13,6 +14,8 @@ ModuleMonomialOrder in case of Signature-based algorithms.
 """
 abstract type GBOrder <: Base.Ordering end
 
+#TODO for now this is useless. It should probably do SOMETHING
+#Like tiebreaking and helping orientate elements
 struct MonomialOrder <: GBOrder
     cost_matrix :: Array{Int, 2}
     #Probably should carry a tiebreaker around too
@@ -36,18 +39,20 @@ struct BinomialSet{T <: GBElement, S <: GBOrder} <: AbstractVector{T}
     basis :: Vector{T}
     order :: S
     reduction_tree :: SupportTree{T}
+    minimization_form :: Bool #TODO maybe this should be part of the order?
 
     #We store the supports here instead of on the elements themselves to avoid
     #having to compute them unnecessarily or having to compute them after creating
     #elements and then updating these elements.
     positive_supports :: Vector{FastBitSet}
     negative_supports :: Vector{FastBitSet}
-    function BinomialSet(basis :: Vector{T}, order :: S) where {T, S}
+
+    function BinomialSet(basis :: Vector{T}, order :: S, min = true) where {T, S}
         #TODO also try to build the order
         tree = support_tree(basis, fullfilter=(T == GradedBinomial))
         pos_supps, neg_supps = supports(basis)
         new{T, S}(
-            basis, order, tree, pos_supps, neg_supps
+            basis, order, tree, min, pos_supps, neg_supps
         )
     end
 end
@@ -59,7 +64,7 @@ end
 binomials(bs :: BinomialSet) = bs.basis
 order(bs :: BinomialSet) = bs.order
 reduction_tree(bs :: BinomialSet) = bs.reduction_tree
-#TODO Do I even need to access the others externally?
+is_minimization(bs :: BinomialSet) = bs.minimization_form
 
 #
 # Implementing the AbstractVector interface
@@ -89,11 +94,6 @@ function Base.push!(
     g :: T
 ) where {T <: GBElement, S <: GBOrder}
     push!(bs.basis, g)
-    #TODO update this! Not really compatible with a SigBasis yet
-    #The monomial orders should have a trait has_generators or something
-    #Although the array in there should be just a reference to the one I update
-    #I tested this in the REPL, and I think it works
-    #push!(gb.order.generators, g)
     addbinomial!(bs.reduction_tree, bs[length(bs)])
     p, n = GBElements.supports(g)
     push!(bs.positive_supports, p)
@@ -115,10 +115,9 @@ BTW, this name is terrible. It should make clear that this is the gcd criterion
 function is_support_reducible(
     i :: Int,
     j :: Int,
-    bs :: BinomialSet{T, S},
-    minimization :: Bool #Maybe this one should be part of the BinomialSet struct
+    bs :: BinomialSet{T, S}
 ) :: Bool where {T <: GBElement, S <: GBOrder}
-    if minimization
+    if is_minimization(bs)
         return !disjoint(bs.negative_supports[i], bs.negative_supports[j]) ||
             disjoint(bs.positive_supports[i], bs.positive_supports[j])
     end
@@ -139,6 +138,16 @@ function is_groebner_basis(
     #TODO implement something to generate S-pairs and do the Buchberger check
 
     return false
+end
+
+"""
+Returns the binomials of `bs` as integer vectors in minimization form.
+"""
+function fourti2_form(
+    bs :: BinomialSet{T, S}
+) :: Vector{Vector{Int}} where {T <: GBElement, S <: GBOrder}
+    sign = is_minimization(bs) ? 1 : -1
+    return [ sign * fullform(g) for g in bs ]
 end
 
 end

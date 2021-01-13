@@ -6,7 +6,7 @@ TODO there are multiple implementations of sparse subtraction of GradedBinomials
 here. I should probably check whether I need them all
 """
 module GradedBinomials
-export GradedBinomial, lattice_generator_graded, fourti2_form, supports
+export GradedBinomial, lattice_generator_graded, fourti2_form
 
 using StaticArrays
 using IPGBs.FastBitSets
@@ -126,7 +126,7 @@ Given g = v+ - v-, returns the full form of g including slack variables.
 This is given by:
 x^(v+) s^((Av)-) r^(v-)   -   x^(v-) s^((Av)+) r^(v+)
 """
-function fullform(
+function GBElements.fullform(
     g :: GradedBinomial
 ) :: Vector{Int}
     vp, vm = decomposition(g)

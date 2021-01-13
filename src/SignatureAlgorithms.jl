@@ -119,14 +119,13 @@ Returns true iff this spair is eliminated by some criterion.
 function late_criteria(
     spair :: SPair,
     gb :: SigBasis{T},
-    syzygies :: Vector{Signature},
-    minimization :: Bool
+    syzygies :: Vector{Signature}
 ) :: Bool where {T <: GBElement}
     if signature_criterion(spair, syzygies)
         return true
     end
     #GCD criterion
-    if is_support_reducible(spair.i, spair.j, gb, minimization)
+    if is_support_reducible(spair.i, spair.j, gb)
         return true
     end
     return false
@@ -161,8 +160,6 @@ function update_syzygies!(
     end
 end
 
-#TODO need to update the SigBasis stuff from here onwards, the rest is done
-
 function signature_algorithm(
     generators :: Vector{SigPoly{T}},
     order :: Array{Int, 2},
@@ -187,7 +184,7 @@ function signature_algorithm(
             continue
         end
         previous_sig = sp.signature
-        if late_criteria(sp, gb, syzygies, minimization)
+        if late_criteria(sp, gb, syzygies)
             continue
         end
         p = build_spair(sp, gb)
@@ -206,11 +203,7 @@ function signature_algorithm(
         end
     end
     #Return the representation of each element as an integer vector
-    if structure == Binomial
-        output_basis = projection.(gb)
-    else
-        output_basis = [ -GradedBinomials.fullform(g.polynomial) for g in gb ]
-    end
+    output_basis = BinomialSets.fourti2_form(gb)
     @show reduction_count zero_reductions
     @show length(syzygies)
     return output_basis
