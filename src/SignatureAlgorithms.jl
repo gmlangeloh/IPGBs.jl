@@ -7,7 +7,7 @@ export siggb
 
 using DataStructures
 
-using IPGBs.Buchberger
+using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.GBTools
 using IPGBs.Binomials
@@ -68,11 +68,10 @@ end
 Create priority queue and add all regular S-pairs built from generators to it.
 """
 function make_priority_queue(
-    generators :: SigBasis{T},
-    module_ordering :: ModuleMonomialOrdering
+    generators :: SigBasis{T}
 ) where {T <: GBElement}
     #TODO type this, BinaryHeap...
-    heap = BinaryHeap{SPair}(module_ordering, [])
+    heap = BinaryHeap{SPair}(order(generators), [])
     for i in 1:length(generators)
         for j in 1:(i-1)
             sp = regular_spair(i, j, generators)
@@ -91,6 +90,7 @@ function update_queue!(
     n = length(gb)
     for i in 1:(n-1)
         sp = regular_spair(i, n, gb)
+        #TODO have preliminary elimination criteria applied here!
         if !isnothing(sp)
             push!(spairs, sp)
         end
@@ -125,9 +125,8 @@ function late_criteria(
     if signature_criterion(spair, syzygies)
         return true
     end
-    if Buchberger.is_support_reducible( #GCD criterion
-        spair.i, spair.j, gb.positive_supports, gb.negative_supports, minimization
-    )
+    #GCD criterion
+    if is_support_reducible(spair.i, spair.j, gb, minimization)
         return true
     end
     return false
@@ -162,6 +161,8 @@ function update_syzygies!(
     end
 end
 
+#TODO need to update the SigBasis stuff from here onwards, the rest is done
+
 function signature_algorithm(
     generators :: Vector{SigPoly{T}},
     order :: Array{Int, 2},
@@ -174,7 +175,7 @@ function signature_algorithm(
 ) :: Vector{Vector{Int}} where {T <: GBElement}
     reducer = support_tree(generators, fullfilter=(structure == GradedBinomial))
     gb = SigBasis(copy(generators), module_ordering, reducer)
-    spairs = make_priority_queue(gb, module_ordering)
+    spairs = make_priority_queue(gb)
     syzygies = initial_syzygies(gb)
     reduction_count = 0
     zero_reductions = 0

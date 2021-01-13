@@ -10,8 +10,7 @@ export Signature, SigPoly, SigBasis, ModuleMonomialOrdering, SPair,
     ModuleMonomialOrder, regular_spair, build_spair, projection, is_zero,
     divides, koszul
 
-using IPGBs.Buchberger #TODO This should be factored out
-#I shouldn't have to import Buchberger, what I need could be somewhere else
+using IPGBs.BinomialSets
 using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Binomials
@@ -141,7 +140,7 @@ function Base.length(
     return length(g.polynomial)
 end
 
-struct ModuleMonomialOrdering{T <: GBElement} <: Base.Ordering
+struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
     monomial_order :: Array{Int, 2}
     module_order :: ModuleMonomialOrder
     #TODO I should make sure this is a reference to the same GB object that
@@ -150,10 +149,10 @@ struct ModuleMonomialOrdering{T <: GBElement} <: Base.Ordering
 end
 
 function Base.lt(
-    o :: ModuleMonomialOrdering,
+    o :: ModuleMonomialOrdering{T},
     s1 :: Signature,
     s2 :: Signature
-) :: Bool
+) :: Bool where {T <: GBElement}
     return signature_lt(s1, s2, o.monomial_order, o.generators, o.module_order)
 end
 
@@ -266,10 +265,10 @@ struct SPair
 end
 
 function Base.lt(
-    o :: ModuleMonomialOrdering,
+    o :: ModuleMonomialOrdering{T},
     s1 :: SPair,
     s2 :: SPair
-) :: Bool
+) :: Bool where {T <: GBElement}
     return signature_lt(s1.signature, s2.signature, o.monomial_order,
                         o.generators, o.module_order)
 end
@@ -279,60 +278,62 @@ end
 # reduction process. It takes the module ordering along in a convenient way.
 #
 
-struct SigBasis{T <: GBElement} <: AbstractVector{SigPoly{T}}
-    basis :: Vector{SigPoly{T}}
-    module_ordering :: ModuleMonomialOrdering
-    reduction_tree :: SupportTree{SigPoly{T}}
-    #We store the supports here instead of on the elements themselves to avoid
-    #having to compute them unnecessarily or having to compute them after creating
-    #elements and then updating these elements.
-    positive_supports :: Vector{FastBitSet}
-    negative_supports :: Vector{FastBitSet}
+const SigBasis{T} = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}
 
-    function SigBasis(basis :: Vector{SigPoly{T}}, ordering, tree) where {T}
-        pos_supps, neg_supps = Buchberger.supports(basis)
-        new{T}(basis, ordering, tree, pos_supps, neg_supps)
-    end
-end
-
-function Base.size(
-    gb :: SigBasis{T}
-) :: Tuple where {T <: GBElement}
-    return size(gb.basis)
-end
-
-function Base.getindex(
-    gb :: SigBasis{T},
-    i :: Int
-) :: SigPoly{T} where {T <: GBElement}
-    return gb.basis[i]
-end
-
-function Base.setindex(
-    gb :: SigBasis{T},
-    g :: SigPoly{T},
-    i :: Int
-) where {T <: GBElement}
-    gb.basis[i] = g
-end
-
-function Base.length(
-    gb :: SigBasis{T}
-) :: Int where {T <: GBElement}
-    return length(gb.basis)
-end
-
-function Base.push!(
-    gb :: SigBasis{T},
-    g :: SigPoly{T}
-) where {T <: GBElement}
-    push!(gb.basis, g)
-    push!(gb.module_ordering.generators, g)
-    p, n = GBElements.supports(g)
-    push!(gb.positive_supports, p)
-    push!(gb.negative_supports, n)
-    addbinomial!(gb.reduction_tree, gb[length(gb)])
-end
+#struct SigBasis{T <: GBElement} <: AbstractVector{SigPoly{T}}
+#    basis :: Vector{SigPoly{T}}
+#    module_ordering :: ModuleMonomialOrdering
+#    reduction_tree :: SupportTree{SigPoly{T}}
+#    #We store the supports here instead of on the elements themselves to avoid
+#    #having to compute them unnecessarily or having to compute them after creating
+#    #elements and then updating these elements.
+#    positive_supports :: Vector{FastBitSet}
+#    negative_supports :: Vector{FastBitSet}
+#
+#    function SigBasis(basis :: Vector{SigPoly{T}}, ordering, tree) where {T}
+#        pos_supps, neg_supps = Buchberger.supports(basis)
+#        new{T}(basis, ordering, tree, pos_supps, neg_supps)
+#    end
+#end
+#
+#function Base.size(
+#    gb :: SigBasis{T}
+#) :: Tuple where {T <: GBElement}
+#    return size(gb.basis)
+#end
+#
+#function Base.getindex(
+#    gb :: SigBasis{T},
+#    i :: Int
+#) :: SigPoly{T} where {T <: GBElement}
+#    return gb.basis[i]
+#end
+#
+#function Base.setindex(
+#    gb :: SigBasis{T},
+#    g :: SigPoly{T},
+#    i :: Int
+#) where {T <: GBElement}
+#    gb.basis[i] = g
+#end
+#
+#function Base.length(
+#    gb :: SigBasis{T}
+#) :: Int where {T <: GBElement}
+#    return length(gb.basis)
+#end
+#
+#function Base.push!(
+#    gb :: SigBasis{T},
+#    g :: SigPoly{T}
+#) where {T <: GBElement}
+#    push!(gb.basis, g)
+#    push!(gb.module_ordering.generators, g)
+#    p, n = GBElements.supports(g)
+#    push!(gb.positive_supports, p)
+#    push!(gb.negative_supports, n)
+#    addbinomial!(gb.reduction_tree, gb[length(gb)])
+#end
 
 #
 # Implementation of the GBElement interface for SigPolys
@@ -363,7 +364,7 @@ function GBElements.signature_reducible(
     reducer_sig :: Signature,
     gb :: SigBasis{T}
 ) :: Bool where {T <: GBElement}
-    return Base.lt(gb.module_ordering, reducer_sig, g.signature)
+    return Base.lt(order(gb), reducer_sig, g.signature)
 end
 
 """
@@ -469,10 +470,7 @@ function koszul(
     i_sig = leading_term(gb[j]) * gb[i].signature
     j_sig = leading_term(gb[i]) * gb[j].signature
     #The Koszul signature is the largest between i_sig and j_sig
-    i_sig_smaller = signature_lt(
-        i_sig, j_sig, gb.module_ordering.monomial_order, gb.basis,
-        gb.module_ordering.module_order
-    )
+    i_sig_smaller = Base.lt(order(gb), i_sig, j_sig)
     if i_sig_smaller
         return j_sig
     end

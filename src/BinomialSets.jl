@@ -1,5 +1,7 @@
 module BinomialSets
 
+export GBOrder, BinomialSet, order, binomials, is_support_reducible
+
 using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.SupportTrees
@@ -45,6 +47,7 @@ struct BinomialSet{T <: GBElement, S <: GBOrder} <: AbstractVector{T}
     negative_supports :: Vector{FastBitSet}
     function BinomialSet(basis :: Vector{T}, order :: S, tree, matrix, rhs)
         #TODO should I also build the tree here? Probably
+        #TODO also try to build the order
         pos_supps, neg_supps = supports(basis)
         new{T, S}(
             basis, order, tree, matrix, rhs, positive_supports, negative_supports
@@ -56,7 +59,7 @@ end
 # Accessors
 #
 
-set(bs :: BinomialSet) = bs.basis
+binomials(bs :: BinomialSet) = bs.basis
 order(bs :: BinomialSet) = bs.order
 #TODO Do I even need to access the others externally?
 
@@ -102,6 +105,29 @@ end
 #
 # Additional functions defined on a BinomialSet
 #
+
+"""
+Returns true if (i, j) should be discarded.
+
+In a maximization problem, if (i, j) ..
+
+TODO actually document this thing, it's not that trivial
+BTW, this name is terrible. It should make clear that this is the gcd criterion
+"""
+function is_support_reducible(
+    i :: Int,
+    j :: Int,
+    bs :: BinomialSet{T, S},
+    minimization :: Bool #Maybe this one should be part of the BinomialSet struct
+) :: Bool where {T <: GBElement, S <: GBOrder}
+    if minimization
+        return !disjoint(bs.negative_supports[i], bs.negative_supports[j]) ||
+            disjoint(bs.positive_supports[i], bs.positive_supports[j])
+    end
+    #Maximization problem
+    return disjoint(bs.negative_supports[i], bs.negative_supports[j]) ||
+        !disjoint(bs.positive_supports[i], bs.positive_supports[j])
+end
 
 """
 Returns true iff `bs` is a Gröbner Basis. This is checked by applying Buchberger's
