@@ -1,40 +1,10 @@
 module GBAlgorithms
 
-export GBAlgorithm, CriticalPair, run, current_basis
+export GBAlgorithm, run, current_basis
 
 using IPGBs.BinomialSets
+using IPGBs.CriticalPairs
 using IPGBs.GBElements
-
-abstract type CriticalPair end
-
-#CriticalPair interface
-first(:: CriticalPair) :: Int = error("Not implemented.")
-second(:: CriticalPair) :: Int = error("Not implemented.")
-
-"""
-Creates a concrete S-binomial from `pair`. In practice, this should only be
-called after we were unable to eliminate `pair`.
-"""
-function sbinomial(
-    pair :: CriticalPair,
-    bs :: BinomialSet{T, S}
-) :: T where {T <: GBElement, S <: GBOrder}
-    #Probably won't work for Signatures. Lacks the signature in the construction
-    v = bs[first(pair)]
-    w = bs[second(pair)]
-    if cost(v) < cost(w)
-        r = w - v #TODO these are relatively expensive
-    elseif cost(w) < cost(v)
-        r = v - w
-    else #w.cost == v.cost
-        if GBElements.lt_tiebreaker(v, w)
-            r = w - v
-        else
-            r = v - w
-        end
-    end
-    return r
-end
 
 """
 A generic Gröbner Basis algorithm. For now, it can be either a BuchbergerAlgorithm

@@ -8,45 +8,17 @@ export siggb
 using DataStructures
 
 using IPGBs.BinomialSets
+using IPGBs.CriticalPairs
 using IPGBs.GBElements
-using IPGBs.GBTools
-using IPGBs.Binomials
-using IPGBs.GradedBinomials
-using IPGBs.SupportTrees
 using IPGBs.SignaturePolynomials
 
 using IPGBs.GBAlgorithms
 
-#
-# Implementation of CriticalPairs with signatures
-#
-
-"""
-An S-pair represented sparsely, before building it from binomials explicitly.
-Includes a signature to allow the signature-based algorithm to proceed by
-increasing signature of S-pairs.
-"""
-struct SignaturePair <: CriticalPair
-    i :: Int
-    j :: Int
-    signature :: Signature
-end
-
-first(pair :: SignaturePair) = pair.i
-second(pair :: SignaturePair) = pair.j
-
-#This is necessary because these SPairs are queued.
-function Base.lt(
-    o :: ModuleMonomialOrdering{T},
-    s1 :: SignaturePair,
-    s2 :: SignaturePair
-) :: Bool where {T <: GBElement}
-    return signature_lt(s1.signature, s2.signature, o.monomial_order,
-                        o.generators, o.module_order)
-end
-
 """
 Builds concrete S-pair from an `SPair` struct.
+
+TODO try to refactor so that I don't do basically the same thing here and in
+GBAlgorithms.sbinomial
 """
 function sbinomial(
     spair :: SignaturePair,
@@ -154,6 +126,8 @@ function process_zero_reduction(
     push!(algorithm.syzygies, signature(syzygy_element))
     #TODO probably need to count number of zero reductions somewhere
 end
+
+#TODO the remainder of this module has to be refactored
 
 """
 Returns the generators used for a truncated GB of a toric ideal given by an IP,

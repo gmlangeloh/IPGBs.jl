@@ -15,14 +15,6 @@ using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
 
-struct BinomialPair <: CriticalPair
-    i :: Int
-    j :: Int
-end
-
-first(pair :: BinomialPair) = pair.i
-second(pair :: BinomialPair) = pair.j
-
 """
 The state of Buchberger S-binomial generation.
 """

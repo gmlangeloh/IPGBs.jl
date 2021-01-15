@@ -1,9 +1,10 @@
 module BinomialSets
 
 export GBOrder, BinomialSet, MonomialOrder, order, binomials, reduction_tree,
-    is_support_reducible, fourti2_form, build_sbin, minimal_basis!, reduced_basis!,
+    is_support_reducible, fourti2_form, sbinomial, minimal_basis!, reduced_basis!,
     auto_reduce!
 
+using IPGBs.CriticalPairs
 using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.GradedBinomials
@@ -117,20 +118,16 @@ function reduce!(
 end
 
 """
-Builds the S-binomial given by gb[i] and gb[j].
-
-TODO probably should use MonomialOrder to orientate stuff here
+Creates a concrete S-binomial from `pair`. In practice, this should only be
+called after we were unable to eliminate `pair`.
 """
-function build_sbin(
-    i :: Int,
-    j :: Int,
-    gb :: BinomialSet{T, S}
+function sbinomial(
+    pair :: CriticalPair,
+    bs :: BinomialSet{T, S}
 ) :: T where {T <: GBElement, S <: GBOrder}
-    #TODO I don't think this works as is with SigPolys. The main problem is I
-    #haven't implemented a - operation for them. I should also refactor
-    #SignaturePolynomials.build_spair
-    v = gb[i]
-    w = gb[j]
+    #Probably won't work for Signatures. Lacks the signature in the construction
+    v = bs[first(pair)]
+    w = bs[second(pair)]
     if cost(v) < cost(w)
         r = w - v #TODO these are relatively expensive
     elseif cost(w) < cost(v)
@@ -144,6 +141,35 @@ function build_sbin(
     end
     return r
 end
+
+#"""
+#Builds the S-binomial given by gb[i] and gb[j].
+#
+#TODO probably should use MonomialOrder to orientate stuff here
+#"""
+#function build_sbin(
+#    i :: Int,
+#    j :: Int,
+#    gb :: BinomialSet{T, S}
+#) :: T where {T <: GBElement, S <: GBOrder}
+#    #TODO I don't think this works as is with SigPolys. The main problem is I
+#    #haven't implemented a - operation for them. I should also refactor
+#    #SignaturePolynomials.build_spair
+#    v = gb[i]
+#    w = gb[j]
+#    if cost(v) < cost(w)
+#        r = w - v #TODO these are relatively expensive
+#    elseif cost(w) < cost(v)
+#        r = v - w
+#    else #w.cost == v.cost
+#        if GBElements.lt_tiebreaker(v, w)
+#            r = w - v
+#        else
+#            r = v - w
+#        end
+#    end
+#    return r
+#end
 
 """
 Returns true if (i, j) should be discarded.
@@ -178,8 +204,9 @@ function is_groebner_basis(
 ) :: Bool where {T <: GBElement, S <: GBOrder}
     for i in 1:length(bs)
         for j in 1:(i-1)
-            s = build_sbin(i, j, bs)
-            reduced_to_zero = reduce!(s, bs)
+            s = BinomialPair(i, j)
+            binomial = sbinomial(s, bs)
+            reduced_to_zero = reduce!(binomial, bs)
             if !reduced_to_zero
                 return false
             end

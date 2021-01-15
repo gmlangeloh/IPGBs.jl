@@ -7,13 +7,14 @@ include("./GBElements.jl")
 include("./SupportTrees.jl")
 include("./Binomials.jl")
 include("./GradedBinomials.jl")
-include("./BinomialSets.jl")
 include("./GBTools.jl")
+
+include("./SignaturePolynomials.jl")
+include("./CriticalPairs.jl")
+include("./BinomialSets.jl")
 include("./GBAlgorithms.jl")
 
 include("./Buchberger.jl")
-include("./SignaturePolynomials.jl")
-
 include("./SignatureAlgorithms.jl")
 include("./FourTi2.jl")
 
