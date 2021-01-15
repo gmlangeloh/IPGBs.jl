@@ -15,6 +15,14 @@ using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
 
+struct BinomialPair <: CriticalPair
+    i :: Int
+    j :: Int
+end
+
+first(pair :: BinomialPair) = pair.i
+second(pair :: BinomialPair) = pair.j
+
 """
 The state of Buchberger S-binomial generation.
 """
@@ -53,15 +61,26 @@ end
 
 current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
-function next_sbinomial(
+function next_pair(
     algorithm :: BuchbergerAlgorithm{T, S}
-) :: Union{T, Nothing} where {T <: GBElement, S <: GBOrder}
+) :: Union{BinomialPair, Nothing} where {T <: GBElement, S <: GBOrder}
     s = next_state!(algorithm.state)
     if !isnothing(s)
         i, j = s
-        return build_sbin(i, j, algorithm.basis)
+        return BinomialPair(i, j)
     end
     return nothing
+end
+
+"""
+Applies the GCD criterion to determine whether or not to eliminate the given
+S-pair.
+"""
+function late_pair_elimination(
+    algorithm :: BuchbergerAlgorithm{T, S},
+    pair :: CriticalPair
+) :: Bool where {T <: GBElement, S <: GBOrder}
+    return is_support_reducible(first(pair), second(pair), current_basis(algorithm))
 end
 
 function initial_gb(

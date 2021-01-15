@@ -17,6 +17,105 @@ using IPGBs.SignaturePolynomials
 
 using IPGBs.GBAlgorithms
 
+#
+# Implementation of CriticalPairs with signatures
+#
+
+"""
+An S-pair represented sparsely, before building it from binomials explicitly.
+Includes a signature to allow the signature-based algorithm to proceed by
+increasing signature of S-pairs.
+"""
+struct SignaturePair <: CriticalPair
+    i :: Int
+    j :: Int
+    signature :: Signature
+end
+
+first(pair :: SignaturePair) = pair.i
+second(pair :: SignaturePair) = pair.j
+
+#This is necessary because these SPairs are queued.
+function Base.lt(
+    o :: ModuleMonomialOrdering{T},
+    s1 :: SignaturePair,
+    s2 :: SignaturePair
+) :: Bool where {T <: GBElement}
+    return signature_lt(s1.signature, s2.signature, o.monomial_order,
+                        o.generators, o.module_order)
+end
+
+"""
+Builds concrete S-pair from an `SPair` struct.
+"""
+function sbinomial(
+    spair :: SignaturePair,
+    generators :: SigBasis{T}
+) :: SigPoly{T} where {T <: GBElement}
+    g_i = generators[spair.i].polynomial
+    g_j = generators[spair.j].polynomial
+    if cost(g_i) < cost(g_j)
+        s = g_j - g_i
+    elseif cost(g_i) > cost(g_j)
+        s = g_i - g_j
+    else
+        #Do a tiebreaker
+        #TODO Maybe I should pass the whole matrix C here for tiebreaking...
+        if GBElements.lt_tiebreaker(g_i, g_j)
+            s = g_j - g_i
+        else
+            s = g_i - g_j
+        end
+    end
+    return SigPoly(s, spair.signature)
+end
+
+"""
+Returns (a, b) for SPair(i, j) = ag_i + bg_j.
+"""
+function spair_coefs(
+    i :: Int,
+    j :: Int,
+    gb :: SigBasis{T}
+) :: Tuple{Vector{Int}, Vector{Int}} where {T <: GBElement}
+    n = length(gb[i].polynomial)
+    i_coef = zeros(Int, n)
+    j_coef = zeros(Int, n)
+    for k in 1:n
+        lcm = max(gb[i].polynomial[k], gb[j].polynomial[k], 0)
+        i_coef[k] = lcm - max(0, gb[i].polynomial[k])
+        j_coef[k] = lcm - max(0, gb[j].polynomial[k])
+    end
+    return i_coef, j_coef
+end
+
+"""
+Creates an SPair S(i, j) if it is regular, otherwise returns `nothing`.
+"""
+function regular_spair(
+    i :: Int,
+    j :: Int,
+    gb :: SigBasis{T}
+) :: Union{SignaturePair, Nothing} where {T <: GBElement}
+    i_coef, j_coef = spair_coefs(i, j, gb)
+    i_sig = i_coef * gb[i].signature
+    j_sig = j_coef * gb[j].signature
+    if i_sig == j_sig #S-pair is singular, eliminate
+        return nothing
+    end #otherwise s-pair is regular, generate it
+    sig_lt = Base.lt(order(gb), i_sig, j_sig)
+    if sig_lt
+        sig = j_sig
+    else
+        sig = i_sig
+    end
+    return SignaturePair(i, j, sig)
+end
+
+#
+# Definition of Signature Algorithms themselves.
+#
+
 struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
     heap #TODO type this!!!
@@ -25,11 +124,27 @@ end
 
 current_basis(algorithm :: SignatureAlgorithm{T}) where {T} = algorithm.basis
 
-function next_sbinomial(
+function next_pair(
     algorithm :: SignatureAlgorithm{T}
-) :: Union{SigPoly{T}, Nothing} where {T <: GBElement}
-    #TODO continue
-    #The idea here is extracting the newest thing from the heap
+) :: Union{SignaturePair, Nothing} where {T <: GBElement}
+    if isempty(algorithm.heap)
+        return nothing
+    end
+    return pop!(algorithm.heap)
+end
+
+function late_pair_elimination(
+    algorithm :: SignatureAlgorithm{T},
+    pair :: SignaturePair
+) :: Bool where {T <: GBElement}
+    if signature_criterion(pair, algorithm.syzygies)
+        return true
+    end
+    #GCD criterion
+    if is_support_reducible(first(pair), second(pair), current_basis(algorithm))
+        return true
+    end
+    return false
 end
 
 function process_zero_reduction(
@@ -127,7 +242,7 @@ Returns true iff spair is eliminated by the signature criterion, i.e. there
 is a known syzygy that divides its signature.
 """
 function signature_criterion(
-    spair :: SPair,
+    spair :: SignaturePair,
     syzygies :: Vector{Signature}
 ) :: Bool
     for syz in syzygies
@@ -142,7 +257,7 @@ end
 Returns true iff this spair is eliminated by some criterion.
 """
 function late_criteria(
-    spair :: SPair,
+    spair :: SignaturePair,
     gb :: SigBasis{T},
     syzygies :: Vector{Signature}
 ) :: Bool where {T <: GBElement}
