@@ -8,39 +8,10 @@ export siggb
 using DataStructures
 
 using IPGBs.BinomialSets
-using IPGBs.CriticalPairs
 using IPGBs.GBElements
 using IPGBs.SignaturePolynomials
 
 using IPGBs.GBAlgorithms
-
-"""
-Builds concrete S-pair from an `SPair` struct.
-
-TODO try to refactor so that I don't do basically the same thing here and in
-GBAlgorithms.sbinomial
-"""
-function sbinomial(
-    spair :: SignaturePair,
-    generators :: SigBasis{T}
-) :: SigPoly{T} where {T <: GBElement}
-    g_i = generators[spair.i].polynomial
-    g_j = generators[spair.j].polynomial
-    if cost(g_i) < cost(g_j)
-        s = g_j - g_i
-    elseif cost(g_i) > cost(g_j)
-        s = g_i - g_j
-    else
-        #Do a tiebreaker
-        #TODO Maybe I should pass the whole matrix C here for tiebreaking...
-        if GBElements.lt_tiebreaker(g_i, g_j)
-            s = g_j - g_i
-        else
-            s = g_i - g_j
-        end
-    end
-    return SigPoly(s, spair.signature)
-end
 
 """
 Returns (a, b) for SPair(i, j) = ag_i + bg_j.

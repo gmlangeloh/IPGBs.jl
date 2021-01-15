@@ -126,50 +126,22 @@ function sbinomial(
     bs :: BinomialSet{T, S}
 ) :: T where {T <: GBElement, S <: GBOrder}
     #Probably won't work for Signatures. Lacks the signature in the construction
+    #Plus, I haven't implemented a - method for signatures...
     v = bs[first(pair)]
     w = bs[second(pair)]
     if cost(v) < cost(w)
-        r = w - v #TODO these are relatively expensive
+        r = build(w, v, pair)
     elseif cost(w) < cost(v)
-        r = v - w
+        r = build(v, w, pair)
     else #w.cost == v.cost
         if GBElements.lt_tiebreaker(v, w)
-            r = w - v
+            r = build(w, v, pair)
         else
-            r = v - w
+            r = build(v, w, pair)
         end
     end
     return r
 end
-
-#"""
-#Builds the S-binomial given by gb[i] and gb[j].
-#
-#TODO probably should use MonomialOrder to orientate stuff here
-#"""
-#function build_sbin(
-#    i :: Int,
-#    j :: Int,
-#    gb :: BinomialSet{T, S}
-#) :: T where {T <: GBElement, S <: GBOrder}
-#    #TODO I don't think this works as is with SigPolys. The main problem is I
-#    #haven't implemented a - operation for them. I should also refactor
-#    #SignaturePolynomials.build_spair
-#    v = gb[i]
-#    w = gb[j]
-#    if cost(v) < cost(w)
-#        r = w - v #TODO these are relatively expensive
-#    elseif cost(w) < cost(v)
-#        r = v - w
-#    else #w.cost == v.cost
-#        if GBElements.lt_tiebreaker(v, w)
-#            r = w - v
-#        else
-#            r = v - w
-#        end
-#    end
-#    return r
-#end
 
 """
 Returns true if (i, j) should be discarded.

@@ -8,7 +8,7 @@ orders, another defining SigPolys and so on.
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering,
     ModuleMonomialOrder, is_zero, divides, koszul,
-    signature, signature_lt
+    signature, signature_lt, SignaturePair
 
 using IPGBs.BinomialSets
 using IPGBs.FastBitSets
@@ -135,6 +135,10 @@ function Base.length(
     return length(g.polynomial)
 end
 
+#
+# Dealing with ModuleMonomialOrderings and how to compare signatures
+#
+
 struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
     monomial_order :: Array{Int, 2}
     module_order :: ModuleMonomialOrder
@@ -246,6 +250,47 @@ function signature_lt(
     end
     #module_order == top
     return top_lt(sig1, sig2, monomial_order)
+end
+
+#
+# Implementation of CriticalPairs with signatures
+#
+
+"""
+An S-pair represented sparsely, before building it from binomials explicitly.
+Includes a signature to allow the signature-based algorithm to proceed by
+increasing signature of S-pairs.
+"""
+struct SignaturePair <: CriticalPair
+    i :: Int
+    j :: Int
+    signature :: Signature
+end
+
+first(pair :: SignaturePair) = pair.i
+second(pair :: SignaturePair) = pair.j
+
+#This is necessary because these SPairs are queued.
+function Base.lt(
+    o :: ModuleMonomialOrdering{T},
+    s1 :: SignaturePair,
+    s2 :: SignaturePair
+) :: Bool where {T <: GBElement}
+    return signature_lt(s1.signature, s2.signature, o.monomial_order,
+                        o.generators, o.module_order)
+end
+
+"""
+Builds u - v with signature given by `pair`.
+"""
+function GBElements.build(
+    u :: SigPoly{T},
+    v :: SigPoly{T},
+    pair :: SignaturePair
+) :: SigPoly{T} where {T <: GBElement}
+    element = u.polynomial - v.polynomial
+    signature = pair.signature
+    return SigPoly(element, signature)
 end
 
 #

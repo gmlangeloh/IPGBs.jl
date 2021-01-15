@@ -1,11 +1,10 @@
-"""
-This module defines all the binomial data structures used in my implementations
+""" This module defines all the binomial data structures used in my implementations
 of Buchberger's algorithm and Signature-based algorithms.
 
 TODO make GBElements a consistent interface
 """
 module GBElements
-export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost
+export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build
 
 using IPGBs.FastBitSets
 
@@ -413,6 +412,32 @@ function lt_tiebreaker(
     #    end
     #end
     #return false #If they are equal wrt grevlex at this point, g == h
+end
+
+#
+# Implementation of Critical Pairs. Can be extended by Signature algorithms.
+#
+
+abstract type CriticalPair end
+
+#CriticalPair interface
+first(:: CriticalPair) :: Int = error("Not implemented.")
+second(:: CriticalPair) :: Int = error("Not implemented.")
+
+struct BinomialPair <: CriticalPair
+    i :: Int
+    j :: Int
+end
+
+first(pair :: BinomialPair) = pair.i
+second(pair :: BinomialPair) = pair.j
+
+function build(
+    u :: T,
+    v :: T,
+    pair :: CriticalPair #This is used for more complicated CriticalPairs
+) :: T where {T <: GBElement}
+    return u - v
 end
 
 end
