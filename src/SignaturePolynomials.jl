@@ -88,6 +88,7 @@ struct SigPoly{T <: GBElement} <: GBElement
     signature :: Signature
 end
 
+GBElements.cost(g :: SigPoly{T}) where {T} = GBElements.cost(g.polynomial)
 GBElements.fullform(g :: SigPoly{T}) where {T} = GBElements.fullform(g.polynomial)
 
 #TODO If I do GBElements.has_signature here, performance becomes terrible. Why?
@@ -272,61 +273,6 @@ end
 
 const SigBasis{T} = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}
 
-#struct SigBasis{T <: GBElement} <: AbstractVector{SigPoly{T}}
-#    basis :: Vector{SigPoly{T}}
-#    module_ordering :: ModuleMonomialOrdering
-#    reduction_tree :: SupportTree{SigPoly{T}}
-#    #We store the supports here instead of on the elements themselves to avoid
-#    #having to compute them unnecessarily or having to compute them after creating
-#    #elements and then updating these elements.
-#    positive_supports :: Vector{FastBitSet}
-#    negative_supports :: Vector{FastBitSet}
-#
-#    function SigBasis(basis :: Vector{SigPoly{T}}, ordering, tree) where {T}
-#        pos_supps, neg_supps = Buchberger.supports(basis)
-#        new{T}(basis, ordering, tree, pos_supps, neg_supps)
-#    end
-#end
-#
-#function Base.size(
-#    gb :: SigBasis{T}
-#) :: Tuple where {T <: GBElement}
-#    return size(gb.basis)
-#end
-#
-#function Base.getindex(
-#    gb :: SigBasis{T},
-#    i :: Int
-#) :: SigPoly{T} where {T <: GBElement}
-#    return gb.basis[i]
-#end
-#
-#function Base.setindex(
-#    gb :: SigBasis{T},
-#    g :: SigPoly{T},
-#    i :: Int
-#) where {T <: GBElement}
-#    gb.basis[i] = g
-#end
-#
-#function Base.length(
-#    gb :: SigBasis{T}
-#) :: Int where {T <: GBElement}
-#    return length(gb.basis)
-#end
-#
-#function Base.push!(
-#    gb :: SigBasis{T},
-#    g :: SigPoly{T}
-#) where {T <: GBElement}
-#    push!(gb.basis, g)
-#    push!(gb.module_ordering.generators, g)
-#    p, n = GBElements.supports(g)
-#    push!(gb.positive_supports, p)
-#    push!(gb.negative_supports, n)
-#    addbinomial!(gb.reduction_tree, gb[length(gb)])
-#end
-
 #
 # Implementation of the GBElement interface for SigPolys
 #
@@ -392,9 +338,9 @@ function build_spair(
 ) :: SigPoly{T} where {T <: GBElement}
     g_i = generators[spair.i].polynomial
     g_j = generators[spair.j].polynomial
-    if g_i.cost < g_j.cost
+    if cost(g_i) < cost(g_j)
         s = g_j - g_i
-    elseif g_i.cost > g_j.cost
+    elseif cost(g_i) > cost(g_j)
         s = g_i - g_j
     else
         #Do a tiebreaker

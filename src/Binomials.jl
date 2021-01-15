@@ -9,6 +9,7 @@ mutable struct Binomial <: GBElement
     cost :: Int
 end
 
+GBElements.cost(g :: Binomial) = g.cost
 GBElements.fullform(g :: Binomial) = g.element
 
 function Base.show(

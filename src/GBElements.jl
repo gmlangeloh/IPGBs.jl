@@ -5,7 +5,7 @@ of Buchberger's algorithm and Signature-based algorithms.
 TODO make GBElements a consistent interface
 """
 module GBElements
-export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform
+export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost
 
 using IPGBs.FastBitSets
 
@@ -20,6 +20,7 @@ abstract type GBElement <: AbstractVector{Int} end
 # Hard contract: a GBElement must implement at least the following functions.
 #
 
+cost(:: GBElement) :: Int = error("Not implemented.")
 fullform(:: GBElement) :: Vector{Int} = error("Not implemented.")
 
 #

@@ -12,89 +12,55 @@ using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 
-"""
-Reduces each element of the GB by the previous elements.
+using IPGBs.GBAlgorithms
 
-TODO count number of removed elements so we can decrement the iteration
-index in the main loop
 """
-function auto_reduce(
-    gb :: BinomialSet{T, S}
-) where {T <: GBElement, S <: GBOrder}
-    for i in length(gb):-1:1
-        nothing
-    end
+The state of Buchberger S-binomial generation.
+"""
+mutable struct BuchbergerState
+    i :: Int
+    j :: Int
+    n :: Int
+    BuchbergerState(n) = new(1, 1, n)
 end
 
-"""
-Updates gb to a minimal Gröbner Basis.
+increment_size!(state :: BuchbergerState) = state.n += 1
 
-For more info on minimal GBs, see Lemma 3 from Cox, Little, O'Shea Chapter 2.7.
-In summary, it shows that one can remove from a GB any g such that LT(g) is a
-multiple of LT(h), for h distinct from g in the GB.
 """
-function minimal_basis!(
-    gb :: BinomialSet{T, S}
-) where  {T <: GBElement, S <: GBOrder}
-    for i in length(gb):-1:1
-        g = gb[i]
-        reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
-        if !isnothing(reducer)
-            @show reducer
-            @show g
-            deleteat!(gb, i)
-            removebinomial!(reduction_tree(gb), g)
-        end
+Updates the state to the indices of the next generated S-pair. Returns the indices
+of the new state, if it corresponds to a new S-pair, or `nothing`, if all S-pairs
+were already generated.
+"""
+function next_state!(
+    state :: BuchbergerState
+) :: Union{Tuple{Int, Int}, Nothing}
+    if state.j < state.i - 1
+        state.j += 1
+        return (state.i, state.j)
+    elseif state.i < state.n
+        state.i += 1
+        state.j = 1
+        return (state.i, state.j)
     end
+    return nothing
 end
 
-"""
-Updates gb to a reduced Gröbner Basis.
-
-TODO bugfix this, it doesn't terminate or is just buggy overall
-"""
-function reduced_basis!(
-    gb :: BinomialSet{T, S}
-) where {T <: GBElement, S <: GBOrder}
-    minimal_basis!(gb)
-    for i in length(gb):-1:1
-        g = gb[i]
-        reducing = true
-        while reducing
-            h = find_reducer(g, gb, reduction_tree(gb), negative=true)
-            if !isnothing(h)
-                GBElements.reduce!(g, h, negative=true)
-            else
-                reducing = false
-            end
-        end
-    end
+struct BuchbergerAlgorithm{T <: GBElement, S <: GBOrder} <: GBAlgorithm
+    basis :: BinomialSet{T, S}
+    state :: BuchbergerState
 end
 
-"""
-Builds the S-binomial given by gb[i] and gb[j].
+current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
-TODO probably should use MonomialOrder to orientate stuff here
-"""
-function build_sbin(
-    i :: Int,
-    j :: Int,
-    gb :: BinomialSet{T, S}
-) :: T where {T <: GBElement, S <: GBOrder}
-    v = gb[i]
-    w = gb[j]
-    if v.cost < w.cost
-        r = w - v #TODO these are relatively expensive
-    elseif w.cost < v.cost
-        r = v - w
-    else #w.cost == v.cost
-        if GBElements.lt_tiebreaker(v, w)
-            r = w - v
-        else
-            r = v - w
-        end
+function next_sbinomial(
+    algorithm :: BuchbergerAlgorithm{T, S}
+) :: Union{T, Nothing} where {T <: GBElement, S <: GBOrder}
+    s = next_state!(algorithm.state)
+    if !isnothing(s)
+        i, j = s
+        return build_sbin(i, j, algorithm.basis)
     end
-    return r
+    return nothing
 end
 
 function initial_gb(
@@ -165,7 +131,7 @@ function buchberger(
             r = build_sbin(i, j, gb)
             if isfeasible(r, A, b, u)
                 spair_count += 1
-                reduced_to_zero = SupportTrees.reduce!(r, gb, reduction_tree(gb))
+                reduced_to_zero = BinomialSets.reduce!(r, gb)
                 if reduced_to_zero
                     zero_reductions += 1
                     continue
@@ -173,7 +139,7 @@ function buchberger(
                 push!(gb, r)
             end
             if iteration_count % auto_reduce_freq == 0
-                auto_reduce(gb)
+                auto_reduce!(gb)
             end
         end
         i += 1

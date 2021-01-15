@@ -9,6 +9,7 @@ include("./Binomials.jl")
 include("./GradedBinomials.jl")
 include("./BinomialSets.jl")
 include("./GBTools.jl")
+include("./GBAlgorithms.jl")
 
 include("./Buchberger.jl")
 include("./SignaturePolynomials.jl")

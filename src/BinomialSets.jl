@@ -1,7 +1,8 @@
 module BinomialSets
 
 export GBOrder, BinomialSet, MonomialOrder, order, binomials, reduction_tree,
-    is_support_reducible, fourti2_form
+    is_support_reducible, fourti2_form, build_sbin, minimal_basis!, reduced_basis!,
+    auto_reduce!
 
 using IPGBs.FastBitSets
 using IPGBs.GBElements
@@ -105,6 +106,46 @@ end
 #
 
 """
+Reduces `g` by `bs` efficiently using a Support Tree. Returns true iff `g`
+reduced to zero.
+"""
+function reduce!(
+    g :: T,
+    bs :: BinomialSet{T, S}
+) :: Bool where {T <: GBElement, S <: GBOrder}
+    return SupportTrees.reduce!(g, bs, reduction_tree(bs))
+end
+
+"""
+Builds the S-binomial given by gb[i] and gb[j].
+
+TODO probably should use MonomialOrder to orientate stuff here
+"""
+function build_sbin(
+    i :: Int,
+    j :: Int,
+    gb :: BinomialSet{T, S}
+) :: T where {T <: GBElement, S <: GBOrder}
+    #TODO I don't think this works as is with SigPolys. The main problem is I
+    #haven't implemented a - operation for them. I should also refactor
+    #SignaturePolynomials.build_spair
+    v = gb[i]
+    w = gb[j]
+    if cost(v) < cost(w)
+        r = w - v #TODO these are relatively expensive
+    elseif cost(w) < cost(v)
+        r = v - w
+    else #w.cost == v.cost
+        if GBElements.lt_tiebreaker(v, w)
+            r = w - v
+        else
+            r = v - w
+        end
+    end
+    return r
+end
+
+"""
 Returns true if (i, j) should be discarded.
 
 In a maximization problem, if (i, j) ..
@@ -133,11 +174,18 @@ theorem and generating all S-binomials, thus may be slow.
 Useful for debugging and automatic tests.
 """
 function is_groebner_basis(
-    bs :: BinomialSet
-) :: Bool
-    #TODO implement something to generate S-pairs and do the Buchberger check
-
-    return false
+    bs :: BinomialSet{T, S}
+) :: Bool where {T <: GBElement, S <: GBOrder}
+    for i in 1:length(bs)
+        for j in 1:(i-1)
+            s = build_sbin(i, j, bs)
+            reduced_to_zero = reduce!(s, bs)
+            if !reduced_to_zero
+                return false
+            end
+        end
+    end
+    return true
 end
 
 """
@@ -148,6 +196,65 @@ function fourti2_form(
 ) :: Vector{Vector{Int}} where {T <: GBElement, S <: GBOrder}
     sign = is_minimization(bs) ? 1 : -1
     return [ sign * fullform(g) for g in bs ]
+end
+
+"""
+Reduces each element of the GB by the previous elements.
+
+TODO count number of removed elements so we can decrement the iteration
+index in the main loop
+"""
+function auto_reduce!(
+    gb :: BinomialSet{T, S}
+) where {T <: GBElement, S <: GBOrder}
+    for i in length(gb):-1:1
+        nothing
+    end
+end
+
+"""
+Updates gb to a minimal Gröbner Basis.
+
+For more info on minimal GBs, see Lemma 3 from Cox, Little, O'Shea Chapter 2.7.
+In summary, it shows that one can remove from a GB any g such that LT(g) is a
+multiple of LT(h), for h distinct from g in the GB.
+"""
+function minimal_basis!(
+    gb :: BinomialSet{T, S}
+) where  {T <: GBElement, S <: GBOrder}
+    for i in length(gb):-1:1
+        g = gb[i]
+        reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
+        if !isnothing(reducer)
+            @show reducer
+            @show g
+            deleteat!(gb, i)
+            removebinomial!(reduction_tree(gb), g)
+        end
+    end
+end
+
+"""
+Updates gb to a reduced Gröbner Basis.
+
+TODO bugfix this, it doesn't terminate or is just buggy overall
+"""
+function reduced_basis!(
+    gb :: BinomialSet{T, S}
+) where {T <: GBElement, S <: GBOrder}
+    minimal_basis!(gb)
+    for i in length(gb):-1:1
+        g = gb[i]
+        reducing = true
+        while reducing
+            h = find_reducer(g, gb, reduction_tree(gb), negative=true)
+            if !isnothing(h)
+                GBElements.reduce!(g, h, negative=true)
+            else
+                reducing = false
+            end
+        end
+    end
 end
 
 end
