@@ -4,6 +4,7 @@ where all data is non-negative. Based on Thomas and Weismantel (1997).
 """
 module Buchberger
 export buchberger
+export BuchbergerAlgorithm
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements

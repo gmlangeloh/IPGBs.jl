@@ -15,6 +15,31 @@ using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 using IPGBs.SignaturePolynomials
 
+using IPGBs.GBAlgorithms
+
+struct SignatureAlgorithm{T} <: GBAlgorithm
+    basis :: SigBasis{T}
+    heap #TODO type this!!!
+    syzygies :: Vector{Signature}
+end
+
+current_basis(algorithm :: SignatureAlgorithm{T}) where {T} = algorithm.basis
+
+function next_sbinomial(
+    algorithm :: SignatureAlgorithm{T}
+) :: Union{SigPoly{T}, Nothing} where {T <: GBElement}
+    #TODO continue
+    #The idea here is extracting the newest thing from the heap
+end
+
+function process_zero_reduction(
+    algorithm :: GBAlgorithm{T},
+    syzygy_element :: SigPoly{T}
+) where {T <: GBElement}
+    push!(algorithm.syzygies, signature(syzygy_element))
+    #TODO probably need to count number of zero reductions somewhere
+end
+
 """
 Returns the generators used for a truncated GB of a toric ideal given by an IP,
 assuming all data is non-negative.

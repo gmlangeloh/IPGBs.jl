@@ -7,7 +7,8 @@ orders, another defining SigPolys and so on.
 """
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering, SPair,
-    ModuleMonomialOrder, regular_spair, build_spair, is_zero, divides, koszul
+    ModuleMonomialOrder, regular_spair, build_spair, is_zero, divides, koszul,
+    signature
 
 using IPGBs.BinomialSets
 using IPGBs.FastBitSets
@@ -93,6 +94,7 @@ GBElements.fullform(g :: SigPoly{T}) where {T} = GBElements.fullform(g.polynomia
 
 #TODO If I do GBElements.has_signature here, performance becomes terrible. Why?
 has_signature(g :: SigPoly{T}) where {T} = true
+signature(g :: SigPoly{T}) where {T} = g.signature
 
 function Base.show(
     io :: IO,
