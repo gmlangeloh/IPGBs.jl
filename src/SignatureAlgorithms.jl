@@ -13,48 +13,6 @@ using IPGBs.SignaturePolynomials
 
 using IPGBs.GBAlgorithms
 
-"""
-Returns (a, b) for SPair(i, j) = ag_i + bg_j.
-"""
-function spair_coefs(
-    i :: Int,
-    j :: Int,
-    gb :: SigBasis{T}
-) :: Tuple{Vector{Int}, Vector{Int}} where {T <: GBElement}
-    n = length(gb[i].polynomial)
-    i_coef = zeros(Int, n)
-    j_coef = zeros(Int, n)
-    for k in 1:n
-        lcm = max(gb[i].polynomial[k], gb[j].polynomial[k], 0)
-        i_coef[k] = lcm - max(0, gb[i].polynomial[k])
-        j_coef[k] = lcm - max(0, gb[j].polynomial[k])
-    end
-    return i_coef, j_coef
-end
-
-"""
-Creates an SPair S(i, j) if it is regular, otherwise returns `nothing`.
-"""
-function regular_spair(
-    i :: Int,
-    j :: Int,
-    gb :: SigBasis{T}
-) :: Union{SignaturePair, Nothing} where {T <: GBElement}
-    i_coef, j_coef = spair_coefs(i, j, gb)
-    i_sig = i_coef * gb[i].signature
-    j_sig = j_coef * gb[j].signature
-    if i_sig == j_sig #S-pair is singular, eliminate
-        return nothing
-    end #otherwise s-pair is regular, generate it
-    sig_lt = Base.lt(order(gb), i_sig, j_sig)
-    if sig_lt
-        sig = j_sig
-    else
-        sig = i_sig
-    end
-    return SignaturePair(i, j, sig)
-end
-
 #
 # Definition of Signature Algorithms themselves.
 #
@@ -74,6 +32,14 @@ function next_pair(
         return nothing
     end
     return pop!(algorithm.heap)
+end
+
+function early_pair_elimination(
+    algorithm :: SignatureAlgorithm{T},
+    pair :: SignaturePair
+) :: Bool where {T <: GBElement}
+    #TODO implement this!
+    return false
 end
 
 function late_pair_elimination(
@@ -96,6 +62,64 @@ function process_zero_reduction(
 ) where {T <: GBElement}
     push!(algorithm.syzygies, signature(syzygy_element))
     #TODO probably need to count number of zero reductions somewhere
+end
+
+function update!(
+    algorithm :: GBAlgorithm,
+    g :: SigPoly{T}
+) where {T <: GBElement}
+    push!(current_basis(algorithm), g)
+    update_queue!(algorithm)
+    update_syzygies!(algorithm)
+end
+
+"""
+Adds new SignaturePairs to algorithm.heap. Applies early elimination of S-pairs
+when possible.
+"""
+function update_queue!(algorithm :: SignatureAlgorithm)
+    gb = current_basis(algorithm)
+    n = length(gb)
+    for i in 1:(n-1)
+        sp = regular_spair(i, n, gb)
+        if !isnothing(sp) && !early_pair_elimination(algorithm, sp)
+            push!(algorithm.heap, sp)
+        end
+    end
+end
+
+"""
+Adds the Koszul syzygies corresponding to the newest element of gb to the
+syzygy list.
+"""
+function update_syzygies!(
+    algorithm :: SignatureAlgorithm{T}
+) where {T <: GBElement}
+    gb = current_basis(algorithm)
+    n = length(gb)
+    for i in 1:(n-1)
+        push!(algorithm.syzygies, koszul(i, n, gb))
+    end
+end
+
+#
+# Signature S-pair elimination criteria
+#
+
+"""
+Returns true iff spair is eliminated by the signature criterion, i.e. there
+is a known syzygy that divides its signature.
+"""
+function signature_criterion(
+    spair :: SignaturePair,
+    syzygies :: Vector{Signature}
+) :: Bool
+    for syz in syzygies
+        if divides(syz, spair.signature)
+            return true
+        end
+    end
+    return false
 end
 
 #TODO the remainder of this module has to be refactored
@@ -135,6 +159,8 @@ end
 
 """
 Adds a tiebreaking order to the given monomial order `C`.
+
+TODO this thing should definitely be somewhere else
 """
 function make_monomial_order(
     C :: Array{Int, 2};
@@ -168,56 +194,10 @@ function make_priority_queue(
     return heap
 end
 
-function update_queue!(
-    spairs, #TODO type this thing. It is supposed to be the heap
-    gb :: SigBasis{T}
-) where {T <: GBElement}
-    n = length(gb)
-    for i in 1:(n-1)
-        sp = regular_spair(i, n, gb)
-        #TODO have preliminary elimination criteria applied here!
-        if !isnothing(sp)
-            push!(spairs, sp)
-        end
-    end
-end
-
-"""
-Returns true iff spair is eliminated by the signature criterion, i.e. there
-is a known syzygy that divides its signature.
-"""
-function signature_criterion(
-    spair :: SignaturePair,
-    syzygies :: Vector{Signature}
-) :: Bool
-    for syz in syzygies
-        if divides(syz, spair.signature)
-            return true
-        end
-    end
-    return false
-end
-
-"""
-Returns true iff this spair is eliminated by some criterion.
-"""
-function late_criteria(
-    spair :: SignaturePair,
-    gb :: SigBasis{T},
-    syzygies :: Vector{Signature}
-) :: Bool where {T <: GBElement}
-    if signature_criterion(spair, syzygies)
-        return true
-    end
-    #GCD criterion
-    if is_support_reducible(spair.i, spair.j, gb)
-        return true
-    end
-    return false
-end
-
 """
 Creates a list of all Koszul syzygies of gb.
+
+TODO can be done in the initialization function
 """
 function initial_syzygies(
     gb :: SigBasis{T}
@@ -229,20 +209,6 @@ function initial_syzygies(
         end
     end
     return syzygies
-end
-
-"""
-Adds the Koszul syzygies corresponding to the newest element of gb to the
-syzygy list.
-"""
-function update_syzygies!(
-    syzygies :: Vector{Signature},
-    gb :: SigBasis{T}
-) where {T <: GBElement}
-    n = length(gb)
-    for i in 1:(n-1)
-        push!(syzygies, koszul(i, n, gb))
-    end
 end
 
 function signature_algorithm(

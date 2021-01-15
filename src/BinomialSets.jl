@@ -125,10 +125,10 @@ function sbinomial(
     pair :: CriticalPair,
     bs :: BinomialSet{T, S}
 ) :: T where {T <: GBElement, S <: GBOrder}
-    #Probably won't work for Signatures. Lacks the signature in the construction
-    #Plus, I haven't implemented a - method for signatures...
     v = bs[first(pair)]
     w = bs[second(pair)]
+    #TODO maybe this complicated logic should be written somewhere else in terms
+    #of orientate! or something similar?
     if cost(v) < cost(w)
         r = build(w, v, pair)
     elseif cost(w) < cost(v)

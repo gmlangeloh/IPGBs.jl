@@ -25,6 +25,13 @@ late_pair_elimination(:: GBAlgorithm, :: CriticalPair) = nothing
 
 process_zero_reduction(:: GBAlgorithm, :: T) where {T <: GBElement} = nothing
 
+function update!(
+    algorithm :: GBAlgorithm,
+    g :: T
+) where {T <: GBElement}
+    push!(current_basis(algorithm), g)
+end
+
 # Main GB algorithm logic. Does not depend on the specific algorithm.
 function run(
     algorithm :: GBAlgorithm,
@@ -48,14 +55,13 @@ function run(
         if isfeasible(binomial, A, b, u)
             reduced_to_zero = BinomialSets.reduce!(binomial, gb)
             if !reduced_to_zero
-                push!(gb, binomial)
-                #TODO update pairs and other structures!!!
+                update!(algorithm, binomial)
             else #Update syzygies in case this makes sense
                 process_zero_reduction(algorithm, binomial)
             end
         end
     end
-    minimal_basis!(gb)
+    minimal_basis!(gb) #TODO I don't think this works with Signatures yet
     return fourti2_form(gb)
 end
 

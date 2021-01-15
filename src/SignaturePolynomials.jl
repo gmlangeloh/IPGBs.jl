@@ -8,7 +8,7 @@ orders, another defining SigPolys and so on.
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering,
     ModuleMonomialOrder, is_zero, divides, koszul,
-    signature, signature_lt, SignaturePair
+    signature, signature_lt, SignaturePair, regular_spair
 
 using IPGBs.BinomialSets
 using IPGBs.FastBitSets
@@ -291,6 +291,48 @@ function GBElements.build(
     element = u.polynomial - v.polynomial
     signature = pair.signature
     return SigPoly(element, signature)
+end
+
+"""
+Returns (a, b) for SPair(i, j) = ag_i + bg_j.
+"""
+function spair_coefs(
+    i :: Int,
+    j :: Int,
+    gb :: SigBasis{T}
+) :: Tuple{Vector{Int}, Vector{Int}} where {T <: GBElement}
+    n = length(gb[i].polynomial)
+    i_coef = zeros(Int, n)
+    j_coef = zeros(Int, n)
+    for k in 1:n
+        lcm = max(gb[i].polynomial[k], gb[j].polynomial[k], 0)
+        i_coef[k] = lcm - max(0, gb[i].polynomial[k])
+        j_coef[k] = lcm - max(0, gb[j].polynomial[k])
+    end
+    return i_coef, j_coef
+end
+
+"""
+Creates an SPair S(i, j) if it is regular, otherwise returns `nothing`.
+"""
+function regular_spair(
+    i :: Int,
+    j :: Int,
+    gb :: SigBasis{T}
+) :: Union{SignaturePair, Nothing} where {T <: GBElement}
+    i_coef, j_coef = spair_coefs(i, j, gb)
+    i_sig = i_coef * gb[i].signature
+    j_sig = j_coef * gb[j].signature
+    if i_sig == j_sig #S-pair is singular, eliminate
+        return nothing
+    end #otherwise s-pair is regular, generate it
+    sig_lt = Base.lt(order(gb), i_sig, j_sig)
+    if sig_lt
+        sig = j_sig
+    else
+        sig = i_sig
+    end
+    return SignaturePair(i, j, sig)
 end
 
 #
