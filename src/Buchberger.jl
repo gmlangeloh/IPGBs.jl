@@ -59,7 +59,7 @@ end
 
 current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
-function next_pair(
+function next_pair!(
     algorithm :: BuchbergerAlgorithm{T}
 ) :: Union{BinomialPair, Nothing} where {T <: GBElement}
     s = next_state!(algorithm.state)
@@ -70,9 +70,13 @@ function next_pair(
     return nothing
 end
 
-#TODO probably will delete this!! It's not useful because I need to create the
-#order before the algorithm for Signatures to work
-initialize_order(:: BuchbergerAlgorithm, C :: Array{Int, 2}) = MonomialOrder(C)
+function update!(
+    algorithm :: BuchbergerAlgorithm{T},
+    g :: T
+) where {T <: GBElement}
+    push!(current_basis(algorithm), g)
+    increment_size!(algorithm.state)
+end
 
 """
 Applies the GCD criterion to determine whether or not to eliminate the given

@@ -21,36 +21,28 @@ struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
     heap #TODO type this!!!
     syzygies :: Vector{Signature}
+    previous_signature :: Union{Signature, Nothing}
 
     function SignatureAlgorithm(T :: Type, C :: Array{Int, 2})
         syzygies = Signature[]
         generators = SigPoly{T}[]
-        #TODO replace the ...
-        order = ModuleMonomialOrdering(C, ..., generators)
+        #For now, fix the Schreyer order as module monomial order
+        order = ModuleMonomialOrdering(C, SignaturePolynomials.ltpot, generators)
         basis = BinomialSet(generators, order)
-        new{T}(basis, ..., syzygies)
+        heap = BinaryHeap{SignaturePair}(order, [])
+        new{T}(basis, heap, syzygies, nothing)
     end
 end
 
 current_basis(algorithm :: SignatureAlgorithm{T}) where {T} = algorithm.basis
 
-function next_pair(
+function next_pair!(
     algorithm :: SignatureAlgorithm{T}
 ) :: Union{SignaturePair, Nothing} where {T <: GBElement}
     if isempty(algorithm.heap)
         return nothing
     end
     return pop!(algorithm.heap)
-end
-
-function initialize_order(
-    algorithm :: SignatureAlgorithm{T},
-    C :: Array{Int, 2},
-    module_order :: ModuleMonomialOrder
-) :: GBOrder where {T <: GBElement}
-    #TODO there's a problem here. To create the order, the basis already has
-    #to exist, and vice-versa...
-    return ModuleMonomialOrdering(C, module_order, current_basis(algorithm))
 end
 
 function early_pair_elimination(
@@ -65,6 +57,13 @@ function late_pair_elimination(
     algorithm :: SignatureAlgorithm{T},
     pair :: SignaturePair
 ) :: Bool where {T <: GBElement}
+    #Skip repeated signatures
+    if !isnothing(algorithm.previous_signature) &&
+        isequal(algorithm.previous_signature, pair.signature)
+        return true
+    end
+    algorithm.previous_signature = pair.signature
+    #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
         return true
     end
@@ -176,42 +175,42 @@ function truncated_generators(
     return generators
 end
 
-"""
-Adds a tiebreaking order to the given monomial order `C`.
+#"""
+#Adds a tiebreaking order to the given monomial order `C`.
+#
+#TODO this thing should definitely be somewhere else
+#"""
+#function make_monomial_order(
+#    C :: Array{Int, 2};
+#    tiebreaker :: String = "grevlex"
+#) :: Array{Int, 2}
+#    n = size(C, 2)
+#    if tiebreaker == "grevlex"
+#        tie_matrix = [ i <= (n+1) - j ? 1 : 0 for i=1:n, j=1:n ]
+#    else #Use lex tiebreaker
+#        tie_matrix = [ i == j ? 1 : 0 for i=1:n, j=1:n ]
+#    end
+#    return vcat(C, tie_matrix)
+#end
 
-TODO this thing should definitely be somewhere else
-"""
-function make_monomial_order(
-    C :: Array{Int, 2};
-    tiebreaker :: String = "grevlex"
-) :: Array{Int, 2}
-    n = size(C, 2)
-    if tiebreaker == "grevlex"
-        tie_matrix = [ i <= (n+1) - j ? 1 : 0 for i=1:n, j=1:n ]
-    else #Use lex tiebreaker
-        tie_matrix = [ i == j ? 1 : 0 for i=1:n, j=1:n ]
-    end
-    return vcat(C, tie_matrix)
-end
-
-"""
-Create priority queue and add all regular S-pairs built from generators to it.
-"""
-function make_priority_queue(
-    generators :: SigBasis{T}
-) where {T <: GBElement}
-    #TODO type this, BinaryHeap...
-    heap = BinaryHeap{SPair}(order(generators), [])
-    for i in 1:length(generators)
-        for j in 1:(i-1)
-            sp = regular_spair(i, j, generators)
-            if !isnothing(sp)
-                push!(heap, sp)
-            end
-        end
-    end
-    return heap
-end
+#"""
+#Create priority queue and add all regular S-pairs built from generators to it.
+#"""
+#function make_priority_queue(
+#    generators :: SigBasis{T}
+#) where {T <: GBElement}
+#    #TODO type this, BinaryHeap...
+#    heap = BinaryHeap{SPair}(order(generators), [])
+#    for i in 1:length(generators)
+#        for j in 1:(i-1)
+#            sp = regular_spair(i, j, generators)
+#            if !isnothing(sp)
+#                push!(heap, sp)
+#            end
+#        end
+#    end
+#    return heap
+#end
 
 """
 Creates a list of all Koszul syzygies of gb.

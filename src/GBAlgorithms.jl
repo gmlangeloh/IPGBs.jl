@@ -12,9 +12,9 @@ or a SignatureAlgorithm.
 abstract type GBAlgorithm end
 
 # GBAlgorithm interface
-next_pair(:: GBAlgorithm) = error("Not implemented.")
+next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(:: GBAlgorithm) = error("Not implemented.")
-initialize_order(:: GBAlgorithm, :: Array{Int, 2}) = error("Not implemented")
+update!(:: GBAlgorithm, :: GBElement) = error("Not implemented.")
 
 #The following functions may or may not be extended, depending on the algorithm.
 """
@@ -23,14 +23,7 @@ algorithm's criteria.
 """
 late_pair_elimination(:: GBAlgorithm, :: CriticalPair) = nothing
 
-process_zero_reduction(:: GBAlgorithm, :: T) where {T <: GBElement} = nothing
-
-function update!(
-    algorithm :: GBAlgorithm,
-    g :: T
-) where {T <: GBElement}
-    push!(current_basis(algorithm), g)
-end
+process_zero_reduction!(:: GBAlgorithm, :: T) where {T <: GBElement} = nothing
 
 # Main GB algorithm logic. Does not depend on the specific algorithm.
 function run(
@@ -41,13 +34,15 @@ function run(
     u :: Vector{Int}
 ) :: Vector{Vector{Int}}
     #TODO need complicated initialization around here!
+    #Still need:
+    #- normalization of A, b, C, u
+    #- computing the initial generators and adding them to the gb
     gb = current_basis(algorithm)
     while true
-        pair = next_pair(algorithm)
+        pair = next_pair!(algorithm)
         if isnothing(pair) #All SPairs were processed, terminate algorithm.
             break
         end
-        #TODO cannot forget to deal with repeated signatures here!
         if late_pair_elimination(algorithm, pair)
             continue
         end
@@ -57,7 +52,7 @@ function run(
             if !reduced_to_zero
                 update!(algorithm, binomial)
             else #Update syzygies in case this makes sense
-                process_zero_reduction(algorithm, binomial)
+                process_zero_reduction!(algorithm, binomial)
             end
         end
     end
