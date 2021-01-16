@@ -1,6 +1,7 @@
 #TODO re-export the relevant functions: the 4ti2 interface and my GB
 #implementations
 module IPGBs
+export groebner_basis
 
 include("./FastBitSets.jl")
 include("./GBElements.jl")
@@ -17,34 +18,30 @@ include("./Buchberger.jl")
 include("./SignatureAlgorithms.jl")
 include("./FourTi2.jl")
 
-using GBAlgorithms
-using Buchberger
-using SignatureAlgorithms
+using .GBAlgorithms
+import .Buchberger : BuchbergerAlgorithm
+import .SignatureAlgorithms : SignatureAlgorithm
+import .Binomials : Binomial
+import .GradedBinomials : GradedBinomial
 
-#TODO Finish implementing these. They should be practical ways to call my
-#algorithms
-function buchberger_algorithm(
+function groebner_basis(
     A :: Array{Int, 2},
     b :: Vector{Int},
     C :: Array{Int, 2},
-    u :: Vector{Int}
+    u :: Vector{Int};
+    use_signatures :: Bool = false,
+    implicit_representation :: Bool = false
 ) :: Vector{Vector{Int}}
-    algorithm = BuchbergerAlgorithm()
-    run(algorithm)
-    return current_basis(algorithm)
-end
+    #Setting parameters
+    algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
+    representation = implicit_representation ? GradedBinomial : Binomial
 
-#TODO this looks almost like the one above but duplicated. Maybe there's a better
-#way to do this
-function signature_algorithm(
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{Int, 2},
-    u :: Vector{Int}
-) :: Vector{Vector{Int}}
-    algorithm = SignatureAlgorithm()
-    run(algorithm)
-    return current_basis(algorithm)
+    #Signatures aren't currently supported with implicit representation
+    @assert !(use_signatures && implicit_representation)
+
+    #Run GB algorithm over the given instance
+    algorithm = algorithm_type{representation}(representation, C)
+    return run(algorithm, A, b, C, u)
 end
 
 end

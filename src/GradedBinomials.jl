@@ -26,6 +26,8 @@ mutable struct GradedBinomial <: GBElement
     negative_degree :: Vector{Int} #Degree of the negative part of this element
 end
 
+GBElements.is_implicit(:: Type{<: GradedBinomial}) = true
+
 function filter(
     binomial :: GradedBinomial;
     fullfilter :: Bool = false

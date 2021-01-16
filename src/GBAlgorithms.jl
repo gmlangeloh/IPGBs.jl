@@ -3,7 +3,6 @@ module GBAlgorithms
 export GBAlgorithm, run, current_basis
 
 using IPGBs.BinomialSets
-using IPGBs.CriticalPairs
 using IPGBs.GBElements
 
 """
@@ -15,6 +14,7 @@ abstract type GBAlgorithm end
 # GBAlgorithm interface
 next_pair(:: GBAlgorithm) = error("Not implemented.")
 current_basis(:: GBAlgorithm) = error("Not implemented.")
+initialize_order(:: GBAlgorithm, :: Array{Int, 2}) = error("Not implemented")
 
 #The following functions may or may not be extended, depending on the algorithm.
 """

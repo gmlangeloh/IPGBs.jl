@@ -4,10 +4,8 @@ export GBOrder, BinomialSet, MonomialOrder, order, binomials, reduction_tree,
     is_support_reducible, fourti2_form, sbinomial, minimal_basis!, reduced_basis!,
     auto_reduce!
 
-using IPGBs.CriticalPairs
 using IPGBs.FastBitSets
 using IPGBs.GBElements
-using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
 
 """
@@ -49,14 +47,21 @@ struct BinomialSet{T <: GBElement, S <: GBOrder} <: AbstractVector{T}
     positive_supports :: Vector{FastBitSet}
     negative_supports :: Vector{FastBitSet}
 
-    function BinomialSet(basis :: Vector{T}, order :: S, min = true) where {T, S}
+    function BinomialSet(basis :: Vector{T}, order :: S) where {T, S}
         #TODO also try to build the order
-        tree = support_tree(basis, fullfilter=(T == GradedBinomial))
+        tree = support_tree(basis, fullfilter=is_implicit(T))
         pos_supps, neg_supps = supports(basis)
+        min = !is_implicit(T)
         new{T, S}(
             basis, order, tree, min, pos_supps, neg_supps
         )
     end
+end
+
+function BinomialSet(T :: Type)
+    #TODO define order and minimization somewhere else, maybe pass them to this
+    #constructor
+    return BinomialSet{T, S}(T[])
 end
 
 #

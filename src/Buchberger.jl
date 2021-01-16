@@ -46,16 +46,22 @@ function next_state!(
     return nothing
 end
 
-struct BuchbergerAlgorithm{T <: GBElement, S <: GBOrder} <: GBAlgorithm
-    basis :: BinomialSet{T, S}
+struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
+    basis :: BinomialSet{T, MonomialOrder}
     state :: BuchbergerState
+
+    function BuchbergerAlgorithm(T :: Type, C :: Array{Int, 2})
+        order = MonomialOrder(C)
+        state = BuchbergerState(0)
+        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state)
+    end
 end
 
 current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
 function next_pair(
-    algorithm :: BuchbergerAlgorithm{T, S}
-) :: Union{BinomialPair, Nothing} where {T <: GBElement, S <: GBOrder}
+    algorithm :: BuchbergerAlgorithm{T}
+) :: Union{BinomialPair, Nothing} where {T <: GBElement}
     s = next_state!(algorithm.state)
     if !isnothing(s)
         i, j = s
@@ -64,16 +70,22 @@ function next_pair(
     return nothing
 end
 
+#TODO probably will delete this!! It's not useful because I need to create the
+#order before the algorithm for Signatures to work
+initialize_order(:: BuchbergerAlgorithm, C :: Array{Int, 2}) = MonomialOrder(C)
+
 """
 Applies the GCD criterion to determine whether or not to eliminate the given
 S-pair.
 """
 function late_pair_elimination(
-    algorithm :: BuchbergerAlgorithm{T, S},
+    algorithm :: BuchbergerAlgorithm{T},
     pair :: CriticalPair
-) :: Bool where {T <: GBElement, S <: GBOrder}
+) :: Bool where {T <: GBElement}
     return is_support_reducible(first(pair), second(pair), current_basis(algorithm))
 end
+
+#TODO refactor from this point onward
 
 function initial_gb(
     A :: Array{Int, 2},

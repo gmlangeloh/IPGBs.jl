@@ -3,7 +3,7 @@ An implementation of a Signature-based algorithm for Gröbner bases of toric
 ideals.
 """
 module SignatureAlgorithms
-export siggb
+export SignatureAlgorithm, siggb
 
 using DataStructures
 
@@ -21,6 +21,15 @@ struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
     heap #TODO type this!!!
     syzygies :: Vector{Signature}
+
+    function SignatureAlgorithm(T :: Type, C :: Array{Int, 2})
+        syzygies = Signature[]
+        generators = SigPoly{T}[]
+        #TODO replace the ...
+        order = ModuleMonomialOrdering(C, ..., generators)
+        basis = BinomialSet(generators, order)
+        new{T}(basis, ..., syzygies)
+    end
 end
 
 current_basis(algorithm :: SignatureAlgorithm{T}) where {T} = algorithm.basis
@@ -32,6 +41,16 @@ function next_pair(
         return nothing
     end
     return pop!(algorithm.heap)
+end
+
+function initialize_order(
+    algorithm :: SignatureAlgorithm{T},
+    C :: Array{Int, 2},
+    module_order :: ModuleMonomialOrder
+) :: GBOrder where {T <: GBElement}
+    #TODO there's a problem here. To create the order, the basis already has
+    #to exist, and vice-versa...
+    return ModuleMonomialOrdering(C, module_order, current_basis(algorithm))
 end
 
 function early_pair_elimination(
