@@ -36,7 +36,11 @@ struct SignatureAlgorithm{T} <: GBAlgorithm
         #TODO create additional stats fields for Signatures
         #This should include counting the number of pairs eliminated by each
         #criterion
-        new{T}(basis, heap, syzygies, nothing, GBStats())
+        stats = GBStats()
+        stats.stats["eliminated_by_signature"] = 0
+        stats.stats["eliminated_by_gcd"] = 0
+        stats.stats["eliminated_by_duplicate"] = 0
+        new{T}(basis, heap, syzygies, nothing, stats)
     end
 end
 
@@ -67,15 +71,18 @@ function late_pair_elimination(
     #Skip repeated signatures
     if !isnothing(algorithm.previous_signature) &&
         isequal(algorithm.previous_signature, pair.signature)
+        stats(algorithm)["eliminated_by_duplicate"] += 1
         return true
     end
     algorithm.previous_signature = pair.signature
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
+        stats(algorithm)["eliminated_by_signature"] += 1
         return true
     end
     #GCD criterion
     if is_support_reducible(first(pair), second(pair), current_basis(algorithm))
+        stats(algorithm)["eliminated_by_gcd"] += 1
         return true
     end
     return false

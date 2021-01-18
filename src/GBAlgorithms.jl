@@ -20,6 +20,16 @@ struct GBStats
     end
 end
 
+function Base.show(
+    io :: IO,
+    stats :: GBStats
+)
+    println(io, "Algorithm statistics:")
+    for stat in stats.stats
+        println(io, stat)
+    end
+end
+
 """
 A generic Gröbner Basis algorithm. For now, it can be either a BuchbergerAlgorithm
 or a SignatureAlgorithm.
@@ -50,6 +60,37 @@ algorithm's criteria.
 late_pair_elimination(:: GBAlgorithm, :: CriticalPair) = nothing
 
 process_zero_reduction!(:: GBAlgorithm, :: T) where {T <: GBElement} = nothing
+
+function sbinomial(
+    algorithm :: GBAlgorithm,
+    pair :: CriticalPair
+) :: GBElement
+    stats(algorithm)["built_pairs"] += 1
+    return sbinomial(pair, current_basis(algorithm))
+end
+
+function reduce!(
+    algorithm :: GBAlgorithm,
+    binomial :: GBElement
+) :: Bool
+    stats(algorithm)["reduced_pairs"] += 1
+    return BinomialSets.reduce!(binomial, current_basis(algorithm))
+end
+
+function truncate(
+    algorithm :: GBAlgorithm,
+    binomial :: GBElement,
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    u :: Vector{Int}
+) :: Bool
+    should_truncate = !isfeasible(binomial, A, b, u)
+    if should_truncate
+        stats(algorithm)["eliminated_by_truncation"] += 1
+        return true
+    end
+    return false
+end
 
 """
 Returns true iff this algorithm is working with problems in minimization form.
@@ -84,10 +125,8 @@ function run(
             continue
         end
         binomial = sbinomial(pair, gb)
-        stats(algorithm)["built_pairs"] += 1
-        if isfeasible(binomial, A, b, u)
+        if truncate(algorithm, binomial, A, b, u)
             reduced_to_zero = BinomialSets.reduce!(binomial, gb)
-            stats(algorithm)["reduced_pairs"] += 1
             if !reduced_to_zero
                 update!(algorithm, binomial)
             else #Update syzygies in case this makes sense
@@ -95,6 +134,7 @@ function run(
             end
         end
     end
+    print(stats(algorithm))
     minimal_basis!(gb) #TODO I don't think this works with Signatures yet
     return fourti2_form(gb)
 end

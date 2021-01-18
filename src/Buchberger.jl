@@ -53,7 +53,9 @@ struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     function BuchbergerAlgorithm(T :: Type, C :: Array{Int, 2})
         order = MonomialOrder(C)
         state = BuchbergerState(0)
-        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state, GBStats())
+        stats = GBStats()
+        stats.stats["eliminated_by_gcd"] = 0
+        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state, stats)
     end
 end
 
@@ -90,7 +92,11 @@ function late_pair_elimination(
     algorithm :: BuchbergerAlgorithm{T},
     pair :: CriticalPair
 ) :: Bool where {T <: GBElement}
-    return is_support_reducible(first(pair), second(pair), current_basis(algorithm))
+    if is_support_reducible(first(pair), second(pair), current_basis(algorithm))
+        stats(algorithm)["eliminated_by_gcd"] += 1
+        return true
+    end
+    return false
 end
 
 function process_zero_reduction!(
