@@ -139,12 +139,19 @@ end
 # Dealing with ModuleMonomialOrderings and how to compare signatures
 #
 
-struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
+mutable struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
     monomial_order :: Array{Int, 2}
     module_order :: ModuleMonomialOrder
     #TODO I should make sure this is a reference to the same GB object that
     #is incrementally built in my signature algorithm
     generators :: Vector{SigPoly{T}}
+end
+
+function change_ordering!(
+    order :: ModuleMonomialOrdering{T},
+    new_monomial_order :: Array{Int, 2}
+) where {T <: GBElement}
+    order.monomial_order = new_monomial_order
 end
 
 function Base.lt(
@@ -267,8 +274,8 @@ struct SignaturePair <: CriticalPair
     signature :: Signature
 end
 
-first(pair :: SignaturePair) = pair.i
-second(pair :: SignaturePair) = pair.j
+GBElements.first(pair :: SignaturePair) = pair.i
+GBElements.second(pair :: SignaturePair) = pair.j
 
 #This is necessary because these SPairs are queued.
 function Base.lt(
@@ -292,6 +299,13 @@ function GBElements.build(
     signature = pair.signature
     return SigPoly(element, signature)
 end
+
+#
+# Implementation of a signature basis, useful for passing around in the
+# reduction process. It takes the module ordering along in a convenient way.
+#
+
+const SigBasis{T} = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}
 
 """
 Returns (a, b) for SPair(i, j) = ag_i + bg_j.
@@ -334,13 +348,6 @@ function regular_spair(
     end
     return SignaturePair(i, j, sig)
 end
-
-#
-# Implementation of a signature basis, useful for passing around in the
-# reduction process. It takes the module ordering along in a convenient way.
-#
-
-const SigBasis{T} = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}
 
 #
 # Implementation of the GBElement interface for SigPolys

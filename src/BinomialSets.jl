@@ -2,7 +2,7 @@ module BinomialSets
 
 export GBOrder, BinomialSet, MonomialOrder, order, binomials, reduction_tree,
     is_support_reducible, fourti2_form, sbinomial, minimal_basis!, reduced_basis!,
-    auto_reduce!
+    auto_reduce!, is_minimization
 
 using IPGBs.FastBitSets
 using IPGBs.GBElements
@@ -130,8 +130,8 @@ function sbinomial(
     pair :: CriticalPair,
     bs :: BinomialSet{T, S}
 ) :: T where {T <: GBElement, S <: GBOrder}
-    v = bs[first(pair)]
-    w = bs[second(pair)]
+    v = bs[GBElements.first(pair)]
+    w = bs[GBElements.second(pair)]
     #TODO maybe this complicated logic should be written somewhere else in terms
     #of orientate! or something similar?
     if cost(v) < cost(w)

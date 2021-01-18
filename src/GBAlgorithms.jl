@@ -1,6 +1,6 @@
 module GBAlgorithms
 
-export GBAlgorithm, run, current_basis, GBStats
+export GBAlgorithm, run, current_basis, update!, GBStats, stats, data
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements
@@ -16,6 +16,7 @@ struct GBStats
         d["queued_pairs"] = 0
         d["built_pairs"] = 0
         d["reduced_pairs"] = 0
+        d["eliminated_by_truncation"] = 0
         new(d)
     end
 end
@@ -25,8 +26,14 @@ function Base.show(
     stats :: GBStats
 )
     println(io, "Algorithm statistics:")
-    for stat in stats.stats
-        println(io, stat)
+    i = 1
+    for key in keys(stats.stats)
+        if i < length(stats.stats)
+            println(io, key, " => ", stats.stats[key])
+        else
+            print(io, key, " => ", stats.stats[key])
+        end
+        i += 1
     end
 end
 
@@ -37,7 +44,8 @@ or a SignatureAlgorithm.
 abstract type GBAlgorithm end
 
 # GBAlgorithm interface
-stats(:: GBAlgorithm) = error("Not implemented.")
+stats(:: GBAlgorithm) = error("Not implemented.") #Returns the GBStats object
+data(:: GBAlgorithm) = error("Not implemented.") #Returns the dict GBStats wraps
 next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(:: GBAlgorithm) = error("Not implemented.")
 update!(:: GBAlgorithm, :: GBElement) = error("Not implemented.")
@@ -65,15 +73,15 @@ function sbinomial(
     algorithm :: GBAlgorithm,
     pair :: CriticalPair
 ) :: GBElement
-    stats(algorithm)["built_pairs"] += 1
-    return sbinomial(pair, current_basis(algorithm))
+    data(algorithm)["built_pairs"] += 1
+    return BinomialSets.sbinomial(pair, current_basis(algorithm))
 end
 
 function reduce!(
     algorithm :: GBAlgorithm,
     binomial :: GBElement
 ) :: Bool
-    stats(algorithm)["reduced_pairs"] += 1
+    data(algorithm)["reduced_pairs"] += 1
     return BinomialSets.reduce!(binomial, current_basis(algorithm))
 end
 
@@ -86,7 +94,7 @@ function truncate(
 ) :: Bool
     should_truncate = !isfeasible(binomial, A, b, u)
     if should_truncate
-        stats(algorithm)["eliminated_by_truncation"] += 1
+        data(algorithm)["eliminated_by_truncation"] += 1
         return true
     end
     return false
@@ -98,7 +106,7 @@ Returns true iff this algorithm is working with problems in minimization form.
 function is_minimization(
     algorithm :: GBAlgorithm
 ) :: Bool
-    return is_minimization(current_basis(algorithm))
+    return BinomialSets.is_minimization(current_basis(algorithm))
 end
 
 # Main GB algorithm logic. Does not depend on the specific algorithm.
@@ -124,9 +132,9 @@ function run(
         if late_pair_elimination(algorithm, pair)
             continue
         end
-        binomial = sbinomial(pair, gb)
+        binomial = sbinomial(algorithm, pair)
         if truncate(algorithm, binomial, A, b, u)
-            reduced_to_zero = BinomialSets.reduce!(binomial, gb)
+            reduced_to_zero = reduce!(algorithm, binomial)
             if !reduced_to_zero
                 update!(algorithm, binomial)
             else #Update syzygies in case this makes sense
@@ -134,7 +142,7 @@ function run(
             end
         end
     end
-    print(stats(algorithm))
+    println(stats(algorithm))
     minimal_basis!(gb) #TODO I don't think this works with Signatures yet
     return fourti2_form(gb)
 end

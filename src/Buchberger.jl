@@ -55,58 +55,60 @@ struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         state = BuchbergerState(0)
         stats = GBStats()
         stats.stats["eliminated_by_gcd"] = 0
-        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state, stats)
+        new{T}(BinomialSet(T[], order), state, stats)
     end
 end
 
-stats(algorithm :: BuchbergerAlgorithm) = algorithm.stats.stats
-current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
+GBAlgorithms.stats(algorithm :: BuchbergerAlgorithm) = algorithm.stats
+GBAlgorithms.data(algorithm :: BuchbergerAlgorithm) = algorithm.stats.stats
+GBAlgorithms.current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
-function next_pair!(
+function GBAlgorithms.next_pair!(
     algorithm :: BuchbergerAlgorithm{T}
 ) :: Union{BinomialPair, Nothing} where {T <: GBElement}
     s = next_state!(algorithm.state)
     if !isnothing(s)
         i, j = s
-        stats(algorithm)["queued_pairs"] += 1
+        data(algorithm)["queued_pairs"] += 1
         return BinomialPair(i, j)
     end
     return nothing
 end
 
-function update!(
+function GBAlgorithms.update!(
     algorithm :: BuchbergerAlgorithm{T},
     g :: T
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
     increment_size!(algorithm.state)
-    stats(algorithm)["max_basis_size"] = max(stats(algorithm)["max_basis_size"],
-                                             length(current_basis(algorithm)))
+    data(algorithm)["max_basis_size"] = max(data(algorithm)["max_basis_size"],
+                                            length(current_basis(algorithm)))
 end
 
 """
 Applies the GCD criterion to determine whether or not to eliminate the given
 S-pair.
 """
-function late_pair_elimination(
+function GBAlgorithms.late_pair_elimination(
     algorithm :: BuchbergerAlgorithm{T},
     pair :: CriticalPair
 ) :: Bool where {T <: GBElement}
-    if is_support_reducible(first(pair), second(pair), current_basis(algorithm))
-        stats(algorithm)["eliminated_by_gcd"] += 1
+    if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
+                            current_basis(algorithm))
+        data(algorithm)["eliminated_by_gcd"] += 1
         return true
     end
     return false
 end
 
-function process_zero_reduction!(
+function GBAlgorithms.process_zero_reduction!(
     algorithm :: BuchbergerAlgorithm{T},
     :: T
 ) where {T <: GBElement}
-    stats(algorithm)["zero_reductions"] += 1
+    data(algorithm)["zero_reductions"] += 1
 end
 
-function initialize!(
+function GBAlgorithms.initialize!(
     algorithm :: BuchbergerAlgorithm{T},
     A :: Array{Int, 2},
     b :: Vector{Int},
@@ -128,8 +130,6 @@ function initialize!(
         end
     end
 end
-
-#TODO refactor from this point onward
 
 #function initial_gb(
 #    A :: Array{Int, 2},

@@ -17,7 +17,7 @@ function test_buchberger(
     n :: Int;
     seed = 0,
     setseed = true,
-    structure = Binomial
+    implicit_representation = false
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
@@ -42,8 +42,9 @@ function test_buchberger(
     fourti2gb = IPGBs.GBTools.tovector(rgb)
 
     #Compute a GB using my Buchberger implementation
-    gb, time, _, _, _ = @timed buchberger(
-        instance.A, instance.b, instance.C, instance.u, structure=structure
+    gb, time, _, _, _ = @timed groebner_basis(
+        instance.A, instance.b, instance.C, instance.u, use_signatures=false,
+        implicit_representation=implicit_representation
     )
     println("my results")
     @show length(gb) time
@@ -54,8 +55,7 @@ end
 function test_siggb(
     n :: Int;
     seed = 0,
-    setseed = true,
-    structure = Binomial
+    setseed = true
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
@@ -80,14 +80,14 @@ function test_siggb(
     fourti2gb = IPGBs.GBTools.tovector(rgb)
 
     #My results
-    gb, time, _, _, _ = @timed siggb(
-        instance.A, instance.b, instance.C, instance.u, structure=structure
+    gb, time, _, _, _ = @timed groebner_basis(
+        instance.A, instance.b, instance.C, instance.u, use_signatures=true
     )
     println("Signature results")
     @show length(gb) time
     #Basic Buchberger results
-    bgb, time, _, _, _ = @timed buchberger(
-        instance.A, instance.b, instance.C, instance.u, structure=structure
+    bgb, time, _, _, _ = @timed groebner_basis(
+        instance.A, instance.b, instance.C, instance.u, use_signatures=false
     )
     println("Buchberger results")
     @show length(bgb) time

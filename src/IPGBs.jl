@@ -19,10 +19,10 @@ include("./SignatureAlgorithms.jl")
 include("./FourTi2.jl")
 
 using .GBAlgorithms
-import .Buchberger : BuchbergerAlgorithm
-import .SignatureAlgorithms : SignatureAlgorithm
-import .Binomials : Binomial
-import .GradedBinomials : GradedBinomial
+import .Buchberger: BuchbergerAlgorithm
+import .SignatureAlgorithms: SignatureAlgorithm
+import .Binomials: Binomial
+import .GradedBinomials: GradedBinomial
 
 function groebner_basis(
     A :: Array{Int, 2},
@@ -40,8 +40,8 @@ function groebner_basis(
     @assert !(use_signatures && implicit_representation)
 
     #Run GB algorithm over the given instance
-    algorithm = algorithm_type{representation}(representation, C)
-    return run(algorithm, A, b, C, u)
+    algorithm = algorithm_type(representation, C)
+    return GBAlgorithms.run(algorithm, A, b, C, u)
 end
 
 end

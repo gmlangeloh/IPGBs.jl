@@ -19,7 +19,7 @@ using IPGBs.GBAlgorithms
 # Definition of Signature Algorithms themselves.
 #
 
-struct SignatureAlgorithm{T} <: GBAlgorithm
+mutable struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
     heap #TODO type this!!!
     syzygies :: Vector{Signature}
@@ -44,10 +44,11 @@ struct SignatureAlgorithm{T} <: GBAlgorithm
     end
 end
 
-stats(algorithm :: SignatureAlgorithm) = algorithm.stats.stats
-current_basis(algorithm :: SignatureAlgorithm) = algorithm.basis
+GBAlgorithms.stats(algorithm :: SignatureAlgorithm) = algorithm.stats
+GBAlgorithms.data(algorithm :: SignatureAlgorithm) = algorithm.stats.stats
+GBAlgorithms.current_basis(algorithm :: SignatureAlgorithm) = algorithm.basis
 
-function next_pair!(
+function GBAlgorithms.next_pair!(
     algorithm :: SignatureAlgorithm{T}
 ) :: Union{SignaturePair, Nothing} where {T <: GBElement}
     if isempty(algorithm.heap)
@@ -64,61 +65,64 @@ function early_pair_elimination(
     return false
 end
 
-function late_pair_elimination(
+function GBAlgorithms.late_pair_elimination(
     algorithm :: SignatureAlgorithm{T},
     pair :: SignaturePair
 ) :: Bool where {T <: GBElement}
     #Skip repeated signatures
     if !isnothing(algorithm.previous_signature) &&
         isequal(algorithm.previous_signature, pair.signature)
-        stats(algorithm)["eliminated_by_duplicate"] += 1
+        data(algorithm)["eliminated_by_duplicate"] += 1
         return true
     end
     algorithm.previous_signature = pair.signature
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
-        stats(algorithm)["eliminated_by_signature"] += 1
+        data(algorithm)["eliminated_by_signature"] += 1
         return true
     end
     #GCD criterion
-    if is_support_reducible(first(pair), second(pair), current_basis(algorithm))
-        stats(algorithm)["eliminated_by_gcd"] += 1
+    if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
+                            current_basis(algorithm))
+        data(algorithm)["eliminated_by_gcd"] += 1
         return true
     end
     return false
 end
 
-function process_zero_reduction(
-    algorithm :: GBAlgorithm{T},
+function GBAlgorithms.process_zero_reduction!(
+    algorithm :: SignatureAlgorithm{T},
     syzygy_element :: SigPoly{T}
 ) where {T <: GBElement}
     push!(algorithm.syzygies, signature(syzygy_element))
-    stats(algorithm)["zero_reductions"] += 1
+    data(algorithm)["zero_reductions"] += 1
 end
 
-function update!(
-    algorithm :: GBAlgorithm,
+function GBAlgorithms.update!(
+    algorithm :: SignatureAlgorithm{T},
     g :: SigPoly{T}
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
     update_queue!(algorithm)
     update_syzygies!(algorithm)
-    stats(algorithm)["max_basis_size"] = max(stats(algorithm)["max_basis_size"],
-                                             length(current_basis(algorithm)))
+    data(algorithm)["max_basis_size"] = max(data(algorithm)["max_basis_size"],
+                                            length(current_basis(algorithm)))
 end
 
 """
 Adds new SignaturePairs to algorithm.heap. Applies early elimination of S-pairs
 when possible.
 """
-function update_queue!(algorithm :: SignatureAlgorithm)
+function update_queue!(
+    algorithm :: SignatureAlgorithm{T}
+) where {T <: GBElement}
     gb = current_basis(algorithm)
     n = length(gb)
     for i in 1:(n-1)
         sp = regular_spair(i, n, gb)
         if !isnothing(sp) && !early_pair_elimination(algorithm, sp)
             push!(algorithm.heap, sp)
-            stats(algorithm)["queued_pairs"] += 1
+            data(algorithm)["queued_pairs"] += 1
         end
     end
 end
@@ -137,9 +141,18 @@ function update_syzygies!(
     end
 end
 
+function change_ordering!(
+    algorithm :: SignatureAlgorithm{T},
+    new_monomial_order :: Array{Int, 2}
+) where {T <: GBElement}
+    SignaturePolynomials.change_ordering!(
+        algorithm.basis.order, new_monomial_order
+    )
+end
+
 #TODO almost all of this logic is still duplicated in Buchberger.jl. Can I do
 #this better?
-function initialize!(
+function GBAlgorithms.initialize!(
     algorithm :: SignatureAlgorithm{T},
     A :: Array{Int, 2},
     b :: Vector{Int},
@@ -147,6 +160,7 @@ function initialize!(
     u :: Vector{Int}
 ) where {T <: GBElement}
     # This assumes binary constraints
+    change_ordering!(algorithm, C)
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial
@@ -161,7 +175,7 @@ function initialize!(
         e = lattice_generator(i, A, b, C, u)
         if !isnothing(e)
             s = Signature(j, coef)
-            update!(algorithm, SigPoly{T}(e, s))
+            GBAlgorithms.update!(algorithm, SigPoly{T}(e, s))
             j += 1
         end
     end
