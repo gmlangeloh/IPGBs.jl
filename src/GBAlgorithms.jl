@@ -4,6 +4,7 @@ export GBAlgorithm, run, current_basis
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements
+using IPGBs.GBTools
 
 """
 A generic Gröbner Basis algorithm. For now, it can be either a BuchbergerAlgorithm
@@ -16,6 +17,16 @@ next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(:: GBAlgorithm) = error("Not implemented.")
 update!(:: GBAlgorithm, :: GBElement) = error("Not implemented.")
 
+function initialize!(
+    :: GBAlgorithm,
+    :: Array{Int, 2},
+    :: Vector{Int},
+    :: Array{Int, 2},
+    :: Vector{Int}
+)
+    error("Not implemented.")
+end
+
 #The following functions may or may not be extended, depending on the algorithm.
 """
 Returns true iff the given CriticalPair should be eliminated according to this
@@ -25,6 +36,15 @@ late_pair_elimination(:: GBAlgorithm, :: CriticalPair) = nothing
 
 process_zero_reduction!(:: GBAlgorithm, :: T) where {T <: GBElement} = nothing
 
+"""
+Returns true iff this algorithm is working with problems in minimization form.
+"""
+function is_minimization(
+    algorithm :: GBAlgorithm
+) :: Bool
+    return is_minimization(current_basis(algorithm))
+end
+
 # Main GB algorithm logic. Does not depend on the specific algorithm.
 function run(
     algorithm :: GBAlgorithm,
@@ -33,14 +53,16 @@ function run(
     C :: Array{Int, 2},
     u :: Vector{Int}
 ) :: Vector{Vector{Int}}
-    #TODO need complicated initialization around here!
-    #Still need:
-    #- normalization of A, b, C, u
-    #- computing the initial generators and adding them to the gb
+    #Compute the initial basis of the toric ideal
+    A, b, C, u = GBTools.normalize(
+        A, b, C, u, apply_normalization=is_minimization(algorithm)
+    )
+    initialize!(algorithm, A, b, C, u)
     gb = current_basis(algorithm)
+    #Main loop: process all relevant S-pairs
     while true
         pair = next_pair!(algorithm)
-        if isnothing(pair) #All SPairs were processed, terminate algorithm.
+        if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
         if late_pair_elimination(algorithm, pair)
