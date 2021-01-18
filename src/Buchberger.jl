@@ -3,7 +3,6 @@ Implements a combinatorial Buchberger algorithm for Integer Programming
 where all data is non-negative. Based on Thomas and Weismantel (1997).
 """
 module Buchberger
-export buchberger
 export BuchbergerAlgorithm
 
 using IPGBs.BinomialSets
@@ -49,14 +48,16 @@ end
 struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     basis :: BinomialSet{T, MonomialOrder}
     state :: BuchbergerState
+    stats :: GBStats
 
     function BuchbergerAlgorithm(T :: Type, C :: Array{Int, 2})
         order = MonomialOrder(C)
         state = BuchbergerState(0)
-        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state)
+        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state, GBStats())
     end
 end
 
+stats(algorithm :: BuchbergerAlgorithm) = algorithm.stats.stats
 current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
 function next_pair!(
@@ -65,6 +66,7 @@ function next_pair!(
     s = next_state!(algorithm.state)
     if !isnothing(s)
         i, j = s
+        stats(algorithm)["queued_pairs"] += 1
         return BinomialPair(i, j)
     end
     return nothing
@@ -76,6 +78,8 @@ function update!(
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
     increment_size!(algorithm.state)
+    stats(algorithm)["max_basis_size"] = max(stats(algorithm)["max_basis_size"],
+                                             length(current_basis(algorithm)))
 end
 
 """
@@ -87,6 +91,13 @@ function late_pair_elimination(
     pair :: CriticalPair
 ) :: Bool where {T <: GBElement}
     return is_support_reducible(first(pair), second(pair), current_basis(algorithm))
+end
+
+function process_zero_reduction!(
+    algorithm :: BuchbergerAlgorithm{T},
+    :: T
+) where {T <: GBElement}
+    stats(algorithm)["zero_reductions"] += 1
 end
 
 function initialize!(

@@ -1,10 +1,24 @@
 module GBAlgorithms
 
-export GBAlgorithm, run, current_basis
+export GBAlgorithm, run, current_basis, GBStats
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.GBTools
+
+struct GBStats
+    stats :: Dict{String, Any}
+    function GBStats()
+        d = Dict{String, Any}()
+        #Initialize some stats used by every algorithm
+        d["zero_reductions"] = 0
+        d["max_basis_size"] = 0
+        d["queued_pairs"] = 0
+        d["built_pairs"] = 0
+        d["reduced_pairs"] = 0
+        new(d)
+    end
+end
 
 """
 A generic Gröbner Basis algorithm. For now, it can be either a BuchbergerAlgorithm
@@ -13,6 +27,7 @@ or a SignatureAlgorithm.
 abstract type GBAlgorithm end
 
 # GBAlgorithm interface
+stats(:: GBAlgorithm) = error("Not implemented.")
 next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(:: GBAlgorithm) = error("Not implemented.")
 update!(:: GBAlgorithm, :: GBElement) = error("Not implemented.")
@@ -69,8 +84,10 @@ function run(
             continue
         end
         binomial = sbinomial(pair, gb)
+        stats(algorithm)["built_pairs"] += 1
         if isfeasible(binomial, A, b, u)
             reduced_to_zero = BinomialSets.reduce!(binomial, gb)
+            stats(algorithm)["reduced_pairs"] += 1
             if !reduced_to_zero
                 update!(algorithm, binomial)
             else #Update syzygies in case this makes sense

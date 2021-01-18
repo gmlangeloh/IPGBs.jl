@@ -24,6 +24,7 @@ struct SignatureAlgorithm{T} <: GBAlgorithm
     heap #TODO type this!!!
     syzygies :: Vector{Signature}
     previous_signature :: Union{Signature, Nothing}
+    stats :: GBStats
 
     function SignatureAlgorithm(T :: Type, C :: Array{Int, 2})
         syzygies = Signature[]
@@ -32,11 +33,15 @@ struct SignatureAlgorithm{T} <: GBAlgorithm
         order = ModuleMonomialOrdering(C, SignaturePolynomials.ltpot, generators)
         basis = BinomialSet(generators, order)
         heap = BinaryHeap{SignaturePair}(order, [])
-        new{T}(basis, heap, syzygies, nothing)
+        #TODO create additional stats fields for Signatures
+        #This should include counting the number of pairs eliminated by each
+        #criterion
+        new{T}(basis, heap, syzygies, nothing, GBStats())
     end
 end
 
-current_basis(algorithm :: SignatureAlgorithm{T}) where {T} = algorithm.basis
+stats(algorithm :: SignatureAlgorithm) = algorithm.stats.stats
+current_basis(algorithm :: SignatureAlgorithm) = algorithm.basis
 
 function next_pair!(
     algorithm :: SignatureAlgorithm{T}
@@ -81,7 +86,7 @@ function process_zero_reduction(
     syzygy_element :: SigPoly{T}
 ) where {T <: GBElement}
     push!(algorithm.syzygies, signature(syzygy_element))
-    #TODO probably need to count number of zero reductions somewhere
+    stats(algorithm)["zero_reductions"] += 1
 end
 
 function update!(
@@ -91,6 +96,8 @@ function update!(
     push!(current_basis(algorithm), g)
     update_queue!(algorithm)
     update_syzygies!(algorithm)
+    stats(algorithm)["max_basis_size"] = max(stats(algorithm)["max_basis_size"],
+                                             length(current_basis(algorithm)))
 end
 
 """
@@ -104,6 +111,7 @@ function update_queue!(algorithm :: SignatureAlgorithm)
         sp = regular_spair(i, n, gb)
         if !isnothing(sp) && !early_pair_elimination(algorithm, sp)
             push!(algorithm.heap, sp)
+            stats(algorithm)["queued_pairs"] += 1
         end
     end
 end
