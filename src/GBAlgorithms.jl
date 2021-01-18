@@ -122,7 +122,6 @@ function run(
         A, b, C, u, apply_normalization=is_minimization(algorithm)
     )
     initialize!(algorithm, A, b, C, u)
-    gb = current_basis(algorithm)
     #Main loop: process all relevant S-pairs
     while true
         pair = next_pair!(algorithm)
@@ -133,7 +132,7 @@ function run(
             continue
         end
         binomial = sbinomial(algorithm, pair)
-        if truncate(algorithm, binomial, A, b, u)
+        if !truncate(algorithm, binomial, A, b, u)
             reduced_to_zero = reduce!(algorithm, binomial)
             if !reduced_to_zero
                 update!(algorithm, binomial)
@@ -143,8 +142,8 @@ function run(
         end
     end
     println(stats(algorithm))
-    minimal_basis!(gb) #TODO I don't think this works with Signatures yet
-    return fourti2_form(gb)
+    minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet
+    return fourti2_form(current_basis(algorithm))
 end
 
 end
