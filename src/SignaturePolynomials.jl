@@ -7,7 +7,7 @@ orders, another defining SigPolys and so on.
 """
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering,
-    ModuleMonomialOrder, is_zero, divides, koszul,
+    pot_order, ltpot_order, top_order, is_zero, divides, koszul,
     signature, signature_lt, SignaturePair, regular_spair
 
 using IPGBs.BinomialSets
@@ -16,16 +16,6 @@ using IPGBs.GBElements
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.SupportTrees
-
-"""
-An enum containing all types of module monomial orders available for my
-signature algorithm implementation.
-"""
-@enum ModuleMonomialOrder begin
-    pot = -1
-    ltpot = 0
-    top = 1
-end
 
 #
 # Signature implementation
@@ -169,6 +159,12 @@ end
 # Dealing with ModuleMonomialOrderings and how to compare signatures
 #
 
+"""
+An enum containing all types of module monomial orders available for this
+signature algorithm implementation.
+"""
+@enum ModuleMonomialOrder pot_order ltpot_order top_order
+
 mutable struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
     monomial_order :: Array{Int, 2}
     module_order :: ModuleMonomialOrder
@@ -280,9 +276,9 @@ function signature_lt(
     generators :: Vector{SigPoly{T}},
     module_order :: ModuleMonomialOrder
 ) :: Bool where {T <: GBElement}
-    if module_order == pot
+    if module_order == pot_order
         return pot_lt(sig1, sig2, monomial_order)
-    elseif module_order == ltpot
+    elseif module_order == ltpot_order
         return ltpot_lt(sig1, sig2, monomial_order, generators)
     end
     #module_order == top
@@ -437,6 +433,8 @@ end
 
 """
 Returns the Koszul signature of the pair of gb indexed by (i, j).
+
+TODO I think I should only consider REGULAR Koszul syzygies
 """
 function koszul(
     i :: Int,

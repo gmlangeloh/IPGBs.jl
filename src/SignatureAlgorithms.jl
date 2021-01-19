@@ -82,19 +82,28 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
     previous_signature :: Union{Signature, Nothing}
     stats :: GBStats
 
-    function SignatureAlgorithm(T :: Type, C :: Array{Int, 2})
+    function SignatureAlgorithm(T :: Type, C :: Array{Int, 2}, mod_order :: Symbol)
         syzygies = SyzygySet()
         generators = SigPoly{T}[]
         #For now, fix the Schreyer order as module monomial order
-        order = ModuleMonomialOrdering(C, SignaturePolynomials.ltpot, generators)
+        if mod_order == :pot
+            module_order = pot_order
+        elseif mod_order == :ltpot
+            module_order = ltpot_order
+        else
+            module_order = top_order
+        end
+        order = ModuleMonomialOrdering(C, module_order, generators)
         basis = BinomialSet(generators, order)
         heap = BinaryHeap{SignaturePair}(order, [])
         koszul = BinaryHeap{Signature}(order, [])
         stats = GBStats()
-        stats.stats["eliminated_by_signature"] = 0
+        stats.stats["eliminated_by_early_signature"] = 0
+        stats.stats["eliminated_by_late_signature"] = 0
         stats.stats["eliminated_by_gcd"] = 0
         stats.stats["eliminated_by_duplicate"] = 0
-        stats.stats["eliminated_by_koszul"] = 0
+        stats.stats["eliminated_by_early_koszul"] = 0
+        stats.stats["eliminated_by_late_koszul"] = 0
         new{T}(basis, heap, koszul, syzygies, nothing, stats)
     end
 end
@@ -124,11 +133,11 @@ function early_pair_elimination(
     end
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
-        data(algorithm)["eliminated_by_signature"] += 1
+        data(algorithm)["eliminated_by_early_signature"] += 1
         return true
     end
     if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
-        data(algorithm)["eliminated_by_koszul"] += 1
+        data(algorithm)["eliminated_by_early_koszul"] += 1
         return true
     end
     return false
@@ -147,19 +156,20 @@ function GBAlgorithms.late_pair_elimination(
     algorithm.previous_signature = pair.signature
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
-        data(algorithm)["eliminated_by_signature"] += 1
+        data(algorithm)["eliminated_by_late_signature"] += 1
         return true
     end
     if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
-        data(algorithm)["eliminated_by_koszul"] += 1
+        data(algorithm)["eliminated_by_late_koszul"] += 1
         return true
     end
     #GCD criterion
-    if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
-                            current_basis(algorithm))
-        data(algorithm)["eliminated_by_gcd"] += 1
-        return true
-    end
+    #Unnecessary to apply GCD criterion both early and late. Just use one of them.
+    #if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
+    #                        current_basis(algorithm))
+    #    data(algorithm)["eliminated_by_late_gcd"] += 1
+    #    return true
+    #end
     return false
 end
 

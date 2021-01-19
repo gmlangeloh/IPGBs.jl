@@ -15,11 +15,13 @@ include("./test_functions.jl")
         end
     end
 
-    for n in [5, 10, 15, 20]
-        println("Signature test for Binomial structure, n = ", n)
-        gb, fourti2gb, bgb = test_siggb(n)
-        @test IPGBs.GBTools.isincluded(bgb, gb)
-        println()
+    for order in [:ltpot, :pot, :top]
+        for n in [5, 10, 15, 20]
+            println("Signature test for Binomial structure, n = ", n)
+            gb, fourti2gb, bgb = test_siggb(n, module_order=order)
+            @test IPGBs.GBTools.isincluded(bgb, gb)
+            println()
+        end
     end
 
     #Tests for the signature-based algorithms: compare to Buchberger

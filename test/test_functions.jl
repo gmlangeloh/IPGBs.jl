@@ -57,7 +57,8 @@ end
 function test_siggb(
     n :: Int;
     seed = 0,
-    setseed = true
+    setseed = true,
+    module_order = :ltpot
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
@@ -85,7 +86,8 @@ function test_siggb(
 
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
-        instance.A, instance.b, instance.C, instance.u, use_signatures=true
+        instance.A, instance.b, instance.C, instance.u, use_signatures=true,
+        module_order=module_order
     )
     println()
     println("Signature results")
