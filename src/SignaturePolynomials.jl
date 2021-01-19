@@ -63,10 +63,7 @@ function divides(
     end
     n = length(s1.monomial)
     @assert n == length(s2.monomial)
-    if all(i -> s1.monomial[i] <= s2.monomial[i], 1:n)
-        return true
-    end
-    return false
+    return all(i -> s1.monomial[i] <= s2.monomial[i], 1:n)
 end
 
 function Base.:*(
