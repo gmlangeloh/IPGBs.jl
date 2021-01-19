@@ -48,7 +48,8 @@ stats(:: GBAlgorithm) = error("Not implemented.") #Returns the GBStats object
 data(:: GBAlgorithm) = error("Not implemented.") #Returns the dict GBStats wraps
 next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(:: GBAlgorithm) = error("Not implemented.")
-update!(:: GBAlgorithm, :: GBElement) = error("Not implemented.")
+update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
+    error("Not implemented.")
 
 function initialize!(
     :: GBAlgorithm,
@@ -135,7 +136,7 @@ function run(
         if !truncate(algorithm, binomial, A, b, u)
             reduced_to_zero = reduce!(algorithm, binomial)
             if !reduced_to_zero
-                update!(algorithm, binomial)
+                update!(algorithm, binomial, pair)
             else #Update syzygies in case this makes sense
                 process_zero_reduction!(algorithm, binomial)
             end

@@ -77,7 +77,8 @@ end
 
 function GBAlgorithms.update!(
     algorithm :: BuchbergerAlgorithm{T},
-    g :: T
+    g :: T,
+    :: Union{CriticalPair, Nothing} = nothing
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
     increment_size!(algorithm.state)

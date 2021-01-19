@@ -52,8 +52,6 @@ end
 """
 Returns true iff there is a syzygy in `syzygies` that divides `s`. Uses
 SupportTrees for efficient divisor search.
-
-TODO use this for the signature criterion
 """
 function divided_by(
     s :: Signature,
@@ -73,12 +71,13 @@ end
 
 #Type alias for my SignaturePair heaps
 #TODO maybe I should use some other name though, due to the Koszul heaps
-const SigHeap{T} = BinaryHeap{SignaturePair, ModuleMonomialOrdering{T}};
+const SigHeap{T} = BinaryHeap{SignaturePair, ModuleMonomialOrdering{T}}
+const KoszulHeap{T} = BinaryHeap{Signature, ModuleMonomialOrdering{T}}
 
 mutable struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
     heap :: SigHeap{T}
-    #syzygies :: Vector{Signature}
+    koszul :: KoszulHeap{T}
     syzygies :: SyzygySet
     previous_signature :: Union{Signature, Nothing}
     stats :: GBStats
@@ -90,14 +89,13 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
         order = ModuleMonomialOrdering(C, SignaturePolynomials.ltpot, generators)
         basis = BinomialSet(generators, order)
         heap = BinaryHeap{SignaturePair}(order, [])
-        #TODO create additional stats fields for Signatures
-        #This should include counting the number of pairs eliminated by each
-        #criterion
+        koszul = BinaryHeap{Signature}(order, [])
         stats = GBStats()
         stats.stats["eliminated_by_signature"] = 0
         stats.stats["eliminated_by_gcd"] = 0
         stats.stats["eliminated_by_duplicate"] = 0
-        new{T}(basis, heap, syzygies, nothing, stats)
+        stats.stats["eliminated_by_koszul"] = 0
+        new{T}(basis, heap, koszul, syzygies, nothing, stats)
     end
 end
 
@@ -124,6 +122,15 @@ function early_pair_elimination(
         data(algorithm)["eliminated_by_gcd"] += 1
         return true
     end
+    #Signature criterion
+    if signature_criterion(pair, algorithm.syzygies)
+        data(algorithm)["eliminated_by_signature"] += 1
+        return true
+    end
+    if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
+        data(algorithm)["eliminated_by_koszul"] += 1
+        return true
+    end
     return false
 end
 
@@ -143,6 +150,10 @@ function GBAlgorithms.late_pair_elimination(
         data(algorithm)["eliminated_by_signature"] += 1
         return true
     end
+    if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
+        data(algorithm)["eliminated_by_koszul"] += 1
+        return true
+    end
     #GCD criterion
     if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
                             current_basis(algorithm))
@@ -157,17 +168,22 @@ function GBAlgorithms.process_zero_reduction!(
     syzygy_element :: SigPoly{T}
 ) where {T <: GBElement}
     add_syzygy!(algorithm.syzygies, signature(syzygy_element))
-    #push!(algorithm.syzygies, signature(syzygy_element))
     data(algorithm)["zero_reductions"] += 1
 end
 
 function GBAlgorithms.update!(
     algorithm :: SignatureAlgorithm{T},
-    g :: SigPoly{T}
+    g :: SigPoly{T},
+    pair :: Union{SignaturePair, Nothing} = nothing
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
     update_queue!(algorithm)
-    update_syzygies!(algorithm)
+    #update_syzygies!(algorithm)
+    if !isnothing(pair)
+        push!(algorithm.koszul, koszul(
+            GBElements.first(pair), GBElements.second(pair),
+            current_basis(algorithm)))
+    end
     data(algorithm)["max_basis_size"] = max(data(algorithm)["max_basis_size"],
                                             length(current_basis(algorithm)))
 end
@@ -200,11 +216,17 @@ function update_syzygies!(
     gb = current_basis(algorithm)
     n = length(gb)
     for i in 1:(n-1)
-        add_syzygy!(algorithm.syzygies, koszul(i, n, gb))
-        #push!(algorithm.syzygies, koszul(i, n, gb))
+        #add_syzygy!(algorithm.syzygies, koszul(i, n, gb))
+        push!(algorithm.koszul, koszul(i, n, gb))
     end
 end
 
+"""
+Changes to a new monomial ordering. This may be necessary in the beginning of
+the run in case the monomial order has suffered some transformation (e.g. new
+variables were added due to normalization) and thus these changes must be also
+done in the algorithm's internal order.
+"""
 function change_ordering!(
     algorithm :: SignatureAlgorithm{T},
     new_monomial_order :: Array{Int, 2}
@@ -258,16 +280,37 @@ is a known syzygy that divides its signature.
 """
 function signature_criterion(
     spair :: SignaturePair,
-    #syzygies :: Vector{Signature}
     syzygies :: SyzygySet
 ) :: Bool
-    #for syz in syzygies
-    #    if divides(syz, spair.signature)
-    #        return true
-    #    end
-    #end
-    #return false
     return divided_by(spair.signature, syzygies)
+end
+
+#TODO this isn't eliminating pretty much anything at all! Investigate
+function koszul_criterion(
+    spair :: SignaturePair,
+    koszul :: KoszulHeap{T},
+    order :: ModuleMonomialOrdering{T}
+) :: Bool where {T <: GBElement}
+    if isempty(koszul) #No known Koszul signatures, skip criterion
+        return false
+    end
+    #Pop all Koszul signatures that are smaller than the current spair signature
+    #Because signatures are processed in increasing order, if these signatures
+    #are useless now, they will always be useless later
+    k_sig = Base.first(koszul)
+    while Base.lt(order, k_sig, spair.signature)
+        pop!(koszul)
+        if isempty(koszul)
+            return false
+        end
+        k_sig = Base.first(koszul)
+    end
+    #If current Koszul signature and spair signature coincide, the spair may be
+    #eliminated
+    if Base.isequal(k_sig, spair.signature)
+        return true
+    end
+    return false
 end
 
 end
