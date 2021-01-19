@@ -37,6 +37,7 @@ function test_buchberger(
         lattice_4ti2, instance_4ti2.C, truncation_sol=initial_solution,
         lattice=true
     )
+    println()
     println("4ti2 results")
     @show size(rgb, 1) time
     fourti2gb = IPGBs.GBTools.tovector(rgb)
@@ -46,6 +47,7 @@ function test_buchberger(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false,
         implicit_representation=implicit_representation
     )
+    println()
     println("my results")
     @show length(gb) time
 
@@ -75,20 +77,25 @@ function test_siggb(
         lattice_4ti2, instance_4ti2.C, truncation_sol=initial_solution,
         lattice=true
     )
+    println()
     println("4ti2 results")
     @show size(rgb, 1) time
     fourti2gb = IPGBs.GBTools.tovector(rgb)
+    println()
 
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=true
     )
+    println()
     println("Signature results")
     @show length(gb) time
+    println()
     #Basic Buchberger results
     bgb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false
     )
+    println()
     println("Buchberger results")
     @show length(bgb) time
     return gb, fourti2gb, bgb

@@ -376,7 +376,7 @@ function lt_tiebreaker(
     g :: T,
     h :: T
 ) :: Bool where {T <: AbstractVector{Int}}
-    @assert g.cost == h.cost
+    @assert cost(g) == cost(h)
     gsmaller :: Int = 0 #-1 when g < h, 0 when g = h, 1 when g > h
     sum_g :: Int = 0
     sum_h :: Int = 0

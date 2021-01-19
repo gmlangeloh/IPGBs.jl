@@ -61,7 +61,12 @@ function early_pair_elimination(
     algorithm :: SignatureAlgorithm{T},
     pair :: SignaturePair
 ) :: Bool where {T <: GBElement}
-    #TODO implement this!
+    #GCD criterion
+    if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
+                            current_basis(algorithm))
+        data(algorithm)["eliminated_by_gcd"] += 1
+        return true
+    end
     return false
 end
 

@@ -222,10 +222,12 @@ Updates gb to a minimal Gröbner Basis.
 For more info on minimal GBs, see Lemma 3 from Cox, Little, O'Shea Chapter 2.7.
 In summary, it shows that one can remove from a GB any g such that LT(g) is a
 multiple of LT(h), for h distinct from g in the GB.
+
+TODO doesn't work because deleteat! is not defined.
 """
 function minimal_basis!(
     gb :: BinomialSet{T, S}
-) where  {T <: GBElement, S <: GBOrder}
+) where {T <: GBElement, S <: GBOrder}
     for i in length(gb):-1:1
         g = gb[i]
         reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)

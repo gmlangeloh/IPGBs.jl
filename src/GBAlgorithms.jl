@@ -142,7 +142,7 @@ function run(
         end
     end
     println(stats(algorithm))
-    minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet
+    #minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet
     return fourti2_form(current_basis(algorithm))
 end
 
