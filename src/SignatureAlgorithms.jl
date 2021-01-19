@@ -12,8 +12,60 @@ using IPGBs.GradedBinomials
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.SignaturePolynomials
+using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
+
+#
+# Syzygy division
+#
+
+"""
+Stores one SupportTree for each signature index. This enables fast divisor
+queries for Signatures.
+"""
+mutable struct SyzygySet
+    syzygies :: Vector{SupportTree{Signature}}
+    total_syzygies :: Int
+    SyzygySet() = new(SupportTree{Signature}[], 0)
+end
+
+function initialize!(
+    syzygies :: SyzygySet,
+    n :: Int
+)
+    for i in 1:n
+        t = support_tree(Signature[])
+        push!(syzygies.syzygies, t)
+    end
+    syzygies.total_syzygies = n
+end
+
+function add_syzygy!(
+    syzygies :: SyzygySet,
+    new_syzygy :: Signature
+)
+    addbinomial!(syzygies.syzygies[new_syzygy.index], new_syzygy)
+    syzygies.total_syzygies += 1
+end
+
+"""
+Returns true iff there is a syzygy in `syzygies` that divides `s`. Uses
+SupportTrees for efficient divisor search.
+
+TODO use this for the signature criterion
+"""
+function divided_by(
+    s :: Signature,
+    syzygies :: SyzygySet
+) :: Bool
+    search_tree = syzygies.syzygies[s.index]
+    #I need to pass a signature array here because the function below uses the
+    #metadata on a BinomialSet, when it is available. An empty vector with no
+    #additional data works fine, though.
+    divisor = find_reducer(s, Signature[], search_tree)
+    return !isnothing(divisor)
+end
 
 #
 # Definition of Signature Algorithms themselves.
@@ -26,12 +78,13 @@ const SigHeap{T} = BinaryHeap{SignaturePair, ModuleMonomialOrdering{T}};
 mutable struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
     heap :: SigHeap{T}
-    syzygies :: Vector{Signature}
+    #syzygies :: Vector{Signature}
+    syzygies :: SyzygySet
     previous_signature :: Union{Signature, Nothing}
     stats :: GBStats
 
     function SignatureAlgorithm(T :: Type, C :: Array{Int, 2})
-        syzygies = Signature[]
+        syzygies = SyzygySet()
         generators = SigPoly{T}[]
         #For now, fix the Schreyer order as module monomial order
         order = ModuleMonomialOrdering(C, SignaturePolynomials.ltpot, generators)
@@ -103,7 +156,8 @@ function GBAlgorithms.process_zero_reduction!(
     algorithm :: SignatureAlgorithm{T},
     syzygy_element :: SigPoly{T}
 ) where {T <: GBElement}
-    push!(algorithm.syzygies, signature(syzygy_element))
+    add_syzygy!(algorithm.syzygies, signature(syzygy_element))
+    #push!(algorithm.syzygies, signature(syzygy_element))
     data(algorithm)["zero_reductions"] += 1
 end
 
@@ -146,7 +200,8 @@ function update_syzygies!(
     gb = current_basis(algorithm)
     n = length(gb)
     for i in 1:(n-1)
-        push!(algorithm.syzygies, koszul(i, n, gb))
+        add_syzygy!(algorithm.syzygies, koszul(i, n, gb))
+        #push!(algorithm.syzygies, koszul(i, n, gb))
     end
 end
 
@@ -177,6 +232,9 @@ function GBAlgorithms.initialize!(
         num_gens = size(A, 2)
         lattice_generator = lattice_generator_graded
     end
+    #Need to initialize the SyzygySet before adding new elements in case we
+    #already start adding Koszul syzygies
+    initialize!(algorithm.syzygies, num_gens)
     num_vars = size(A, 2)
     coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
     j = 1
@@ -200,14 +258,16 @@ is a known syzygy that divides its signature.
 """
 function signature_criterion(
     spair :: SignaturePair,
-    syzygies :: Vector{Signature}
+    #syzygies :: Vector{Signature}
+    syzygies :: SyzygySet
 ) :: Bool
-    for syz in syzygies
-        if divides(syz, spair.signature)
-            return true
-        end
-    end
-    return false
+    #for syz in syzygies
+    #    if divides(syz, spair.signature)
+    #        return true
+    #    end
+    #end
+    #return false
+    return divided_by(spair.signature, syzygies)
 end
 
 end

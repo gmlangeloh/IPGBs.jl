@@ -27,12 +27,18 @@ signature algorithm implementation.
     top = 1
 end
 
+#
+# Signature implementation
+# They are a type of AbstractVector in order to use SupportTrees for divisor
+# queries.
+#
+
 """
 A signature, or module monomial, is represented by a monomial with an index,
 where the monomial is the coefficient of the module basis vector of the given
 index.
 """
-struct Signature
+struct Signature <: AbstractVector{Int}
     index :: Int
     monomial :: Vector{Int}
 end
@@ -76,6 +82,33 @@ function Base.:*(
         new_monomial[i] = monomial[i] + s.monomial[i]
     end
     return Signature(s.index, new_monomial)
+end
+
+function Base.size(
+    s :: Signature
+) :: Tuple
+    return size(s.monomial)
+end
+
+function Base.getindex(
+    s :: Signature,
+    i :: Int
+) :: Int
+    return s.monomial[i]
+end
+
+function Base.setindex!(
+    s :: Signature,
+    v :: Int,
+    i :: Int
+)
+    s.monomial[i] = v
+end
+
+function Base.length(
+    s :: Signature
+) :: Int
+    return length(s.monomial)
 end
 
 """
