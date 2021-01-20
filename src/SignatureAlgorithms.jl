@@ -70,7 +70,6 @@ end
 #
 
 #Type alias for my SignaturePair heaps
-#TODO maybe I should use some other name though, due to the Koszul heaps
 const SigHeap{T} = BinaryHeap{SignaturePair, ModuleMonomialOrdering{T}}
 const KoszulHeap{T} = BinaryHeap{Signature, ModuleMonomialOrdering{T}}
 
@@ -97,6 +96,7 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
         basis = BinomialSet(generators, order)
         heap = BinaryHeap{SignaturePair}(order, [])
         koszul = BinaryHeap{Signature}(order, [])
+        #Initialize all statistics collected by a SignatureAlgorithm
         stats = GBStats()
         stats.stats["eliminated_by_early_signature"] = 0
         stats.stats["eliminated_by_late_signature"] = 0
@@ -112,6 +112,13 @@ GBAlgorithms.stats(algorithm :: SignatureAlgorithm) = algorithm.stats
 GBAlgorithms.data(algorithm :: SignatureAlgorithm) = algorithm.stats.stats
 GBAlgorithms.current_basis(algorithm :: SignatureAlgorithm) = algorithm.basis
 
+"""
+Generates the next pair to be processed by `algorithm` by picking the first
+element of its priority queue. Returns `nothing` if there are no more S-pairs
+to be processed and the algorithm may thus terminate.
+
+Pairs are processed in order of increasing signature.
+"""
 function GBAlgorithms.next_pair!(
     algorithm :: SignatureAlgorithm{T}
 ) :: Union{SignaturePair, Nothing} where {T <: GBElement}
@@ -173,6 +180,9 @@ function GBAlgorithms.late_pair_elimination(
     return false
 end
 
+"""
+Adds `syzygy_element` to the set of known syzygies of `algorithm`.
+"""
 function GBAlgorithms.process_zero_reduction!(
     algorithm :: SignatureAlgorithm{T},
     syzygy_element :: SigPoly{T}
@@ -181,6 +191,11 @@ function GBAlgorithms.process_zero_reduction!(
     data(algorithm)["zero_reductions"] += 1
 end
 
+"""
+Adds the element `g` to the current basis maintained by `algorithm`. Uses `pair`,
+if available, to generate new Koszul syzygies. `pair` is assumed to be the
+SignaturePair that was used to generate `g`.
+"""
 function GBAlgorithms.update!(
     algorithm :: SignatureAlgorithm{T},
     g :: SigPoly{T},
@@ -190,9 +205,11 @@ function GBAlgorithms.update!(
     update_queue!(algorithm)
     #update_syzygies!(algorithm)
     if !isnothing(pair)
-        push!(algorithm.koszul, koszul(
-            GBElements.first(pair), GBElements.second(pair),
-            current_basis(algorithm)))
+        k = koszul(GBElements.first(pair), GBElements.second(pair),
+                   current_basis(algorithm))
+        if !isnothing(k)
+            push!(algorithm.koszul, k)
+        end
     end
     data(algorithm)["max_basis_size"] = max(data(algorithm)["max_basis_size"],
                                             length(current_basis(algorithm)))
@@ -219,6 +236,9 @@ end
 """
 Adds the Koszul syzygies corresponding to the newest element of gb to the
 syzygy list.
+
+Currently unused, as this is inefficient. It's not necessary to add all Koszul
+syzygies.
 """
 function update_syzygies!(
     algorithm :: SignatureAlgorithm{T}
@@ -227,7 +247,10 @@ function update_syzygies!(
     n = length(gb)
     for i in 1:(n-1)
         #add_syzygy!(algorithm.syzygies, koszul(i, n, gb))
-        push!(algorithm.koszul, koszul(i, n, gb))
+        k = koszul(i, n, gb)
+        if !isnothing(k)
+            push!(algorithm.koszul, k)
+        end
     end
 end
 
@@ -246,8 +269,13 @@ function change_ordering!(
     )
 end
 
-#TODO almost all of this logic is still duplicated in Buchberger.jl. Can I do
+"""
+Initializes all data in `algorithm`. Must be called before using any of the data
+inside for GB computations.
+
+TODO almost all of this logic is still duplicated in Buchberger.jl. Can I do
 #this better?
+"""
 function GBAlgorithms.initialize!(
     algorithm :: SignatureAlgorithm{T},
     A :: Array{Int, 2},
@@ -295,7 +323,14 @@ function signature_criterion(
     return divided_by(spair.signature, syzygies)
 end
 
-#TODO this isn't eliminating pretty much anything at all! Investigate
+"""
+Applies the Koszul criterion to `spair`, returning true iff it can be eliminated
+by this criterion. The main idea is checking whether there exists a regular Koszul
+syzygy with the same signature as `spair`. If this happens, `spair` may be
+eliminated.
+
+TODO this isn't eliminating pretty much anything at all! Investigate
+"""
 function koszul_criterion(
     spair :: SignaturePair,
     koszul :: KoszulHeap{T},
