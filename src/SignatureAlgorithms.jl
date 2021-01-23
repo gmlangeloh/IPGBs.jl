@@ -1,6 +1,5 @@
 """
-An implementation of a Signature-based algorithm for Gröbner bases of toric
-ideals.
+An implementation of a Signature-based algorithm for Gröbner bases of toric ideals.
 """
 module SignatureAlgorithms
 export SignatureAlgorithm
@@ -24,40 +23,40 @@ using IPGBs.GBAlgorithms
 Stores one SupportTree for each signature index. This enables fast divisor
 queries for Signatures.
 """
-mutable struct SyzygySet
-    syzygies :: Vector{SupportTree{Signature}}
-    total_syzygies :: Int
-    SyzygySet() = new(SupportTree{Signature}[], 0)
+mutable struct SignatureSet
+    signatures :: Vector{SupportTree{Signature}}
+    total_signatures :: Int
+    SignatureSet() = new(SupportTree{Signature}[], 0)
 end
 
 function initialize!(
-    syzygies :: SyzygySet,
+    signatures :: SignatureSet,
     n :: Int
 )
     for i in 1:n
         t = support_tree(Signature[])
-        push!(syzygies.syzygies, t)
+        push!(signatures.signatures, t)
     end
-    syzygies.total_syzygies = n
+    signatures.total_signatures = n
 end
 
-function add_syzygy!(
-    syzygies :: SyzygySet,
-    new_syzygy :: Signature
+function add_signature!(
+    signatures :: SignatureSet,
+    new_signature :: Signature
 )
-    addbinomial!(syzygies.syzygies[new_syzygy.index], new_syzygy)
-    syzygies.total_syzygies += 1
+    addbinomial!(signatures.signatures[new_signature.index], new_signature)
+    signatures.total_signatures += 1
 end
 
 """
-Returns true iff there is a syzygy in `syzygies` that divides `s`. Uses
+Returns true iff there is a signature in `signatures` that divides `s`. Uses
 SupportTrees for efficient divisor search.
 """
 function divided_by(
     s :: Signature,
-    syzygies :: SyzygySet
+    signatures :: SignatureSet
 ) :: Bool
-    search_tree = syzygies.syzygies[s.index]
+    search_tree = signatures.signatures[s.index]
     #I need to pass a signature array here because the function below uses the
     #metadata on a BinomialSet, when it is available. An empty vector with no
     #additional data works fine, though.
@@ -77,12 +76,12 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
     heap :: SigHeap{T}
     koszul :: KoszulHeap{T}
-    syzygies :: SyzygySet
+    syzygies :: SignatureSet
     previous_signature :: Union{Signature, Nothing}
     stats :: GBStats
 
     function SignatureAlgorithm(T :: Type, C :: Array{Int, 2}, mod_order :: Symbol)
-        syzygies = SyzygySet()
+        syzygies = SignatureSet()
         generators = SigPoly{T}[]
         #For now, fix the Schreyer order as module monomial order
         if mod_order == :pot
@@ -128,16 +127,35 @@ function GBAlgorithms.next_pair!(
     return pop!(algorithm.heap)
 end
 
+"""
+Attempts to eliminate the pair (i, j) before even creating it as a SignaturePair
+(thus, without computing its signature).
+
+Returns true iff (i, j) may be eliminated at this point.
+"""
+function very_early_pair_elimination(
+    algorithm :: SignatureAlgorithm{T},
+    i :: Int,
+    j :: Int
+) :: Bool where {T <: GBElement}
+    #GCD criterion
+    if is_support_reducible(i, j, current_basis(algorithm))
+        data(algorithm)["eliminated_by_gcd"] += 1
+        return true
+    end
+    return false
+end
+
+"""
+Attempts to eliminate `pair` before putting it into the priority queue, but after
+computing its signature.
+
+Returns true iff `pair` may be eliminated at this point.
+"""
 function early_pair_elimination(
     algorithm :: SignatureAlgorithm{T},
     pair :: SignaturePair
 ) :: Bool where {T <: GBElement}
-    #GCD criterion
-    if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
-                            current_basis(algorithm))
-        data(algorithm)["eliminated_by_gcd"] += 1
-        return true
-    end
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
         data(algorithm)["eliminated_by_early_signature"] += 1
@@ -150,6 +168,12 @@ function early_pair_elimination(
     return false
 end
 
+"""
+Attempts to eliminate `pair` before building it as an explicit GBElement, after
+retrieving it from the priority queue for processing.
+
+Returns true iff `pair` may be eliminated at this point.
+"""
 function GBAlgorithms.late_pair_elimination(
     algorithm :: SignatureAlgorithm{T},
     pair :: SignaturePair
@@ -187,7 +211,7 @@ function GBAlgorithms.process_zero_reduction!(
     algorithm :: SignatureAlgorithm{T},
     syzygy_element :: SigPoly{T}
 ) where {T <: GBElement}
-    add_syzygy!(algorithm.syzygies, signature(syzygy_element))
+    add_signature!(algorithm.syzygies, signature(syzygy_element))
     data(algorithm)["zero_reductions"] += 1
 end
 
@@ -225,6 +249,9 @@ function update_queue!(
     gb = current_basis(algorithm)
     n = length(gb)
     for i in 1:(n-1)
+        if very_early_pair_elimination(algorithm, i, n)
+            continue
+        end
         sp = regular_spair(i, n, gb)
         if !isnothing(sp) && !early_pair_elimination(algorithm, sp)
             push!(algorithm.heap, sp)
@@ -318,7 +345,7 @@ is a known syzygy that divides its signature.
 """
 function signature_criterion(
     spair :: SignaturePair,
-    syzygies :: SyzygySet
+    syzygies :: SignatureSet
 ) :: Bool
     return divided_by(spair.signature, syzygies)
 end

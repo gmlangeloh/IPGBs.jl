@@ -102,3 +102,29 @@ function test_siggb(
     @show length(bgb) time
     return gb, fourti2gb, bgb
 end
+
+function run_algorithm(
+    n :: Int;
+    seed = 0,
+    setseed = true,
+    module_order = :ltpot,
+    use_signatures = true
+) :: Vector{Vector{Int}}
+    if setseed
+        Random.seed!(seed)
+    end
+    instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
+    lattice_basis = [
+        lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
+                                 check_truncation=false)
+        for i in 1:size(instance.A, 2)]
+    #My results
+    gb, time, _, _, _ = @timed groebner_basis(
+        instance.A, instance.b, instance.C, instance.u,
+        use_signatures=use_signatures, module_order=module_order
+    )
+    println()
+    println("Signature results")
+    @show length(gb) time
+    return gb
+end

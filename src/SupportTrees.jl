@@ -167,6 +167,10 @@ end
 """
 Checks whether `g` is reducible by some element of `gb` and, if so, returns
 a reducer. Otherwise, returns `nothing`.
+
+TODO Initializing the dict "params" here is a lot slower than I'd think
+It allocates some 16 byte vector or something in the Dict. I should try to
+optimize this somehow.
 """
 function find_reducer(
     g :: T,

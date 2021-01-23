@@ -492,6 +492,11 @@ GBElements.supports(g :: SigPoly{GBElement}) = GBElements.supports(g.polynomial)
 """
 Checks whether g is singular top-reducible by some reducer with signature
 reducer_sig. Assumes this reducer divides g.
+
+TODO singular_top_reducible and signature_reducible both compare the same
+signatures. I could call the same function signature_compare in both!
+In fact, given the situation I use this, I should just call signature_compare
+there and be done with it!
 """
 function GBElements.singular_top_reducible(
     g :: SigPoly{T},
