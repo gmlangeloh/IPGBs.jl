@@ -12,6 +12,7 @@ include("./GBTools.jl")
 
 include("./BinomialSets.jl")
 include("./SignaturePolynomials.jl")
+include("./TriangleHeaps.jl")
 include("./GBAlgorithms.jl")
 
 include("./Buchberger.jl")
