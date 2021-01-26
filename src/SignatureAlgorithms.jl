@@ -102,6 +102,9 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
         stats.stats["eliminated_by_duplicate"] = 0
         stats.stats["eliminated_by_early_koszul"] = 0
         stats.stats["eliminated_by_late_koszul"] = 0
+        stats.stats["eliminated_by_base_divisors"] = 0
+        stats.stats["eliminated_by_low_base_divisors"] = 0
+        stats.stats["eliminated_by_high_base_divisors"] = 0
         new{T}(basis, heap, koszul, syzygies, nothing, stats)
     end
 end
@@ -141,6 +144,9 @@ function very_early_pair_elimination(
     if is_support_reducible(i, j, current_basis(algorithm))
         data(algorithm)["eliminated_by_gcd"] += 1
         return true
+    end
+    if base_divisors_criterion(i, j, algorithm)
+        data(algorithm)["eliminated_by_base_divisors"] += 1
     end
     return false
 end
@@ -376,6 +382,50 @@ function koszul_criterion(
         return true
     end
     return false
+end
+
+"""
+Applies the Base Divisors Criterion presented in Roune and Stillman (2012).
+"""
+function base_divisors_criterion(
+    i :: Int,
+    j :: Int,
+    algorithm :: SignatureAlgorithm{T}
+) :: Bool where {T <: GBElement}
+    if high_base_divisors_criterion(i, j, algorithm)
+        data(algorithm)["eliminated_by_high_base_divisors"] += 1
+        return true
+    end
+    const num_low_divisors = 2
+    if low_base_divisors_criterion(i, j, algorithm)
+        data(algorithm)["eliminated_by_low_base_divisors"] += 1
+        return true
+    end
+    return false
+end
+
+"""
+The Base divisor criterion for high-ratio elements. An element a is high-ratio
+if lt(a) | lt(b), where b is the new element being added.
+"""
+function high_base_divisors_criterion(
+    i :: Int,
+    j :: Int,
+    algorithm :: SignatureAlgorithm{T}
+) :: Bool where {T <: GBElement}
+
+end
+
+"""
+The Base divisor criterion for low-ratio elements. An element a is low-ratio if
+signature(a) | signature(b), where b is the new element being added.
+"""
+function low_base_divisors_criterion(
+    i :: Int,
+    j :: Int,
+    algorithm :: SignatureAlgorithm{T}
+) :: Bool where {T <: GBElement}
+
 end
 
 end
