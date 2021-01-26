@@ -68,7 +68,7 @@ algorithm's criteria.
 """
 late_pair_elimination(:: GBAlgorithm, :: CriticalPair) = nothing
 
-process_zero_reduction!(:: GBAlgorithm, :: T) where {T <: GBElement} = nothing
+process_zero_reduction!(:: GBAlgorithm, :: T, :: CriticalPair) where {T <: GBElement} = nothing
 
 function sbinomial(
     algorithm :: GBAlgorithm,
@@ -138,7 +138,7 @@ function run(
             if !reduced_to_zero
                 update!(algorithm, binomial, pair)
             else #Update syzygies in case this makes sense
-                process_zero_reduction!(algorithm, binomial)
+                process_zero_reduction!(algorithm, binomial, pair)
             end
         end
     end

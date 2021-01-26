@@ -104,7 +104,8 @@ end
 
 function GBAlgorithms.process_zero_reduction!(
     algorithm :: BuchbergerAlgorithm{T},
-    :: T
+    :: T,
+    :: CriticalPair
 ) where {T <: GBElement}
     data(algorithm)["zero_reductions"] += 1
 end

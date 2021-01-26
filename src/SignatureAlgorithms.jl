@@ -6,6 +6,7 @@ export SignatureAlgorithm
 
 using DataStructures
 
+using IPGBs.FastBitSets
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.BinomialSets
@@ -17,7 +18,7 @@ using IPGBs.TriangleHeaps
 using IPGBs.GBAlgorithms
 
 #
-# Syzygy division
+# Signature division (useful for the signature criterion, for example)
 #
 
 """
@@ -76,6 +77,7 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
     heap :: TriangleHeap{T, UInt32}
     koszul :: KoszulHeap{T}
     syzygies :: SignatureSet
+    syzygy_pairs :: BitTriangle
     previous_signature :: Union{Signature, Nothing}
     stats :: GBStats
 
@@ -94,6 +96,7 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
         basis = BinomialSet(generators, order)
         heap = TriangleHeap{T, UInt32}(basis, order)
         koszul = BinaryHeap{Signature}(order, [])
+        syz_pairs = BitTriangle()
         #Initialize all statistics collected by a SignatureAlgorithm
         stats = GBStats()
         stats.stats["eliminated_by_early_signature"] = 0
@@ -105,13 +108,32 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
         stats.stats["eliminated_by_base_divisors"] = 0
         stats.stats["eliminated_by_low_base_divisors"] = 0
         stats.stats["eliminated_by_high_base_divisors"] = 0
-        new{T}(basis, heap, koszul, syzygies, nothing, stats)
+        new{T}(basis, heap, koszul, syzygies, syz_pairs, nothing, stats)
     end
 end
+
+#
+# Accessors and modifiers for SignatureAlgorithm
+#
 
 GBAlgorithms.stats(algorithm :: SignatureAlgorithm) = algorithm.stats
 GBAlgorithms.data(algorithm :: SignatureAlgorithm) = algorithm.stats.stats
 GBAlgorithms.current_basis(algorithm :: SignatureAlgorithm) = algorithm.basis
+
+is_syzygy(i, j, algorithm :: SignatureAlgorithm) = algorithm.syzygy_pairs[i, j]
+is_syzygy(pair :: SignaturePair, algorithm :: SignatureAlgorithm) =
+    is_syzygy(pair.i, pair.j, algorithm)
+
+function set_syzygy(i, j, algorithm :: SignatureAlgorithm)
+    algorithm.syzygy_pairs[i, j] = true
+end
+
+set_syzygy(pair :: SignaturePair, algorithm :: SignatureAlgorithm) =
+    set_syzygy(pair.i, pair.j, algorithm)
+
+#
+# GBAlgorithm interface implementation
+#
 
 """
 Generates the next pair to be processed by `algorithm` by picking the first
@@ -143,10 +165,13 @@ function very_early_pair_elimination(
     #GCD criterion
     if is_support_reducible(i, j, current_basis(algorithm))
         data(algorithm)["eliminated_by_gcd"] += 1
+        set_syzygy(i, j, algorithm)
         return true
     end
     if base_divisors_criterion(i, j, algorithm)
         data(algorithm)["eliminated_by_base_divisors"] += 1
+        set_syzygy(i, j, algorithm)
+        return true
     end
     return false
 end
@@ -164,10 +189,12 @@ function early_pair_elimination(
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
         data(algorithm)["eliminated_by_early_signature"] += 1
+        set_syzygy(pair, algorithm)
         return true
     end
     if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
         data(algorithm)["eliminated_by_early_koszul"] += 1
+        set_syzygy(pair, algorithm)
         return true
     end
     return false
@@ -187,16 +214,19 @@ function GBAlgorithms.late_pair_elimination(
     if !isnothing(algorithm.previous_signature) &&
         isequal(algorithm.previous_signature, pair.signature)
         data(algorithm)["eliminated_by_duplicate"] += 1
+        set_syzygy(pair, algorithm)
         return true
     end
     algorithm.previous_signature = pair.signature
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
         data(algorithm)["eliminated_by_late_signature"] += 1
+        set_syzygy(pair, algorithm)
         return true
     end
     if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
         data(algorithm)["eliminated_by_late_koszul"] += 1
+        set_syzygy(pair, algorithm)
         return true
     end
     return false
@@ -207,9 +237,11 @@ Adds `syzygy_element` to the set of known syzygies of `algorithm`.
 """
 function GBAlgorithms.process_zero_reduction!(
     algorithm :: SignatureAlgorithm{T},
-    syzygy_element :: SigPoly{T}
+    syzygy_element :: SigPoly{T},
+    pair :: SignaturePair
 ) where {T <: GBElement}
     add_signature!(algorithm.syzygies, signature(syzygy_element))
+    set_syzygy(pair, algorithm)
     data(algorithm)["zero_reductions"] += 1
 end
 
@@ -224,8 +256,9 @@ function GBAlgorithms.update!(
     pair :: Union{SignaturePair, Nothing} = nothing
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
+    add_row!(algorithm.syzygy_pairs)
     update_queue!(algorithm)
-    #update_syzygies!(algorithm)
+    #Add Koszul element to the queue if relevant
     if !isnothing(pair)
         k = koszul(GBElements.first(pair), GBElements.second(pair),
                    current_basis(algorithm))
@@ -396,7 +429,7 @@ function base_divisors_criterion(
         data(algorithm)["eliminated_by_high_base_divisors"] += 1
         return true
     end
-    const num_low_divisors = 2
+    num_low_divisors = 2
     if low_base_divisors_criterion(i, j, algorithm)
         data(algorithm)["eliminated_by_low_base_divisors"] += 1
         return true
@@ -413,7 +446,7 @@ function high_base_divisors_criterion(
     j :: Int,
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
-
+    return false
 end
 
 """
@@ -425,7 +458,7 @@ function low_base_divisors_criterion(
     j :: Int,
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
-
+    return false
 end
 
 end
