@@ -24,7 +24,7 @@ struct TriangleHeap{T, I <: Unsigned}
     triangle :: Vector{Vector{I}}
     order :: ModuleMonomialOrdering{T}
 
-    function TriangleHeap{T, I}(order :: ModuleMonomialOrdering{T}) where {T}
+    function TriangleHeap{T, I}(order :: ModuleMonomialOrdering{T}) where {T, I}
         heap = BinaryHeap{SignaturePair}(order, [])
         triangle = Vector{I}[]
         new{T, I}(heap, triangle, order)

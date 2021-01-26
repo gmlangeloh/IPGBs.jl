@@ -5,7 +5,7 @@ to Roune and Stillman (2012).
 """
 module SupportTrees
 export SupportTree, find_reducer, reduce!, support_tree, addbinomial!,
-    removebinomial!
+    removebinomial!, enumerate_reducers
 
 using IPGBs.GBElements
 
@@ -160,6 +160,65 @@ function removebinomial!(
         if current.binomial_list[i] === binomial
             deleteat!(current.binomial_list, i)
             return
+        end
+    end
+end
+
+"""
+Returns a vector containing all reducers of `g` in `gb`, using `tree` to find them efficiently.
+"""
+function enumerate_reducers(
+    g :: T,
+    gb :: S,
+    tree :: SupportTree{T};
+    skipbinomial :: Union{T, Nothing} = nothing,
+    negative :: Bool = false,
+    params :: Dict = Dict()
+) :: Vector{T} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    reducers = T[]
+    enumerate_reducers!(
+        reducers, g, gb, tree.root, fullfilter=tree.fullfilter,
+        skipbinomial=skipbinomial, negative=negative
+    )
+    return reducers
+end
+
+"""
+Walks in the tree recursively pushing any reducers found to `reducers`.
+"""
+function enumerate_reducers!(
+    reducers :: Vector{T},
+    g :: T,
+    gb :: S,
+    node :: SupportNode{T};
+    fullfilter :: Bool = false,
+    skipbinomial :: Union{T, Nothing} = nothing,
+    negative :: Bool = false,
+    params :: Dict = Dict()
+) where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    for (i, child) in node.children
+        if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
+            #Look for reducers recursively in the children of this node
+            enumerate_reducers!(
+                reducers, g, gb, child, fullfilter=fullfilter,
+                skipbinomial=skipbinomial, negative=negative, params=params
+            )
+        end
+    end
+    #Check if some binomial in this node works as reducer
+    for reducer in node.binomial_list
+        # If the reducer is the same element of the GB that was passed as
+        #parameter to be skipped, skip it.
+        # This is useful in inter-reductions, where the element should not be
+        #used to reduce itself.
+        if !isnothing(skipbinomial) && reducer === skipbinomial
+            continue
+        end
+        if GBElements.reduces(
+            g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
+            params=params
+        )
+            push!(reducers, reducer)
         end
     end
 end
