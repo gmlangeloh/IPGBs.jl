@@ -4,7 +4,10 @@ Implements the S-pair triangles described in Roune and Stillman (2012), Section
 """
 module TriangleHeaps
 
+export TriangleHeap, push_batch!
+
 using DataStructures
+using IPGBs.BinomialSets
 using IPGBs.SignaturePolynomials
 
 const SigHeap{T} = BinaryHeap{SignaturePair, ModuleMonomialOrdering{T}}
@@ -23,11 +26,15 @@ struct TriangleHeap{T, I <: Unsigned}
     heap :: SigHeap{T}
     triangle :: Vector{Vector{I}}
     order :: ModuleMonomialOrdering{T}
+    basis :: SigBasis{T}
 
-    function TriangleHeap{T, I}(order :: ModuleMonomialOrdering{T}) where {T, I}
+    function TriangleHeap{T, I}(
+        basis :: SigBasis{T},
+        order :: ModuleMonomialOrdering{T}
+    ) where {T, I}
         heap = BinaryHeap{SignaturePair}(order, [])
         triangle = Vector{I}[]
-        new{T, I}(heap, triangle, order)
+        new{T, I}(heap, triangle, order, basis)
     end
 end
 
@@ -74,8 +81,7 @@ function Base.pop!(
         return pair
     end
     i = popfirst!(heap.triangle[row])
-    basis = heap.order.generators
-    new_pair = regular_spair(i, row, basis) #Build the new pair again
+    new_pair = regular_spair(Int(i), row, heap.basis) #Build the new pair again
     @assert !isnothing(new_pair)
     push!(heap.heap, new_pair)
     return pair

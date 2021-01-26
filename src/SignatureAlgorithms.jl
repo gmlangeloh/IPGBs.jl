@@ -12,6 +12,7 @@ using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.SignaturePolynomials
 using IPGBs.SupportTrees
+using IPGBs.TriangleHeaps
 
 using IPGBs.GBAlgorithms
 
@@ -68,13 +69,11 @@ end
 # Definition of Signature Algorithms themselves.
 #
 
-#Type alias for my SignaturePair heaps
-const SigHeap{T} = BinaryHeap{SignaturePair, ModuleMonomialOrdering{T}}
 const KoszulHeap{T} = BinaryHeap{Signature, ModuleMonomialOrdering{T}}
 
 mutable struct SignatureAlgorithm{T} <: GBAlgorithm
     basis :: SigBasis{T}
-    heap :: SigHeap{T}
+    heap :: TriangleHeap{T, UInt32}
     koszul :: KoszulHeap{T}
     syzygies :: SignatureSet
     previous_signature :: Union{Signature, Nothing}
@@ -93,7 +92,7 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
         end
         order = ModuleMonomialOrdering(C, module_order, generators)
         basis = BinomialSet(generators, order)
-        heap = BinaryHeap{SignaturePair}(order, [])
+        heap = TriangleHeap{T, UInt32}(basis, order)
         koszul = BinaryHeap{Signature}(order, [])
         #Initialize all statistics collected by a SignatureAlgorithm
         stats = GBStats()
@@ -194,13 +193,6 @@ function GBAlgorithms.late_pair_elimination(
         data(algorithm)["eliminated_by_late_koszul"] += 1
         return true
     end
-    #GCD criterion
-    #Unnecessary to apply GCD criterion both early and late. Just use one of them.
-    #if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
-    #                        current_basis(algorithm))
-    #    data(algorithm)["eliminated_by_late_gcd"] += 1
-    #    return true
-    #end
     return false
 end
 
@@ -248,16 +240,18 @@ function update_queue!(
 ) where {T <: GBElement}
     gb = current_basis(algorithm)
     n = length(gb)
+    batch = SignaturePair[]
     for i in 1:(n-1)
         if very_early_pair_elimination(algorithm, i, n)
             continue
         end
         sp = regular_spair(i, n, gb)
         if !isnothing(sp) && !early_pair_elimination(algorithm, sp)
-            push!(algorithm.heap, sp)
+            push!(batch, sp)
             data(algorithm)["queued_pairs"] += 1
         end
     end
+    push_batch!(algorithm.heap, batch)
 end
 
 """
@@ -273,7 +267,6 @@ function update_syzygies!(
     gb = current_basis(algorithm)
     n = length(gb)
     for i in 1:(n-1)
-        #add_syzygy!(algorithm.syzygies, koszul(i, n, gb))
         k = koszul(i, n, gb)
         if !isnothing(k)
             push!(algorithm.koszul, k)
