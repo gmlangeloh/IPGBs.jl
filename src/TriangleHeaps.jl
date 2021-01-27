@@ -8,6 +8,7 @@ export TriangleHeap, push_batch!
 
 using DataStructures
 using IPGBs.BinomialSets
+using IPGBs.FastComparator
 using IPGBs.SignaturePolynomials
 
 const SigHeap{T} = BinaryHeap{SignaturePair, ModuleMonomialOrdering{T}}
@@ -27,14 +28,16 @@ struct TriangleHeap{T, I <: Unsigned}
     triangle :: Vector{Vector{I}}
     order :: ModuleMonomialOrdering{T}
     basis :: SigBasis{T}
+    comparator :: Comparator{SignaturePolynomials.SigLead}
 
     function TriangleHeap{T, I}(
         basis :: SigBasis{T},
-        order :: ModuleMonomialOrdering{T}
+        order :: ModuleMonomialOrdering{T},
+        comparator :: Comparator{SignaturePolynomials.SigLead}
     ) where {T, I}
         heap = BinaryHeap{SignaturePair}(order, [])
         triangle = Vector{I}[]
-        new{T, I}(heap, triangle, order, basis)
+        new{T, I}(heap, triangle, order, basis, comparator)
     end
 end
 
@@ -81,7 +84,7 @@ function Base.pop!(
         return pair
     end
     i = popfirst!(heap.triangle[row])
-    new_pair = regular_spair(Int(i), row, heap.basis) #Build the new pair again
+    new_pair = regular_spair(Int(i), row, heap.basis, comparator=heap.comparator) #Build the new pair again
     @assert !isnothing(new_pair)
     push!(heap.heap, new_pair)
     return pair

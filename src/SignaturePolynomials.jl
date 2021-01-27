@@ -8,10 +8,11 @@ orders, another defining SigPolys and so on.
 module SignaturePolynomials
 export Signature, SigPoly, SigBasis, ModuleMonomialOrdering,
     pot_order, ltpot_order, top_order, is_zero, koszul,
-    signature, SignaturePair, regular_spair
+    signature, SignaturePair, regular_spair, SigLead
 
 using IPGBs.BinomialSets
 using IPGBs.FastBitSets
+using IPGBs.FastComparator
 using IPGBs.GBElements
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
@@ -466,10 +467,15 @@ Creates an SPair S(i, j) if it is regular, otherwise returns `nothing`.
 function regular_spair(
     i :: Int,
     j :: Int,
-    gb :: SigBasis{T}
+    gb :: SigBasis{T};
+    comparator :: Union{Comparator{SigLead}, Nothing} = nothing
 ) :: Union{SignaturePair, Nothing} where {T <: GBElement}
     #Compare sig-leads to determine the signature efficiently
-    comp = signature_compare(gb[i].siglead, gb[j].siglead, order(gb))
+    if !isnothing(comparator)
+        comp = compare(comparator, i, j)
+    else
+        comp = signature_compare(gb[i].siglead, gb[j].siglead, order(gb))
+    end
     if comp == :lt #Signature is based on the j-branch
         signature = spair_signature(j, i, gb)
         return SignaturePair(i, j, signature)
@@ -556,10 +562,15 @@ regular. Otherwise, returns nothing.
 function koszul(
     i :: Int,
     j :: Int,
-    gb :: SigBasis{T}
+    gb :: SigBasis{T};
+    comparator :: Union{Comparator{SigLead}, Nothing} = nothing
 ) :: Union{Signature, Nothing} where {T <: GBElement}
     #Compare sig-leads to find out the largest signature
-    comp = signature_compare(gb[i].siglead, gb[j].siglead, order(gb))
+    if !isnothing(comparator)
+        comp = compare(comparator, i, j)
+    else
+        comp = signature_compare(gb[i].siglead, gb[j].siglead, order(gb))
+    end
     if comp == :lt
         return leading_term(gb[i]) * gb[j].signature
     elseif comp == :gt

@@ -7,6 +7,7 @@ export SignatureAlgorithm
 using DataStructures
 
 using IPGBs.FastBitSets
+using IPGBs.FastComparator
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.BinomialSets
@@ -71,19 +72,25 @@ end
 #
 
 const KoszulHeap{T} = BinaryHeap{Signature, ModuleMonomialOrdering{T}}
+const SigLead = SignaturePolynomials.SigLead #I have no clue about why I need this...
 
-mutable struct SignatureAlgorithm{T} <: GBAlgorithm
+mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
     basis :: SigBasis{T}
     heap :: TriangleHeap{T, UInt32}
     koszul :: KoszulHeap{T}
     syzygies :: SignatureSet
+    basis_signatures :: SignatureSet
     syzygy_pairs :: BitTriangle
+    sigleads :: Vector{SigLead}
+    comparator :: Comparator{SigLead, F}
     previous_signature :: Union{Signature, Nothing}
     stats :: GBStats
 
     function SignatureAlgorithm(T :: Type, C :: Array{Int, 2}, mod_order :: Symbol)
         syzygies = SignatureSet()
+        basis_signatures = SignatureSet()
         generators = SigPoly{T}[]
+        sigleads = SigLead[]
         #For now, fix the Schreyer order as module monomial order
         if mod_order == :pot
             module_order = pot_order
@@ -93,10 +100,12 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
             module_order = top_order
         end
         order = ModuleMonomialOrdering(C, module_order, generators)
+        module_order_lt = (s1, s2) -> SignaturePolynomials.signature_lt(s1, s2, order)
         basis = BinomialSet(generators, order)
-        heap = TriangleHeap{T, UInt32}(basis, order)
         koszul = BinaryHeap{Signature}(order, [])
         syz_pairs = BitTriangle()
+        comparator = Comparator{SigLead, typeof(module_order_lt)}(sigleads, module_order_lt)
+        heap = TriangleHeap{T, UInt32}(basis, order, comparator)
         #Initialize all statistics collected by a SignatureAlgorithm
         stats = GBStats()
         stats.stats["eliminated_by_early_signature"] = 0
@@ -108,7 +117,10 @@ mutable struct SignatureAlgorithm{T} <: GBAlgorithm
         stats.stats["eliminated_by_base_divisors"] = 0
         stats.stats["eliminated_by_low_base_divisors"] = 0
         stats.stats["eliminated_by_high_base_divisors"] = 0
-        new{T}(basis, heap, koszul, syzygies, syz_pairs, nothing, stats)
+        new{T, typeof(module_order_lt)}(
+            basis, heap, koszul, syzygies, basis_signatures, syz_pairs,
+            sigleads, comparator, nothing, stats
+        )
     end
 end
 
@@ -256,12 +268,15 @@ function GBAlgorithms.update!(
     pair :: Union{SignaturePair, Nothing} = nothing
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
+    push!(algorithm.sigleads, g.siglead)
+    FastComparator.update!(algorithm.comparator)
+    add_signature!(algorithm.basis_signatures, g.signature)
     add_row!(algorithm.syzygy_pairs)
     update_queue!(algorithm)
     #Add Koszul element to the queue if relevant
     if !isnothing(pair)
         k = koszul(GBElements.first(pair), GBElements.second(pair),
-                   current_basis(algorithm))
+                   current_basis(algorithm), comparator=algorithm.comparator)
         if !isnothing(k)
             push!(algorithm.koszul, k)
         end
@@ -284,7 +299,7 @@ function update_queue!(
         if very_early_pair_elimination(algorithm, i, n)
             continue
         end
-        sp = regular_spair(i, n, gb)
+        sp = regular_spair(i, n, gb, comparator=algorithm.comparator)
         if !isnothing(sp) && !early_pair_elimination(algorithm, sp)
             push!(batch, sp)
             data(algorithm)["queued_pairs"] += 1
@@ -306,7 +321,7 @@ function update_syzygies!(
     gb = current_basis(algorithm)
     n = length(gb)
     for i in 1:(n-1)
-        k = koszul(i, n, gb)
+        k = koszul(i, n, gb, comparator=algorithm.comparator)
         if !isnothing(k)
             push!(algorithm.koszul, k)
         end
@@ -351,9 +366,10 @@ function GBAlgorithms.initialize!(
         num_gens = size(A, 2)
         lattice_generator = lattice_generator_graded
     end
-    #Need to initialize the SyzygySet before adding new elements in case we
-    #already start adding Koszul syzygies
+    #Need to initialize the SignatureSets before adding new elements in case we
+    #already start adding signature elements
     initialize!(algorithm.syzygies, num_gens)
+    initialize!(algorithm.basis_signatures, num_gens)
     num_vars = size(A, 2)
     coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
     j = 1
@@ -446,6 +462,26 @@ function high_base_divisors_criterion(
     j :: Int,
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
+    #TODO note that this computation of base divisors should be done before
+    #calling this function! The same base divisor is used for all pairs with
+    #same j (created in the same batch).
+    return false
+
+    #Compute high-ratio base divisors
+    gb = current_basis(algorithm)
+    lt_b = leading_term(gb[j])
+    base_divisors = enumerate_reducers(lt_b, gb, reduction_tree(gb))
+    if isempty(base_divisors)
+        return false
+    end
+    #Find the one with lowest sig-lead ratio
+
+    #TODO can use minimum(f, itr), which is probably best... apply to the magnitudes in Comparator
+    minimal_divisor = base_divisors[1]
+    for i in 2:length(base_divisors)
+        #TODO
+    end
+    #Apply the criterion itself
     return false
 end
 
@@ -458,6 +494,9 @@ function low_base_divisors_criterion(
     j :: Int,
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
+
+    #I can already search for base divisors with my algorithm.basis_signatures
+    #I probably need the signature INDICES, though... to get the corresponding sigleads
     return false
 end
 

@@ -4,6 +4,7 @@ module IPGBs
 export groebner_basis
 
 include("./FastBitSets.jl")
+include("./FastComparator.jl")
 include("./GBElements.jl")
 include("./SupportTrees.jl")
 include("./Binomials.jl")

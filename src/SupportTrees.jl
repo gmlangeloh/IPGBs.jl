@@ -168,13 +168,13 @@ end
 Returns a vector containing all reducers of `g` in `gb`, using `tree` to find them efficiently.
 """
 function enumerate_reducers(
-    g :: T,
+    g :: P,
     gb :: S,
     tree :: SupportTree{T};
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
     params :: Dict = Dict()
-) :: Vector{T} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+) :: Vector{T} where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     reducers = T[]
     enumerate_reducers!(
         reducers, g, gb, tree.root, fullfilter=tree.fullfilter,
@@ -188,14 +188,14 @@ Walks in the tree recursively pushing any reducers found to `reducers`.
 """
 function enumerate_reducers!(
     reducers :: Vector{T},
-    g :: T,
+    g :: P,
     gb :: S,
     node :: SupportNode{T};
     fullfilter :: Bool = false,
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
     params :: Dict = Dict()
-) where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+) where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     for (i, child) in node.children
         if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
             #Look for reducers recursively in the children of this node
