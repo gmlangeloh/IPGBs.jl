@@ -220,14 +220,14 @@ efficiency. When fullfilter = true, checks if g.head >= reducer.head and
 g.tail >= reducer.tail coordinate-wise, while also checking a degree criterion.
 """
 function reduces(
-    g :: T,
+    g :: P,
     filter :: Vector{Int},
     reducer :: T,
     gb :: S;
     fullfilter :: Bool = true,
     negative :: Bool = false,
     params :: Dict = Dict()
-) :: Bool where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+) :: Bool where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     sign :: Int = negative ? -1 : 1
     if fullfilter
         for i in filter

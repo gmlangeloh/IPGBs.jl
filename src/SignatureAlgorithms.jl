@@ -19,6 +19,32 @@ using IPGBs.TriangleHeaps
 using IPGBs.GBAlgorithms
 
 #
+# Just a simple struct to make the implementation of the Base Divisor criterion simpler
+#
+
+struct LowBaseDiv
+    index :: Int
+    monomial :: Vector{Int}
+
+    function LowBaseDiv(index, a :: SigPoly{T}, b :: SigPoly{T}) where {T}
+        n = length(a)
+        p = Vector{Int}(undef, n)
+        v = Vector{Int}(undef, n)
+        lt_a = leading_term(a)
+        lt_b = leading_term(b)
+        for i in 1:n
+            p[i] = lt_a[i] - a.signature.monomial[i] + b.signature.monomial[i]
+            if lt_b[i] <= p[i]
+                v[i] = typemax(Int)
+            else
+                v[i] = max(p[i], lt_a[i])
+            end
+        end
+        new(index, v)
+    end
+end
+
+#
 # Signature division (useful for the signature criterion, for example)
 #
 
@@ -28,8 +54,9 @@ queries for Signatures.
 """
 mutable struct SignatureSet
     signatures :: Vector{SupportTree{Signature}}
+    basis_indices :: Dict{Signature, Int}
     total_signatures :: Int
-    SignatureSet() = new(SupportTree{Signature}[], 0)
+    SignatureSet() = new(SupportTree{Signature}[], Dict{Signature, Int}(), 0)
 end
 
 function initialize!(
@@ -45,10 +72,21 @@ end
 
 function add_signature!(
     signatures :: SignatureSet,
-    new_signature :: Signature
+    new_signature :: Signature,
+    index :: Union{Int, Nothing} = nothing
 )
     addbinomial!(signatures.signatures[new_signature.index], new_signature)
+    if !isnothing(index)
+        signatures.basis_indices[new_signature] = index
+    end
     signatures.total_signatures += 1
+end
+
+function basis_index(
+    s :: Signature,
+    signatures :: SignatureSet
+) :: Int
+    return signatures.basis_indices[s]
 end
 
 """
@@ -65,6 +103,18 @@ function divided_by(
     #additional data works fine, though.
     divisor = find_reducer(s, Signature[], search_tree)
     return !isnothing(divisor)
+end
+
+"""
+Returns a list of all divisors of `s` in `signatures` that are distinct from
+`s`.
+"""
+function enumerate_divisors(
+    s :: Signature,
+    signatures :: SignatureSet
+) :: Vector{Signature}
+    search_tree = signatures.signatures[s.index]
+    return enumerate_reducers(s, Signature[], search_tree, skipbinomial=s)
 end
 
 #
@@ -171,6 +221,8 @@ Returns true iff (i, j) may be eliminated at this point.
 """
 function very_early_pair_elimination(
     algorithm :: SignatureAlgorithm{T},
+    high_divisor :: Int,
+    low_divisor :: Union{LowBaseDiv, Nothing},
     i :: Int,
     j :: Int
 ) :: Bool where {T <: GBElement}
@@ -180,7 +232,7 @@ function very_early_pair_elimination(
         set_syzygy(i, j, algorithm)
         return true
     end
-    if base_divisors_criterion(i, j, algorithm)
+    if base_divisors_criterion(i, j, high_divisor, low_divisor, algorithm)
         data(algorithm)["eliminated_by_base_divisors"] += 1
         set_syzygy(i, j, algorithm)
         return true
@@ -270,7 +322,7 @@ function GBAlgorithms.update!(
     push!(current_basis(algorithm), g)
     push!(algorithm.sigleads, g.siglead)
     FastComparator.update!(algorithm.comparator)
-    add_signature!(algorithm.basis_signatures, g.signature)
+    add_signature!(algorithm.basis_signatures, g.signature, length(current_basis(algorithm)))
     add_row!(algorithm.syzygy_pairs)
     update_queue!(algorithm)
     #Add Koszul element to the queue if relevant
@@ -295,8 +347,10 @@ function update_queue!(
     gb = current_basis(algorithm)
     n = length(gb)
     batch = SignaturePair[]
+    high_divisor = high_base_divisor(n, algorithm)
+    low_divisor = low_base_divisor(n, algorithm)
     for i in 1:(n-1)
-        if very_early_pair_elimination(algorithm, i, n)
+        if very_early_pair_elimination(algorithm, high_divisor, low_divisor, i, n)
             continue
         end
         sp = regular_spair(i, n, gb, comparator=algorithm.comparator)
@@ -439,18 +493,77 @@ Applies the Base Divisors Criterion presented in Roune and Stillman (2012).
 function base_divisors_criterion(
     i :: Int,
     j :: Int,
+    high_divisor :: Int,
+    low_divisor :: Union{LowBaseDiv, Nothing},
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
-    if high_base_divisors_criterion(i, j, algorithm)
+    if high_base_divisors_criterion(i, j, high_divisor, algorithm)
         data(algorithm)["eliminated_by_high_base_divisors"] += 1
         return true
     end
     num_low_divisors = 2
-    if low_base_divisors_criterion(i, j, algorithm)
+    if low_base_divisors_criterion(i, j, low_divisor, algorithm)
         data(algorithm)["eliminated_by_low_base_divisors"] += 1
         return true
     end
     return false
+end
+
+"""
+Computes the index of the best high-ratio base divisor for the element of index
+j.
+"""
+function high_base_divisor(
+    j :: Int,
+    algorithm :: SignatureAlgorithm{T}
+) :: Int where {T <: GBElement}
+    #Compute high-ratio base divisors
+    gb = current_basis(algorithm)
+    lt_b = leading_term(gb[j])
+    base_divisors = enumerate_reducers(lt_b, gb, reduction_tree(gb), skipbinomial=gb[j])
+    if isempty(base_divisors)
+        return 0
+    end
+    #Find the one with lowest sig-lead ratio
+    #TODO Get the indices of the base divisors from somewhere to avoid calling find_position
+    comp = algorithm.comparator
+    minimal_divisor = base_divisors[1]
+    min_index = FastComparator.find_position(minimal_divisor.siglead, comp)
+    @assert isequal(gb[min_index].siglead, minimal_divisor)
+    for i in 2:length(base_divisors)
+        div = base_divisors[i]
+        div_index = FastComparator.find_position(div.siglead, comp)
+        @assert isequal(gb[div_index].siglead, div)
+        if FastComparator.compare(comp, div_index, min_index) == :lt
+            minimal_divisor = div
+            min_index = div_index
+        end
+    end
+    return min_index
+end
+
+function low_base_divisor(
+    j :: Int,
+    algorithm :: SignatureAlgorithm{T}
+) :: Union{LowBaseDiv, Nothing} where {T <: GBElement}
+    gb = current_basis(algorithm)
+    comp = algorithm.comparator
+    sig_b = gb[j].signature
+    base_sigs = enumerate_divisors(sig_b, algorithm.basis_signatures)
+    if isempty(base_sigs)
+        return nothing
+    end
+    max_index = basis_index(base_sigs[1], algorithm.basis_signatures)
+    max_div = gb[max_index]
+    for i in 2:length(base_sigs)
+        div_index = basis_index(base_sigs[i], algorithm.basis_signatures)
+        div = gb[div_index]
+        if FastComparator.compare(comp, div_index, max_index) == :gt
+            max_index = div_index
+            max_div = div
+        end
+    end
+    return LowBaseDiv(max_index, max_div, gb[j])
 end
 
 """
@@ -460,28 +573,19 @@ if lt(a) | lt(b), where b is the new element being added.
 function high_base_divisors_criterion(
     i :: Int,
     j :: Int,
+    divisor_index :: Int,
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
-    #TODO note that this computation of base divisors should be done before
-    #calling this function! The same base divisor is used for all pairs with
-    #same j (created in the same batch).
-    return false
-
-    #Compute high-ratio base divisors
-    gb = current_basis(algorithm)
-    lt_b = leading_term(gb[j])
-    base_divisors = enumerate_reducers(lt_b, gb, reduction_tree(gb))
-    if isempty(base_divisors)
+    if divisor_index == 0 #There's no high-ratio divisor
         return false
     end
-    #Find the one with lowest sig-lead ratio
-
-    #TODO can use minimum(f, itr), which is probably best... apply to the magnitudes in Comparator
-    minimal_divisor = base_divisors[1]
-    for i in 2:length(base_divisors)
-        #TODO
+    #There's a high-ratio divisor, attempt to use it
+    if i != divisor_index && is_syzygy(i, divisor_index, algorithm)
+        if FastComparator.compare(algorithm.comparator, i, divisor_index) == :gt &&
+            FastComparator.compare(algorithm.comparator, i, j) == :gt
+            return true
+        end
     end
-    #Apply the criterion itself
     return false
 end
 
@@ -492,11 +596,23 @@ signature(a) | signature(b), where b is the new element being added.
 function low_base_divisors_criterion(
     i :: Int,
     j :: Int,
+    low_divisor :: Union{LowBaseDiv, Nothing},
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
-
-    #I can already search for base divisors with my algorithm.basis_signatures
-    #I probably need the signature INDICES, though... to get the corresponding sigleads
+    if isnothing(low_divisor) #There's no low-ratio divisor
+        return false
+    end
+    #There's a low-ratio divisor, attempt to use it
+    comp = algorithm.comparator
+    if i != low_divisor.index && is_syzygy(i, low_divisor.index, algorithm)
+        if FastComparator.compare(comp, i, low_divisor.index) == :lt &&
+            FastComparator.compare(comp, i, j) == :lt
+            lt_c = leading_term(current_basis(algorithm)[i])
+            if all(i -> lt_c[i] <= low_divisor.monomial[i], 1:length(lt_c))
+                return true
+            end
+        end
+    end
     return false
 end
 

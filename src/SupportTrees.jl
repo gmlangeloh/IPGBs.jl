@@ -211,7 +211,7 @@ function enumerate_reducers!(
         #parameter to be skipped, skip it.
         # This is useful in inter-reductions, where the element should not be
         #used to reduce itself.
-        if !isnothing(skipbinomial) && reducer === skipbinomial
+        if !isnothing(skipbinomial) && (reducer === skipbinomial || isequal(reducer, skipbinomial))
             continue
         end
         if GBElements.reduces(
