@@ -399,20 +399,6 @@ function change_ordering!(
 end
 
 """
-Sets grevlex as tiebreaker for this algorithms monomial order by directly
-adding it to the order matrix.
-"""
-#function set_tiebreaker!(
-#    algorithm :: SignatureAlgorithm{T}
-#) where {T <: GBElement}
-#    old_order = order(current_basis(algorithm)).monomial_order
-#    n = size(old_order, 2)
-#    tiebreaker = GBTools.grevlex_matrix(n)
-#    order_with_tiebreaker = vcat(old_order, tiebreaker)
-#    change_ordering!(algorithm, order_with_tiebreaker)
-#end
-
-"""
 Initializes all data in `algorithm`. Must be called before using any of the data
 inside for GB computations.
 
@@ -428,7 +414,6 @@ function GBAlgorithms.initialize!(
 ) where {T <: GBElement}
     # This assumes binary constraints
     change_ordering!(algorithm, C)
-    #set_tiebreaker!(algorithm)
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial

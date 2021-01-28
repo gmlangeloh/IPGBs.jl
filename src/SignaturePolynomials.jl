@@ -204,9 +204,18 @@ This is mutable because, for convenience, it may sometimes be necessary to
 change `monomial_order`.
 """
 mutable struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
-    monomial_order :: Array{Int, 2}
+    monomial_order :: MonomialOrder
     module_order :: ModuleMonomialOrder
     generators :: Vector{SigPoly{T}}
+
+    function ModuleMonomialOrdering(
+        costs :: Array{Int, 2},
+        module_order :: ModuleMonomialOrder,
+        generators :: Vector{SigPoly{T}}
+    ) where {T <: GBElement}
+        monomial_order = MonomialOrder(costs)
+        new{T}(monomial_order, module_order, generators)
+    end
 end
 
 """
@@ -216,7 +225,7 @@ function change_ordering!(
     order :: ModuleMonomialOrdering{T},
     new_monomial_order :: Array{Int, 2}
 ) where {T <: GBElement}
-    order.monomial_order = new_monomial_order
+    order.monomial_order = MonomialOrder(new_monomial_order)
 end
 
 """
@@ -242,12 +251,13 @@ coefficients.
 function pot_compare(
     s1 :: Signature,
     s2 :: Signature,
-    monomial_order :: Array{Int, 2}
+    monomial_order :: MonomialOrder
 ) :: Symbol
     if s1.index < s2.index
         return :lt
     elseif s1.index == s2.index
-        c = cmp(monomial_order * s1.monomial, monomial_order * s2.monomial)
+        #c = cmp(monomial_order * s1.monomial, monomial_order * s2.monomial)
+        c = cmp(monomial_order, s1.monomial, s2.monomial)
         if c == -1
             return :lt
         elseif c == 0
@@ -265,7 +275,7 @@ Returns true iff s1 < s2 in the top order.
 function pot_lt(
     s1 :: Signature,
     s2 :: Signature,
-    monomial_order :: Array{Int, 2}
+    monomial_order :: MonomialOrder
 ) :: Bool
     return pot_compare(s1, s2, monomial_order) == :lt
 end
@@ -281,9 +291,10 @@ respectively.
 function top_compare(
     s1 :: Signature,
     s2 :: Signature,
-    monomial_order :: Array{Int, 2}
+    monomial_order :: MonomialOrder
 ) :: Symbol
-    c = cmp(monomial_order * s1.monomial, monomial_order * s2.monomial)
+    #c = cmp(monomial_order * s1.monomial, monomial_order * s2.monomial)
+    c = cmp(monomial_order, s1.monomial, s2.monomial)
     if c == -1
         return :lt
     elseif c == 0
@@ -304,7 +315,7 @@ Returns true iff s1 < s2 in the top order.
 function top_lt(
     s1 :: Signature,
     s2 :: Signature,
-    monomial_order :: Array{Int, 2}
+    monomial_order :: MonomialOrder
 ) :: Bool
     return top_compare(s1, s2, monomial_order) == :lt
 end
@@ -323,12 +334,13 @@ slow, due to all the calls to image_leading_term...
 function ltpot_compare(
     s1 :: Signature,
     s2 :: Signature,
-    monomial_order :: Array{Int, 2},
+    monomial_order :: MonomialOrder,
     generators :: Vector{SigPoly{T}}
 ) :: Symbol where {T <: GBElement}
     lt_s1 = image_leading_term(s1, generators)
     lt_s2 = image_leading_term(s2, generators)
-    c = cmp(monomial_order * lt_s1, monomial_order * lt_s2)
+    #c = cmp(monomial_order * lt_s1, monomial_order * lt_s2)
+    c = cmp(monomial_order, lt_s1, lt_s2)
     if c == -1
         return :lt
     elseif c == 0
@@ -343,7 +355,7 @@ Returns true iff s1 < s2 in the ltpot (Schreyer) order.
 function ltpot_lt(
     s1 :: Signature,
     s2 :: Signature,
-    monomial_order :: Array{Int, 2},
+    monomial_order :: MonomialOrder,
     generators :: Vector{SigPoly{T}}
 ) :: Bool where {T <: GBElement}
     return ltpot_compare(s1, s2, monomial_order, generators) == :lt

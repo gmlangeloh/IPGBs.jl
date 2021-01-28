@@ -34,10 +34,9 @@ struct MonomialOrder <: GBOrder
         n = size(costs, 2)
         if m < n #Insufficient tiebreaking in costs
             tiebreaker = GBTools.grevlex_matrix(n)
-            new(vcat(costs, tiebreaker))
-            return
+            full_matrix = vcat(costs, tiebreaker)
         end
-        new(costs)
+        new(full_matrix)
     end
 end
 
