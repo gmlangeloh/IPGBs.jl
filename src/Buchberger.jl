@@ -128,7 +128,7 @@ function GBAlgorithms.initialize!(
     for i in 1:num_gens
         e = lattice_generator(i, A, b, C, u)
         if !isnothing(e)
-            update!(algorithm, e)
+            update!(algorithm, e, nothing)
         end
     end
 end

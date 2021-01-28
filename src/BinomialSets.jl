@@ -21,8 +21,6 @@ tiebreaker if necessary.
 
 - TODO if this ends up being called in GBElements, GradedBinomials and so on,
 I should probably make this type into its own module
-- TODO maybe the order should be implemented in column-major form for
-performance (see the way Base.lt is implemented)
 - TODO support other tiebreakers such as lex, as well as other permutations
 of the grevlex variables
 """
@@ -35,13 +33,20 @@ struct MonomialOrder <: GBOrder
         if m < n #Insufficient tiebreaking in costs
             tiebreaker = GBTools.grevlex_matrix(n)
             full_matrix = vcat(costs, tiebreaker)
+        else
+            full_matrix = costs
         end
-        new(full_matrix)
+        #Store the transpose to exploit the fact Julia stores matrices
+        #in column-major form. This helps performance of cmp and lt.
+        new(full_matrix')
     end
 end
 
 Base.length(o :: MonomialOrder) = size(o.cost_matrix, 1)
-Base.getindex(o :: MonomialOrder, i) = o.cost_matrix[i, :]
+
+#This is implemented this way for locality and performance. It is only used
+#in cmp / lt below regardless.
+Base.getindex(o :: MonomialOrder, i, j) = o.cost_matrix[j, i]
 
 """
 Efficient comparison of vectors with respect to a monomial order.
@@ -53,11 +58,10 @@ function Base.cmp(
 ) :: Int where {T <: AbstractVector{Int}}
     @assert length(v1) == length(v2)
     for i in 1:length(order)
-        o = order[i]
         #Compute o' * (v1 - v2) without allocations
         s = 0
         for j in length(v1)
-            s += o[j] * (v1[j] - v2[j])
+            s += order[i, j] * (v1[j] - v2[j])
         end
         if s < 0
             return -1
