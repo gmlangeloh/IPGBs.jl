@@ -5,6 +5,7 @@ export GBOrder, BinomialSet, MonomialOrder, order, binomials, reduction_tree,
     auto_reduce!, is_minimization
 
 using IPGBs.FastBitSets
+using IPGBs.GBTools
 using IPGBs.GBElements
 using IPGBs.SupportTrees
 
@@ -14,14 +15,68 @@ ModuleMonomialOrder in case of Signature-based algorithms.
 """
 abstract type GBOrder <: Base.Ordering end
 
-#TODO for now this is useless. It should probably do SOMETHING
-#Like tiebreaking and helping orientate elements
+"""
+Implements a monomial order from a given cost matrix, including a grevlex
+tiebreaker if necessary.
+
+- TODO if this ends up being called in GBElements, GradedBinomials and so on,
+I should probably make this type into its own module
+- TODO maybe the order should be implemented in column-major form for
+performance (see the way Base.lt is implemented)
+- TODO support other tiebreakers such as lex, as well as other permutations
+of the grevlex variables
+"""
 struct MonomialOrder <: GBOrder
     cost_matrix :: Array{Int, 2}
     #Probably should carry a tiebreaker around too
+    function MonomialOrder(costs :: Array{Int, 2})
+        m = size(costs, 1)
+        n = size(costs, 2)
+        if m < n #Insufficient tiebreaking in costs
+            tiebreaker = GBTools.grevlex_matrix(n)
+            new(vcat(costs, tiebreaker))
+            return
+        end
+        new(costs)
+    end
 end
 
-#TODO this can be in a separated file for utility functions or something
+Base.length(o :: MonomialOrder) = size(o.cost_matrix, 1)
+Base.getindex(o :: MonomialOrder, i) = o.cost_matrix[i, :]
+
+"""
+Efficient comparison of vectors with respect to a monomial order.
+"""
+function Base.cmp(
+    order :: MonomialOrder,
+    v1 :: T,
+    v2 :: T
+) :: Int where {T <: AbstractVector{Int}}
+    @assert length(v1) == length(v2)
+    for i in 1:length(order)
+        o = order[i]
+        #Compute o' * (v1 - v2) without allocations
+        s = 0
+        for j in length(v1)
+            s += o[j] * (v1[j] - v2[j])
+        end
+        if s < 0
+            return -1
+        elseif s > 0
+            return 1
+        end #s == 0, tie. Try next vector in order
+    end
+    return 0 #tied completely, v1 == v2.
+end
+
+function Base.lt(
+    order :: MonomialOrder,
+    v1 :: T,
+    v2 :: T
+) where {T <: AbstractVector{Int}}
+    return cmp(order, v1, v2) == -1
+end
+
 function supports(
     B :: Vector{T}
 ) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}} where {T <: GBElement}

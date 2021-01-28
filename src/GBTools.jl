@@ -73,4 +73,30 @@ function normalize(
     return new_A, new_b, new_C, new_u
 end
 
+"""
+Returns a matrix representing the grevlex order for `n` variables with
+x_n > x_{n-1} > ... > x_1
+"""
+function grevlex_matrix(
+    n :: Int
+) :: Array{Int, 2}
+    grevlex = Array{Int, 2}(undef, n, n)
+    for i in 1:n
+        for j in 1:n
+            grevlex[i, j] = i <= j ? 1 : 0
+        end
+    end
+    return grevlex
+end
+
+"""
+Returns a matrix representing the lex order for `n` variables with
+x_1 > x_2 > ... > x_n.
+"""
+function lex_matrix(
+    n :: Int
+) :: Array{Int, 2}
+    return Matrix{Int}(I, n, n)
+end
+
 end

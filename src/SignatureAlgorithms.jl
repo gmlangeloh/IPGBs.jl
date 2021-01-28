@@ -282,17 +282,17 @@ function GBAlgorithms.late_pair_elimination(
         return true
     end
     algorithm.previous_signature = pair.signature
-    #Signature criterion
-    if signature_criterion(pair, algorithm.syzygies)
-        data(algorithm)["eliminated_by_late_signature"] += 1
-        set_syzygy(pair, algorithm)
-        return true
-    end
-    if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
-        data(algorithm)["eliminated_by_late_koszul"] += 1
-        set_syzygy(pair, algorithm)
-        return true
-    end
+    ##Signature criterion
+    #if signature_criterion(pair, algorithm.syzygies)
+    #    data(algorithm)["eliminated_by_late_signature"] += 1
+    #    set_syzygy(pair, algorithm)
+    #    return true
+    #end
+    #if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
+    #    data(algorithm)["eliminated_by_late_koszul"] += 1
+    #    set_syzygy(pair, algorithm)
+    #    return true
+    #end
     return false
 end
 
@@ -325,6 +325,7 @@ function GBAlgorithms.update!(
     add_signature!(algorithm.basis_signatures, g.signature, length(current_basis(algorithm)))
     add_row!(algorithm.syzygy_pairs)
     update_queue!(algorithm)
+    #update_syzygies!(algorithm)
     #Add Koszul element to the queue if relevant
     if !isnothing(pair)
         k = koszul(GBElements.first(pair), GBElements.second(pair),
@@ -398,6 +399,20 @@ function change_ordering!(
 end
 
 """
+Sets grevlex as tiebreaker for this algorithms monomial order by directly
+adding it to the order matrix.
+"""
+#function set_tiebreaker!(
+#    algorithm :: SignatureAlgorithm{T}
+#) where {T <: GBElement}
+#    old_order = order(current_basis(algorithm)).monomial_order
+#    n = size(old_order, 2)
+#    tiebreaker = GBTools.grevlex_matrix(n)
+#    order_with_tiebreaker = vcat(old_order, tiebreaker)
+#    change_ordering!(algorithm, order_with_tiebreaker)
+#end
+
+"""
 Initializes all data in `algorithm`. Must be called before using any of the data
 inside for GB computations.
 
@@ -413,6 +428,7 @@ function GBAlgorithms.initialize!(
 ) where {T <: GBElement}
     # This assumes binary constraints
     change_ordering!(algorithm, C)
+    #set_tiebreaker!(algorithm)
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial
@@ -431,7 +447,7 @@ function GBAlgorithms.initialize!(
         e = lattice_generator(i, A, b, C, u)
         if !isnothing(e)
             s = Signature(j, coef)
-            GBAlgorithms.update!(algorithm, SigPoly{T}(e, s))
+            GBAlgorithms.update!(algorithm, SigPoly{T}(e, s), nothing)
             j += 1
         end
     end
@@ -481,9 +497,20 @@ function koszul_criterion(
     end
     #If current Koszul signature and spair signature coincide, the spair may be
     #eliminated
-    if Base.isequal(k_sig, spair.signature)
+    if isequal(k_sig, spair.signature)
         return true
     end
+    #TODO tiebreaking in the signature comparisons is wrong / isn't done
+    #there may be bugs involving this elsewhere as well
+    #if SignaturePolynomials.divides(k_sig, spair.signature)
+    #    @show k_sig
+    #    @show spair.signature
+    #    @show Base.lt(order, k_sig, spair.signature)
+    #    @show order.monomial_order * k_sig.monomial
+    #    @show order.monomial_order * spair.signature.monomial
+    #    @show order.monomial_order
+    #    return true
+    #end
     return false
 end
 
