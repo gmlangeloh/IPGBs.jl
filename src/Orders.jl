@@ -63,7 +63,7 @@ function Base.cmp(
     for i in 1:length(order)
         #Compute o' * (v1 - v2) without allocations
         s = 0
-        for j in length(v1)
+        for j in 1:length(v1)
             s += order[i, j] * (v1[j] - v2[j])
         end
         if s < 0

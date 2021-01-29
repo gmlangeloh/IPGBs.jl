@@ -553,7 +553,7 @@ end
 
 function GBElements.degrees(
     v :: GradedBinomial,
-    A :: Array{Int, 2}
+    :: Array{Int, 2}
 ) :: Tuple{Vector{Int}, Vector{Int}}
     return v.positive_degree, v.negative_degree
 end

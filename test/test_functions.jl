@@ -108,7 +108,8 @@ function run_algorithm(
     seed = 0,
     setseed = true,
     module_order = :ltpot,
-    use_signatures = true
+    use_signatures = true,
+    implicit_representation = false
 ) :: Vector{Vector{Int}}
     if setseed
         Random.seed!(seed)
@@ -121,7 +122,8 @@ function run_algorithm(
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u,
-        use_signatures=use_signatures, module_order=module_order
+        use_signatures=use_signatures, module_order=module_order,
+        implicit_representation=implicit_representation
     )
     println()
     println("Signature results")

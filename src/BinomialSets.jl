@@ -192,6 +192,7 @@ function sbinomial(
     w = bs[GBElements.second(pair)]
     #TODO maybe this complicated logic should be written somewhere else in terms
     #of orientate! or something similar?
+    #TODO I completely forgot to "fix" this with the Order stuff
     if cost(v) < cost(w)
         r = build(w, v, pair)
     elseif cost(w) < cost(v)
