@@ -190,19 +190,10 @@ function sbinomial(
 ) :: T where {T <: GBElement, S <: GBOrder}
     v = bs[GBElements.first(pair)]
     w = bs[GBElements.second(pair)]
-    #TODO maybe this complicated logic should be written somewhere else in terms
-    #of orientate! or something similar?
-    #TODO I completely forgot to "fix" this with the Order stuff
-    if cost(v) < cost(w)
+    if Base.lt(order(bs), v, w)
         r = build(w, v, pair)
-    elseif cost(w) < cost(v)
+    else
         r = build(v, w, pair)
-    else #w.cost == v.cost
-        if GBElements.lt_tiebreaker(v, w)
-            r = build(w, v, pair)
-        else
-            r = build(v, w, pair)
-        end
     end
     return r
 end

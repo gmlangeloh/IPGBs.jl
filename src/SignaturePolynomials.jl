@@ -234,6 +234,18 @@ function Orders.change_ordering!(
 end
 
 """
+Compares two SigPolys as polynomials wrt to the monomial order of `o`.
+Ignores signatures and sig-leads.
+"""
+function Base.lt(
+    o :: ModuleMonomialOrdering{T},
+    g :: SigPoly{T},
+    h :: SigPoly{T}
+) :: Bool where {T <: GBElement}
+    return Base.lt(o.monomial_order, g.polynomial, h.polynomial)
+end
+
+"""
 Compares two signatures with respect to the given ModuleMonomialOrdering. Returns
 true iff `s1` is strictly smaller than `s2` with respect to `o`.
 

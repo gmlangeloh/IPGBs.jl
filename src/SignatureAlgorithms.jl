@@ -383,21 +383,6 @@ function update_syzygies!(
     end
 end
 
-#"""
-#Changes to a new monomial ordering. This may be necessary in the beginning of
-#the run in case the monomial order has suffered some transformation (e.g. new
-#variables were added due to normalization) and thus these changes must be also
-#done in the algorithm's internal order.
-#"""
-#function change_ordering!(
-#    algorithm :: SignatureAlgorithm{T},
-#    new_monomial_order :: Array{Int, 2}
-#) where {T <: GBElement}
-#    SignaturePolynomials.change_ordering!(
-#        algorithm.basis.order, new_monomial_order
-#    )
-#end
-
 """
 Initializes all data in `algorithm`. Must be called before using any of the data
 inside for GB computations.

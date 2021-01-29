@@ -5,7 +5,7 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!
+export GBElement, degree_reducible, filter, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -384,59 +384,6 @@ function reduce!(
         end
     end
     return reduced_to_zero
-end
-
-"""
-Returns true iff g is smaller than h in the tiebreaking order (grevlex).
-Assumes that g.cost == h.cost, that is, that there is a tie.
-
-I don't really understand why this works, it doesn't look like grevlex to me.
-But it gives precisely the same results as 4ti2, so I guess I'll keep it.
-Commented below is an implementation which does not give the same results as
-4ti2, but makes more sense to me.
-"""
-function lt_tiebreaker(
-    g :: T,
-    h :: T
-) :: Bool where {T <: AbstractVector{Int}}
-    @assert cost(g) == cost(h)
-    gsmaller :: Int = 0 #-1 when g < h, 0 when g = h, 1 when g > h
-    sum_g :: Int = 0
-    sum_h :: Int = 0
-    # Compute cumulative sums for g.element and h.element
-    #the smallest one is the one with lowest cumulative sum at the farthest
-    #point where they don't tie.
-    for i in 1:length(g)
-        sum_g += g[i]
-        sum_h += h[i]
-        if sum_g < sum_h
-            gsmaller = -1
-            break
-        elseif sum_g > sum_h
-            gsmaller = 1
-            break
-        end
-    end
-    return gsmaller == -1 ? true : false
-    #for i in 1:length(g)
-    #    sum_g += g[i]
-    #    sum_h += h[i]
-    #end
-    #if sum_g < sum_h
-    #    return true
-    #elseif sum_g > sum_h
-    #    return false
-    #end
-    #for i in 1:length(g)
-    #    sum_g -= g[i]
-    #    sum_h -= h[i]
-    #    if sum_g < sum_h
-    #        return true
-    #    elseif sum_g > sum_h
-    #        return false
-    #    end
-    #end
-    #return false #If they are equal wrt grevlex at this point, g == h
 end
 
 #
