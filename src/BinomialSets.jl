@@ -1,85 +1,15 @@
 module BinomialSets
 
-export GBOrder, BinomialSet, MonomialOrder, order, binomials, reduction_tree,
+export BinomialSet, order, binomials, reduction_tree,
     is_support_reducible, fourti2_form, sbinomial, minimal_basis!, reduced_basis!,
-    auto_reduce!, is_minimization
+    auto_reduce!, is_minimization, change_ordering!
 
 using IPGBs.FastBitSets
-using IPGBs.GBTools
+using IPGBs.Orders
 using IPGBs.GBElements
 using IPGBs.SupportTrees
 
-"""
-This is specialized by MonomialOrder in case of Buchberger's algorithm and by
-ModuleMonomialOrder in case of Signature-based algorithms.
-"""
-abstract type GBOrder <: Base.Ordering end
-
-"""
-Implements a monomial order from a given cost matrix, including a grevlex
-tiebreaker if necessary.
-
-- TODO if this ends up being called in GBElements, GradedBinomials and so on,
-I should probably make this type into its own module
-- TODO support other tiebreakers such as lex, as well as other permutations
-of the grevlex variables
-"""
-struct MonomialOrder <: GBOrder
-    cost_matrix :: Array{Int, 2}
-    #Probably should carry a tiebreaker around too
-    function MonomialOrder(costs :: Array{Int, 2})
-        m = size(costs, 1)
-        n = size(costs, 2)
-        if m < n #Insufficient tiebreaking in costs
-            tiebreaker = GBTools.grevlex_matrix(n)
-            full_matrix = vcat(costs, tiebreaker)
-        else
-            full_matrix = costs
-        end
-        #Store the transpose to exploit the fact Julia stores matrices
-        #in column-major form. This helps performance of cmp and lt.
-        new(full_matrix')
-    end
-end
-
-Base.length(o :: MonomialOrder) = size(o.cost_matrix, 1)
-
-#This is implemented this way for locality and performance. It is only used
-#in cmp / lt below regardless.
-Base.getindex(o :: MonomialOrder, i, j) = o.cost_matrix[j, i]
-
-"""
-Efficient comparison of vectors with respect to a monomial order.
-"""
-function Base.cmp(
-    order :: MonomialOrder,
-    v1 :: T,
-    v2 :: T
-) :: Int where {T <: AbstractVector{Int}}
-    @assert length(v1) == length(v2)
-    for i in 1:length(order)
-        #Compute o' * (v1 - v2) without allocations
-        s = 0
-        for j in length(v1)
-            s += order[i, j] * (v1[j] - v2[j])
-        end
-        if s < 0
-            return -1
-        elseif s > 0
-            return 1
-        end #s == 0, tie. Try next vector in order
-    end
-    return 0 #tied completely, v1 == v2.
-end
-
-function Base.lt(
-    order :: MonomialOrder,
-    v1 :: T,
-    v2 :: T
-) where {T <: AbstractVector{Int}}
-    return cmp(order, v1, v2) == -1
-end
-
+#TODO consider putting this somewhere else, it doesn't really belong here
 function supports(
     B :: Vector{T}
 ) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}} where {T <: GBElement}
@@ -121,6 +51,21 @@ function BinomialSet(T :: Type)
     #constructor
     return BinomialSet{T, S}(T[])
 end
+
+"""
+Changes the ordering of `bs` to a monomial order given by the matrix
+`new_order`.
+"""
+function change_ordering!(
+    bs :: BinomialSet{T, S},
+    new_order :: Array{Int, 2}
+) where {T <: GBElement, S <: GBOrder}
+    Orders.change_ordering!(bs.order, new_order)
+    #TODO I probably should also reorientate all elements of bs
+end
+
+has_order(:: BinomialSet) = true
+has_order(:: AbstractVector) = false
 
 #
 # Accessors
@@ -177,7 +122,62 @@ function reduce!(
     g :: T,
     bs :: BinomialSet{T, S}
 ) :: Bool where {T <: GBElement, S <: GBOrder}
-    return SupportTrees.reduce!(g, bs, reduction_tree(bs))
+    return reduce!(g, bs, reduction_tree(bs))
+end
+
+"""
+Fully reduce `binomial` by `gb` in-place, finding its normal form. Uses `tree`
+to speed up the search for reducers. Returns true iff `binomial` reduces to zero.
+
+`binomial` can also be a monomial.
+
+If `reduction_count` is given, the number of times each reducer was used
+in this reduction process is added to reduction_count. This greatly slows
+down execution, and is only meant for experimental purposes. The parameter
+should be set to `nothing` in practical runs.
+"""
+function reduce!(
+    g :: T,
+    gb :: S,
+    tree :: SupportTree{T};
+    reduction_count :: Union{Vector{Int}, Nothing} = nothing,
+    skipbinomial :: Union{T, Nothing} = nothing
+) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
+    params = Dict()
+    while true
+        reducer = find_reducer(
+            g, gb, tree, skipbinomial=skipbinomial, params=params
+        )
+        #g has a singular signature, so it reduces to zero
+        #We can ignore the reducer and just say `g` reduces to zero
+        if haskey(params, "is_singular") && params["is_singular"]
+            return true
+        end
+        #No reducer found, terminate search
+        if isnothing(reducer)
+            return false
+        end
+        #Found some reducer, add it to histogram if one is available
+        if !isnothing(reduction_count)
+            for i in 1:length(gb)
+                if gb[i] === reducer
+                    reduction_count[i] += 1
+                    break
+                end
+            end
+        end
+        #Now apply the reduction and check if it is a zero reduction
+        if has_order(gb)
+            reduced_to_zero = GBElements.reduce!(g, reducer, order(gb))
+        else
+            reduced_to_zero = GBElements.reduce!(g, reducer)
+        end
+        if reduced_to_zero
+            return true
+        end
+    end
+    @assert false #We should never reach this
+    return false
 end
 
 """
@@ -313,7 +313,7 @@ function reduced_basis!(
         while reducing
             h = find_reducer(g, gb, reduction_tree(gb), negative=true)
             if !isnothing(h)
-                GBElements.reduce!(g, h, negative=true)
+                GBElements.reduce!(g, h, order(gb), negative=true)
             else
                 reducing = false
             end

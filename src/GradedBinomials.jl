@@ -11,6 +11,7 @@ export GradedBinomial, lattice_generator_graded, fourti2_form
 using StaticArrays
 using IPGBs.FastBitSets
 using IPGBs.GBElements
+using IPGBs.Orders
 
 """
 Represents a binomial as a vector of integers, tracking its leading and trailing
@@ -338,11 +339,11 @@ Returns true iff g reduced to zero.
 """
 function GBElements.reduce!(
     g :: GradedBinomial,
-    h :: GradedBinomial;
+    h :: GradedBinomial,
+    order :: GBOrder;
     negative :: Bool = false
 ) :: Bool
-    if negative || g.cost < h.cost ||
-        (g.cost == h.cost && lt_tiebreaker(g, h))
+    if negative || Base.lt(order, g, h)
         return reduce_negative!(g, h)
     end
     g_h, g_t, h_h, h_t = (1, 1, 1, 1)
@@ -526,7 +527,8 @@ function lattice_generator_graded(
     A :: Array{Int, 2},
     b :: Vector{Int},
     c :: Array{Int},
-    u :: Vector{Int};
+    u :: Vector{Int},
+    :: Union{GBOrder, Nothing} = nothing;
     check_truncation :: Bool = true
 ) :: Union{GradedBinomial, Nothing}
     n = size(A, 2)

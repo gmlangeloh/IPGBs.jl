@@ -16,6 +16,7 @@ using IPGBs.FastComparator
 using IPGBs.GBElements
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
+using IPGBs.Orders
 using IPGBs.SupportTrees
 
 #
@@ -218,14 +219,18 @@ mutable struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
     end
 end
 
-"""
-Changes the monomial order used in `order` to `new_monomial_order`.
-"""
-function change_ordering!(
-    order :: ModuleMonomialOrdering{T},
-    new_monomial_order :: Array{Int, 2}
+function Orders.is_inverted(
+    o :: ModuleMonomialOrdering{T},
+    g :: T
 ) where {T <: GBElement}
-    order.monomial_order = MonomialOrder(new_monomial_order)
+    return is_inverted(o.monomial_order, g)
+end
+
+function Orders.change_ordering!(
+    order :: ModuleMonomialOrdering{T},
+    new_order :: Array{Int, 2}
+) where {T <: GBElement}
+    Orders.change_ordering!(order.monomial_order, new_order)
 end
 
 """
@@ -543,13 +548,15 @@ sig(g - h) = sig(g).
 Returns true iff `g` reduced to zero.
 
 TODO don't I have to update the siglead ratio though?
+I really think I do. I have to investigate this...
 """
 function GBElements.reduce!(
     g :: SigPoly{T},
-    h :: SigPoly{T}
+    h :: SigPoly{T},
+    order :: GBOrder
 ) :: Bool where {T <: GBElement}
     #No need to update signature, as we assume it won't change
-    return GBElements.reduce!(g.polynomial, h.polynomial)
+    return GBElements.reduce!(g.polynomial, h.polynomial, order)
 end
 
 """

@@ -10,6 +10,7 @@ using IPGBs.GBElements
 using IPGBs.GBTools
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
+using IPGBs.Orders
 using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
@@ -117,6 +118,7 @@ function GBAlgorithms.initialize!(
     C :: Array{Int, 2},
     u :: Vector{Int}
 ) where {T <: GBElement}
+    change_ordering!(current_basis(algorithm), C) #TODO maybe this should be done in GBAlgorithm?
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial
@@ -126,7 +128,7 @@ function GBAlgorithms.initialize!(
     end
     num_vars = size(A, 2)
     for i in 1:num_gens
-        e = lattice_generator(i, A, b, C, u)
+        e = lattice_generator(i, A, b, C, u, order(algorithm.basis))
         if !isnothing(e)
             update!(algorithm, e, nothing)
         end

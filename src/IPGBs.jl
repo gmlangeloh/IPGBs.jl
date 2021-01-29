@@ -4,12 +4,13 @@ module IPGBs
 export groebner_basis
 
 include("./FastBitSets.jl")
+include("./GBTools.jl")
+include("./Orders.jl")
 include("./FastComparator.jl")
 include("./GBElements.jl")
 include("./SupportTrees.jl")
 include("./Binomials.jl")
 include("./GradedBinomials.jl")
-include("./GBTools.jl")
 
 include("./BinomialSets.jl")
 include("./SignaturePolynomials.jl")

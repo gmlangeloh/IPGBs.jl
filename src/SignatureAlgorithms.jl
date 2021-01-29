@@ -383,20 +383,20 @@ function update_syzygies!(
     end
 end
 
-"""
-Changes to a new monomial ordering. This may be necessary in the beginning of
-the run in case the monomial order has suffered some transformation (e.g. new
-variables were added due to normalization) and thus these changes must be also
-done in the algorithm's internal order.
-"""
-function change_ordering!(
-    algorithm :: SignatureAlgorithm{T},
-    new_monomial_order :: Array{Int, 2}
-) where {T <: GBElement}
-    SignaturePolynomials.change_ordering!(
-        algorithm.basis.order, new_monomial_order
-    )
-end
+#"""
+#Changes to a new monomial ordering. This may be necessary in the beginning of
+#the run in case the monomial order has suffered some transformation (e.g. new
+#variables were added due to normalization) and thus these changes must be also
+#done in the algorithm's internal order.
+#"""
+#function change_ordering!(
+#    algorithm :: SignatureAlgorithm{T},
+#    new_monomial_order :: Array{Int, 2}
+#) where {T <: GBElement}
+#    SignaturePolynomials.change_ordering!(
+#        algorithm.basis.order, new_monomial_order
+#    )
+#end
 
 """
 Initializes all data in `algorithm`. Must be called before using any of the data
@@ -413,7 +413,9 @@ function GBAlgorithms.initialize!(
     u :: Vector{Int}
 ) where {T <: GBElement}
     # This assumes binary constraints
-    change_ordering!(algorithm, C)
+    # Must change the ordering due to new variables being added when C
+    # was put into a standard form
+    change_ordering!(current_basis(algorithm), C)
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial
@@ -429,7 +431,7 @@ function GBAlgorithms.initialize!(
     coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
     j = 1
     for i in 1:num_gens
-        e = lattice_generator(i, A, b, C, u)
+        e = lattice_generator(i, A, b, C, u, order(algorithm.basis))
         if !isnothing(e)
             s = Signature(j, coef)
             GBAlgorithms.update!(algorithm, SigPoly{T}(e, s), nothing)

@@ -3,6 +3,7 @@ module Binomials
 export Binomial, lattice_generator_binomial
 
 using IPGBs.GBElements
+using IPGBs.Orders
 
 mutable struct Binomial <: GBElement
     element :: Vector{Int}
@@ -70,21 +71,13 @@ Returns true iff `binomial` reduced to 0.
 """
 function GBElements.reduce!(
     g :: Binomial,
-    h :: Binomial;
+    h :: Binomial,
+    order :: GBOrder;
     negative :: Bool = false
 ) :: Bool
     reduced_to_zero = GBElements.reduce!(g.element, h.element)
-    #if reduced_to_zero
-    #    return true
-    #end
-    #if g.cost > h.cost || (g.cost == h.cost && lt_tiebreaker(h, g))
-    #    g.cost -= h.cost
-    #else
-    #    g.cost -= h.cost
-    #    opposite!(g)
-    #end
     g.cost -= h.cost
-    orientate!(g)
+    orientate!(g, order)
     return reduced_to_zero
 end
 
@@ -95,40 +88,31 @@ function GBElements.opposite!(
     g.cost = -g.cost
 end
 
-"""
-Returns true iff g is oriented in a compatible way to grevlex with xn > xn-1 ...
-> x1
-"""
-function grevlex(
-    g :: Binomial
-) :: Bool
-    sum_g = sum(g)
-    if sum_g > 0
-        return true
-    elseif sum_g < 0
-        return false
-    end
-    i = 1
-    while sum_g == 0 && i < length(g)
-        sum_g -= g[i]
-        if sum_g > 0
-            return true
-        elseif sum_g < 0
-            return false
-        end
-        i += 1
-    end
-    return true
-end
-
-function orientate!(
-    g :: Binomial
-)
-    #Applies tiebreaker by grevlex in case the cost is 0
-    if g.cost < 0 || (g.cost == 0 && !grevlex(g))
-        GBElements.opposite!(g)
-    end
-end
+#"""
+#Returns true iff g is oriented in a compatible way to grevlex with xn > xn-1 ...
+#> x1
+#"""
+#function grevlex(
+#    g :: Binomial
+#) :: Bool
+#    sum_g = sum(g)
+#    if sum_g > 0
+#        return true
+#    elseif sum_g < 0
+#        return false
+#    end
+#    i = 1
+#    while sum_g == 0 && i < length(g)
+#        sum_g -= g[i]
+#        if sum_g > 0
+#            return true
+#        elseif sum_g < 0
+#            return false
+#        end
+#        i += 1
+#    end
+#    return true
+#end
 
 """
 Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem
@@ -139,7 +123,8 @@ function lattice_generator_binomial(
     A :: Array{Int, 2},
     b :: Vector{Int},
     c :: Array{Int},
-    u :: Vector{Int};
+    u :: Vector{Int},
+    order :: GBOrder;
     check_truncation :: Bool = true
 ) :: Union{Binomial, Nothing}
     #This assumes inequality + binary constraints
@@ -162,7 +147,7 @@ function lattice_generator_binomial(
     generator = Binomial(g, cost)
     #The problem may be in minimization form, or have negative costs
     #Thus b may have negative cost, in that case we need to change its orientation
-    orientate!(generator)
+    orientate!(generator, order)
     #Check whether the Binomial should be truncated. If it should, just
     #return nothing instead
     if !check_truncation || isfeasible(generator, A, b, u)

@@ -5,9 +5,10 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit
+export GBElement, degree_reducible, filter, lt_tiebreaker, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!
 
 using IPGBs.FastBitSets
+using IPGBs.Orders
 
 """
 Abstract type used for GB computations. It is meant to generalize both binomials
@@ -83,6 +84,19 @@ function opposite!(
 )
     for i in 1:length(g)
         g[i] = -g[i]
+    end
+end
+
+function orientate!(
+    g :: GBElement,
+    order :: GBOrder
+)
+    #Applies tiebreaker by grevlex in case the cost is 0
+    #if g.cost < 0 || (g.cost == 0 && !grevlex(g))
+    #    GBElements.opposite!(g)
+    #end
+    if is_inverted(order, g)
+        GBElements.opposite!(g)
     end
 end
 
@@ -331,6 +345,15 @@ reduces `binomial` at least once.
 
 Returns true iff `binomial` reduced to 0.
 """
+function reduce!(
+    b :: T,
+    r :: T,
+    :: GBOrder;
+    negative :: Bool = false
+) :: Bool where {T <: AbstractVector{Int}}
+    return reduce!(b, r, negative=negative)
+end
+
 function reduce!(
     binomial :: T,
     reducer :: T;

@@ -1,10 +1,11 @@
 module GBAlgorithms
 
-export GBAlgorithm, run, current_basis, update!, GBStats, stats, data
+export GBAlgorithm, run, current_basis, update!, GBStats, stats, data, order
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.GBTools
+using IPGBs.Orders
 
 struct GBStats
     stats :: Dict{String, Any}

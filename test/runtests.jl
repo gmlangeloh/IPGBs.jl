@@ -7,7 +7,7 @@ include("./test_functions.jl")
     for s in [ false, true ]
         for n in [5, 10, 15, 20, 25]
             s_name = s ? "GradedBinomial" : "Binomial"
-            println("Buchberger test for ", s, " structure, n = ", n)
+            println("Buchberger test for ", s_name, " structure, n = ", n)
             gb, fourti2gb = test_buchberger(n, implicit_representation=s)
             @test length(gb) == length(fourti2gb)
             @test IPGBs.GBTools.isequal(gb, fourti2gb)
