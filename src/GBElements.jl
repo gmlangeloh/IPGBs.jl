@@ -240,7 +240,7 @@ function reduces(
     gb :: S;
     fullfilter :: Bool = true,
     negative :: Bool = false,
-    params :: Dict = Dict()
+    is_singular :: Ref{Bool} = Ref(false)
 ) :: Bool where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     sign :: Int = negative ? -1 : 1
     if fullfilter
@@ -276,7 +276,7 @@ function reduces(
         if singular_top_reducible(g, reducer_sig)
             #We set this to true to signal the support tree to stop looking for
             #reducers
-            params["is_singular"] = true
+            is_singular[] = true
             return true #This stops the search. The current reducer won't matter
         end
         #3. Check if signature-reducible. This means reducer_sig < sig(g)

@@ -27,7 +27,7 @@ struct SupportNode{T <: AbstractVector{Int}}
     children :: Vector{Tuple{Int, SupportNode{T}}}
     binomial_list :: Vector{T}
     filter :: Vector{Int}
-    SupportNode{T}() where {T <: AbstractVector} = new(Int[], T[], Int[])
+    SupportNode{T}() where {T <: AbstractVector} = new(Tuple{Int, SupportNode{T}}[], T[], Int[])
 end
 
 function Base.show(
@@ -172,13 +172,14 @@ function enumerate_reducers(
     gb :: S,
     tree :: SupportTree{T};
     skipbinomial :: Union{T, Nothing} = nothing,
-    negative :: Bool = false,
-    params :: Dict = Dict()
+    negative :: Bool = false
 ) :: Vector{T} where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     reducers = T[]
+    is_singular = Ref{Bool}(false) #Useless for now
     enumerate_reducers!(
         reducers, g, gb, tree.root, fullfilter=tree.fullfilter,
-        skipbinomial=skipbinomial, negative=negative
+        skipbinomial=skipbinomial, negative=negative,
+        is_singular=is_singular
     )
     return reducers
 end
@@ -194,14 +195,15 @@ function enumerate_reducers!(
     fullfilter :: Bool = false,
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
-    params :: Dict = Dict()
+    is_singular :: Ref{Bool} = Ref(false)
 ) where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     for (i, child) in node.children
         if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
             #Look for reducers recursively in the children of this node
             enumerate_reducers!(
                 reducers, g, gb, child, fullfilter=fullfilter,
-                skipbinomial=skipbinomial, negative=negative, params=params
+                skipbinomial=skipbinomial, negative=negative,
+                is_singular=is_singular
             )
         end
     end
@@ -216,7 +218,7 @@ function enumerate_reducers!(
         end
         if GBElements.reduces(
             g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
-            params=params
+            is_singular=is_singular
         )
             push!(reducers, reducer)
         end
@@ -237,11 +239,12 @@ function find_reducer(
     tree :: SupportTree{T};
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
-    params :: Dict = Dict()
+    is_singular :: Ref{Bool} = Ref(false)
 ) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    #TODO I think I wasn't passing params along, which may have lead to bugs?
     return find_reducer(
         g, gb, tree.root, fullfilter=tree.fullfilter, skipbinomial=skipbinomial,
-        negative=negative
+        negative=negative, is_singular=is_singular
     )
 end
 
@@ -263,14 +266,14 @@ function find_reducer(
     fullfilter :: Bool = false,
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
-    params :: Dict = Dict()
+    is_singular :: Ref{Bool} = Ref(false)
 ) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     for (i, child) in node.children
         if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
             #Look for reducer recursively in the children of this node
             reducer = find_reducer(
                 g, gb, child, fullfilter=fullfilter, skipbinomial=skipbinomial,
-                negative=negative, params=params
+                negative=negative, is_singular=is_singular
             )
             if !isnothing(reducer) #Found a reducer, return it
                 return reducer
@@ -288,7 +291,7 @@ function find_reducer(
         end
         if GBElements.reduces(
             g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
-            params=params
+            is_singular=is_singular
         )
             return reducer
         end

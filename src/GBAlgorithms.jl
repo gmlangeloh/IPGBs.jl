@@ -10,7 +10,8 @@ using IPGBs.Orders
 struct GBStats
     stats :: Dict{String, Any}
     function GBStats()
-        d = Dict{String, Any}()
+        #For now, I only need to store Ints for my stats
+        d = Dict{String, Int}()
         #Initialize some stats used by every algorithm
         d["zero_reductions"] = 0
         d["max_basis_size"] = 0

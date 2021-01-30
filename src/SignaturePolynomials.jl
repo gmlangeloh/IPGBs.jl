@@ -72,7 +72,7 @@ function Base.:*(
     monomial :: Vector{Int},
     s :: Signature
 ) :: Signature
-    new_monomial = zeros(Int, length(monomial))
+    new_monomial = Vector{Int}(undef, length(monomial))
     @assert length(new_monomial) == length(s.monomial)
     for i in 1:length(monomial)
         new_monomial[i] = monomial[i] + s.monomial[i]

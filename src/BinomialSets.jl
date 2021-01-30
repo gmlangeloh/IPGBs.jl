@@ -143,14 +143,15 @@ function reduce!(
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing
 ) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
-    params = Dict()
+    is_singular = Ref{Bool}(false)
     while true
         reducer = find_reducer(
-            g, gb, tree, skipbinomial=skipbinomial, params=params
+            g, gb, tree, skipbinomial=skipbinomial, is_singular=is_singular
         )
         #g has a singular signature, so it reduces to zero
         #We can ignore the reducer and just say `g` reduces to zero
-        if haskey(params, "is_singular") && params["is_singular"]
+        #if haskey(params, "is_singular") && params["is_singular"]
+        if is_singular[]
             return true
         end
         #No reducer found, terminate search
