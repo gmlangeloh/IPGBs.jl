@@ -124,6 +124,32 @@ end
 const KoszulHeap{T} = BinaryHeap{Signature, ModuleMonomialOrdering{T}}
 const SigLead = SignaturePolynomials.SigLead #I have no clue about why I need this...
 
+mutable struct SignatureStats <: GBStats
+    #These fields will be present in any GBStats type
+    zero_reductions :: Int
+    max_basis_size :: Int
+    queued_pairs :: Int
+    built_pairs :: Int
+    reduced_pairs :: Int
+    eliminated_by_truncation :: Int
+
+    #These fields may be specific to the Signature algorithm
+    eliminated_by_early_signature :: Int
+    eliminated_by_late_signature :: Int
+    eliminated_by_gcd :: Int
+    eliminated_by_duplicate :: Int
+    eliminated_by_early_koszul :: Int
+    eliminated_by_late_koszul :: Int
+    eliminated_by_base_divisors :: Int
+    eliminated_by_low_base_divisors :: Int
+    eliminated_by_high_base_divisors :: Int
+
+    function SignatureStats()
+        new(0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0)
+    end
+end
+
 mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
     basis :: SigBasis{T}
     heap :: TriangleHeap{T, UInt32}
@@ -134,7 +160,7 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
     sigleads :: Vector{SigLead}
     comparator :: Comparator{SigLead, F}
     previous_signature :: Union{Signature, Nothing}
-    stats :: GBStats
+    stats :: SignatureStats
 
     function SignatureAlgorithm(T :: Type, C :: Array{Int, 2}, mod_order :: Symbol)
         syzygies = SignatureSet()
@@ -157,16 +183,7 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
         comparator = Comparator{SigLead, typeof(module_order_lt)}(sigleads, module_order_lt)
         heap = TriangleHeap{T, UInt32}(basis, order, comparator)
         #Initialize all statistics collected by a SignatureAlgorithm
-        stats = GBStats()
-        stats.stats["eliminated_by_early_signature"] = 0
-        stats.stats["eliminated_by_late_signature"] = 0
-        stats.stats["eliminated_by_gcd"] = 0
-        stats.stats["eliminated_by_duplicate"] = 0
-        stats.stats["eliminated_by_early_koszul"] = 0
-        stats.stats["eliminated_by_late_koszul"] = 0
-        stats.stats["eliminated_by_base_divisors"] = 0
-        stats.stats["eliminated_by_low_base_divisors"] = 0
-        stats.stats["eliminated_by_high_base_divisors"] = 0
+        stats = SignatureStats()
         new{T, typeof(module_order_lt)}(
             basis, heap, koszul, syzygies, basis_signatures, syz_pairs,
             sigleads, comparator, nothing, stats
@@ -179,7 +196,6 @@ end
 #
 
 GBAlgorithms.stats(algorithm :: SignatureAlgorithm) = algorithm.stats
-GBAlgorithms.data(algorithm :: SignatureAlgorithm) = algorithm.stats.stats
 GBAlgorithms.current_basis(algorithm :: SignatureAlgorithm) = algorithm.basis
 
 is_syzygy(i, j, algorithm :: SignatureAlgorithm) = algorithm.syzygy_pairs[i, j]
@@ -228,12 +244,12 @@ function very_early_pair_elimination(
 ) :: Bool where {T <: GBElement}
     #GCD criterion
     if is_support_reducible(i, j, current_basis(algorithm))
-        data(algorithm)["eliminated_by_gcd"] += 1
+        increment(algorithm, :eliminated_by_gcd)
         set_syzygy(i, j, algorithm)
         return true
     end
     if base_divisors_criterion(i, j, high_divisor, low_divisor, algorithm)
-        data(algorithm)["eliminated_by_base_divisors"] += 1
+        increment(algorithm, :eliminated_by_base_divisors)
         set_syzygy(i, j, algorithm)
         return true
     end
@@ -252,12 +268,12 @@ function early_pair_elimination(
 ) :: Bool where {T <: GBElement}
     #Signature criterion
     if signature_criterion(pair, algorithm.syzygies)
-        data(algorithm)["eliminated_by_early_signature"] += 1
+        increment(algorithm, :eliminated_by_early_signature)
         set_syzygy(pair, algorithm)
         return true
     end
     if koszul_criterion(pair, algorithm.koszul, algorithm.basis.order)
-        data(algorithm)["eliminated_by_early_koszul"] += 1
+        increment(algorithm, :eliminated_by_early_koszul)
         set_syzygy(pair, algorithm)
         return true
     end
@@ -277,7 +293,7 @@ function GBAlgorithms.late_pair_elimination(
     #Skip repeated signatures
     if !isnothing(algorithm.previous_signature) &&
         isequal(algorithm.previous_signature, pair.signature)
-        data(algorithm)["eliminated_by_duplicate"] += 1
+        increment(algorithm, :eliminated_by_duplicate)
         set_syzygy(pair, algorithm)
         return true
     end
@@ -306,7 +322,7 @@ function GBAlgorithms.process_zero_reduction!(
 ) where {T <: GBElement}
     add_signature!(algorithm.syzygies, signature(syzygy_element))
     set_syzygy(pair, algorithm)
-    data(algorithm)["zero_reductions"] += 1
+    increment(algorithm, :zero_reductions)
 end
 
 """
@@ -334,8 +350,8 @@ function GBAlgorithms.update!(
             push!(algorithm.koszul, k)
         end
     end
-    data(algorithm)["max_basis_size"] = max(data(algorithm)["max_basis_size"],
-                                            length(current_basis(algorithm)))
+    algorithm.stats.max_basis_size = max(algorithm.stats.max_basis_size,
+                                         length(current_basis(algorithm)))
 end
 
 """
@@ -357,7 +373,7 @@ function update_queue!(
         sp = regular_spair(i, n, gb, comparator=algorithm.comparator)
         if !isnothing(sp) && !early_pair_elimination(algorithm, sp)
             push!(batch, sp)
-            data(algorithm)["queued_pairs"] += 1
+            increment(algorithm, :queued_pairs)
         end
     end
     push_batch!(algorithm.heap, batch)
@@ -497,12 +513,12 @@ function base_divisors_criterion(
     algorithm :: SignatureAlgorithm{T}
 ) :: Bool where {T <: GBElement}
     if high_base_divisors_criterion(i, j, high_divisor, algorithm)
-        data(algorithm)["eliminated_by_high_base_divisors"] += 1
+        increment(algorithm, :eliminated_by_high_base_divisors)
         return true
     end
     num_low_divisors = 2
     if low_base_divisors_criterion(i, j, low_divisor, algorithm)
-        data(algorithm)["eliminated_by_low_base_divisors"] += 1
+        increment(algorithm, :eliminated_by_low_base_divisors)
         return true
     end
     return false

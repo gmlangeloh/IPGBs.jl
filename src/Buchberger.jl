@@ -46,22 +46,35 @@ function next_state!(
     return nothing
 end
 
+mutable struct BuchbergerStats <: GBStats
+    #These fields will be present in any GBStats type
+    zero_reductions :: Int
+    max_basis_size :: Int
+    queued_pairs :: Int
+    built_pairs :: Int
+    reduced_pairs :: Int
+    eliminated_by_truncation :: Int
+
+    #These fields may be specific to the Buchberger algorithm
+    eliminated_by_gcd :: Int
+
+    BuchbergerStats() = new(0, 0, 0, 0, 0, 0, 0)
+end
+
 struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     basis :: BinomialSet{T, MonomialOrder}
     state :: BuchbergerState
-    stats :: GBStats
+    stats :: BuchbergerStats
 
     function BuchbergerAlgorithm(T :: Type, C :: Array{Int, 2})
         order = MonomialOrder(C)
         state = BuchbergerState(0)
-        stats = GBStats()
-        stats.stats["eliminated_by_gcd"] = 0
+        stats = BuchbergerStats()
         new{T}(BinomialSet(T[], order), state, stats)
     end
 end
 
 GBAlgorithms.stats(algorithm :: BuchbergerAlgorithm) = algorithm.stats
-GBAlgorithms.data(algorithm :: BuchbergerAlgorithm) = algorithm.stats.stats
 GBAlgorithms.current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
 function GBAlgorithms.next_pair!(
@@ -70,7 +83,7 @@ function GBAlgorithms.next_pair!(
     s = next_state!(algorithm.state)
     if !isnothing(s)
         i, j = s
-        data(algorithm)["queued_pairs"] += 1
+        increment(algorithm, :queued_pairs)
         return BinomialPair(i, j)
     end
     return nothing
@@ -83,8 +96,8 @@ function GBAlgorithms.update!(
 ) where {T <: GBElement}
     push!(current_basis(algorithm), g)
     increment_size!(algorithm.state)
-    data(algorithm)["max_basis_size"] = max(data(algorithm)["max_basis_size"],
-                                            length(current_basis(algorithm)))
+    algorithm.stats.max_basis_size = max(algorithm.stats.max_basis_size,
+                                         length(current_basis(algorithm)))
 end
 
 """
@@ -97,7 +110,7 @@ function GBAlgorithms.late_pair_elimination(
 ) :: Bool where {T <: GBElement}
     if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
                             current_basis(algorithm))
-        data(algorithm)["eliminated_by_gcd"] += 1
+        increment(algorithm, :eliminated_by_gcd)
         return true
     end
     return false
@@ -108,7 +121,7 @@ function GBAlgorithms.process_zero_reduction!(
     :: T,
     :: CriticalPair
 ) where {T <: GBElement}
-    data(algorithm)["zero_reductions"] += 1
+    increment(algorithm, :zero_reductions)
 end
 
 function GBAlgorithms.initialize!(

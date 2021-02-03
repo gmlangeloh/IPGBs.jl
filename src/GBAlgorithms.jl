@@ -1,27 +1,13 @@
 module GBAlgorithms
 
-export GBAlgorithm, run, current_basis, update!, GBStats, stats, data, order
+export GBAlgorithm, run, current_basis, update!, GBStats, stats, data, order, increment
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.GBTools
 using IPGBs.Orders
 
-struct GBStats
-    stats :: Dict{String, Any}
-    function GBStats()
-        #For now, I only need to store Ints for my stats
-        d = Dict{String, Int}()
-        #Initialize some stats used by every algorithm
-        d["zero_reductions"] = 0
-        d["max_basis_size"] = 0
-        d["queued_pairs"] = 0
-        d["built_pairs"] = 0
-        d["reduced_pairs"] = 0
-        d["eliminated_by_truncation"] = 0
-        new(d)
-    end
-end
+abstract type GBStats end
 
 function Base.show(
     io :: IO,
@@ -29,11 +15,13 @@ function Base.show(
 )
     println(io, "Algorithm statistics:")
     i = 1
-    for key in keys(stats.stats)
-        if i < length(stats.stats)
-            println(io, key, " => ", stats.stats[key])
+    fields = fieldnames(typeof(stats))
+    num_fields = length(fields)
+    for field in fields
+        if i < num_fields
+            println(io, field, " => ", getfield(stats, field))
         else
-            print(io, key, " => ", stats.stats[key])
+            print(io, field, " => ", getfield(stats, field))
         end
         i += 1
     end
@@ -47,7 +35,6 @@ abstract type GBAlgorithm end
 
 # GBAlgorithm interface
 stats(:: GBAlgorithm) = error("Not implemented.") #Returns the GBStats object
-data(:: GBAlgorithm) = error("Not implemented.") #Returns the dict GBStats wraps
 next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(:: GBAlgorithm) = error("Not implemented.")
 update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
@@ -63,6 +50,18 @@ function initialize!(
     error("Not implemented.")
 end
 
+"""
+Increments the field `stat` of stats(algorithm)
+"""
+function increment(
+    algorithm :: GBAlgorithm,
+    stat :: Symbol
+)
+    alg_stats = stats(algorithm)
+    old_value = getfield(alg_stats, stat)
+    setfield!(alg_stats, stat, old_value + 1)
+end
+
 #The following functions may or may not be extended, depending on the algorithm.
 """
 Returns true iff the given CriticalPair should be eliminated according to this
@@ -76,7 +75,7 @@ function sbinomial(
     algorithm :: GBAlgorithm,
     pair :: CriticalPair
 ) :: GBElement
-    data(algorithm)["built_pairs"] += 1
+    increment(algorithm, :built_pairs)
     return BinomialSets.sbinomial(pair, current_basis(algorithm))
 end
 
@@ -84,7 +83,7 @@ function reduce!(
     algorithm :: GBAlgorithm,
     binomial :: GBElement
 ) :: Bool
-    data(algorithm)["reduced_pairs"] += 1
+    increment(algorithm, :reduced_pairs)
     return BinomialSets.reduce!(binomial, current_basis(algorithm))
 end
 
@@ -97,7 +96,7 @@ function truncate(
 ) :: Bool
     should_truncate = !isfeasible(binomial, A, b, u)
     if should_truncate
-        data(algorithm)["eliminated_by_truncation"] += 1
+        increment(algorithm, :eliminated_by_truncation)
         return true
     end
     return false
