@@ -559,8 +559,7 @@ sig(g - h) = sig(g).
 
 Returns true iff `g` reduced to zero.
 
-TODO don't I have to update the siglead ratio though?
-I really think I do. I have to investigate this...
+TODO this has to implement a "negative" parameter for the reduced basis algorithm to work!
 """
 function GBElements.reduce!(
     g :: SigPoly{T},
@@ -568,7 +567,13 @@ function GBElements.reduce!(
     order :: GBOrder
 ) :: Bool where {T <: GBElement}
     #No need to update signature, as we assume it won't change
-    return GBElements.reduce!(g.polynomial, h.polynomial, order)
+    reduced_to_zero = GBElements.reduce!(g.polynomial, h.polynomial, order)
+    #TODO this is necessary, but is inefficient as is. How can I do this cleanly and efficiently?
+    for i in 1:length(g.siglead.monomial)
+        lt_i = max(g[i], 0)
+        g.siglead.monomial[i] = g.signature.monomial[i] - lt_i;
+    end
+    return reduced_to_zero
 end
 
 """

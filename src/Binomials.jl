@@ -76,6 +76,9 @@ function GBElements.reduce!(
     negative :: Bool = false
 ) :: Bool
     reduced_to_zero = GBElements.reduce!(g.element, h.element)
+    if reduced_to_zero #For efficiency, don't do the other stuff in this case
+        return reduced_to_zero
+    end
     g.cost -= h.cost
     orientate!(g, order)
     return reduced_to_zero

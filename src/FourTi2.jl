@@ -169,7 +169,8 @@ function groebner(
     project_name :: String = "tmp",
     nonnegative :: Bool = true;
     truncation_sol = [],
-    lattice :: Bool = false
+    lattice :: Bool = false,
+    quiet :: Bool = true
 ) :: Array{Int, 2}
     _4ti2_clear(project_name)
     #Write the project files
@@ -191,7 +192,8 @@ function groebner(
         truncation_opt = "--truncation=ip"
     end
     #Run 4ti2
-    cmd = `groebner -q $truncation_opt $project_name`
+    quiet_opt = quiet ? "-q" : ""
+    cmd = `groebner $quiet_opt $truncation_opt $project_name`
     run(cmd)
 
     out_file = project_name * ".gro"

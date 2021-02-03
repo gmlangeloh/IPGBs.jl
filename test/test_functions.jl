@@ -35,7 +35,7 @@ function test_buchberger(
         instance_4ti2)
     rgb, time, _, _, _ = @timed groebner(
         lattice_4ti2, instance_4ti2.C, truncation_sol=initial_solution,
-        lattice=true
+        lattice=true, quiet=false
     )
     println()
     println("4ti2 results")
