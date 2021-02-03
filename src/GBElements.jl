@@ -105,15 +105,14 @@ function degrees(
     A :: Array{Int, 2}
 ) :: Tuple{Vector{Int}, Vector{Int}}
     #Get the positive and negative parts of g
-    positive_g = Int[]
-    negative_g = Int[]
-    for i in 1:length(g)
+    n = length(g)
+    positive_g = zeros(Int, n)
+    negative_g = zeros(Int, n)
+    for i in 1:n
         if g[i] > 0
-            push!(positive_g, g[i])
-            push!(negative_g, 0)
+            positive_g[i] = g[i]
         else
-            push!(negative_g, g[i])
-            push!(positive_g, 0)
+            negative_g[i] = g[i]
         end
     end
     #Compute the degrees of positive_g and negative_g by A

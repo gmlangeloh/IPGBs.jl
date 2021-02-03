@@ -135,14 +135,14 @@ function run(
             continue
         end
         binomial = sbinomial(algorithm, pair)
-        if !truncate(algorithm, binomial, A, b, u)
-            reduced_to_zero = reduce!(algorithm, binomial)
-            if !reduced_to_zero
-                update!(algorithm, binomial, pair)
-            else #Update syzygies in case this makes sense
-                process_zero_reduction!(algorithm, binomial, pair)
-            end
+        #if !truncate(algorithm, binomial, A, b, u)
+        reduced_to_zero = reduce!(algorithm, binomial)
+        if !reduced_to_zero && !truncate(algorithm, binomial, A, b, u)
+            update!(algorithm, binomial, pair)
+        elseif reduced_to_zero #Update syzygies in case this makes sense
+            process_zero_reduction!(algorithm, binomial, pair)
         end
+        #end
     end
     println(stats(algorithm))
     #minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet

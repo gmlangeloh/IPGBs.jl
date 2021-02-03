@@ -4,8 +4,8 @@ binomial sets for efficient reductions. Called SupportTrees in reference
 to Roune and Stillman (2012).
 """
 module SupportTrees
-export SupportTree, find_reducer, reduce!, support_tree, addbinomial!,
-    removebinomial!, enumerate_reducers
+export SupportTree, find_reducer, support_tree, addbinomial!,
+    removebinomial!, enumerate_reducers, find_reducer_iter
 
 using IPGBs.GBElements
 
@@ -66,9 +66,14 @@ Weismantel, Section 3.
 mutable struct SupportTree{T <: AbstractVector{Int}}
     root :: SupportNode{T}
     size :: Int
+    depth :: Int #This is useful to know how balanced the tree is
     fullfilter :: Bool
+
+    #For efficiency of the find_reducer_iter function
+    node_stack :: Vector{Tuple{Int, SupportNode{T}}}
+
     SupportTree{T}(fullfilter) where {T <: AbstractVector{Int}} = begin
-        new(SupportNode{T}(), 0, fullfilter)
+        new(SupportNode{T}(), 0, 1, fullfilter, Vector(undef, 2))
     end
 end
 
@@ -109,6 +114,7 @@ function addbinomial!(
     binomial :: T
 ) where {T <: AbstractVector{Int}}
     current = tree.root
+    depth = 1
     binomial_filter = GBElements.filter(binomial, fullfilter=tree.fullfilter)
     #Search for a path in the tree labeled by the indices in the filter
     #Create any missing nodes in this path
@@ -120,11 +126,12 @@ function addbinomial!(
         if j <= length(current.children) #Next node in the path already exists
             current = current.children[j][2]
         else #Create new node in the tree
-            newnode = SupportNode{typeof(binomial)}()
+            newnode = SupportNode{T}()
             push!(current.children, (i, newnode))
             current = last(current.children)[2]
             #break #I think this is enough, it leaves the loop anyway
         end
+        depth += 1
     end
     push!(current.binomial_list, binomial)
     if isempty(current.filter) #Set current node's filter if it wasn't already
@@ -132,6 +139,8 @@ function addbinomial!(
             push!(current.filter, i)
         end
     end
+    tree.depth = max(tree.depth, depth)
+    resize!(tree.node_stack, tree.depth + 1)
     tree.size += 1
 end
 
@@ -226,6 +235,53 @@ function enumerate_reducers!(
 end
 
 """
+Finds a reducer of `g` in `tree` by searching the tree iteratively, instead of
+recursively. It serves as an alternative to find_reducer, although the performance
+is currently nearly equivalent.
+"""
+function find_reducer_iter(
+    g :: T,
+    gb :: S,
+    tree :: SupportTree{T};
+    skipbinomial :: Union{T, Nothing} = nothing,
+    negative :: Bool = false,
+    is_singular :: Ref{Bool} = Ref(false)
+) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    node_stack = tree.node_stack
+    stack_index = 1
+    node_stack[stack_index] = (1, tree.root)
+    #push!(node_stack, (1, tree.root))
+    while stack_index >= 1 #!isempty(node_stack)
+        child_index, current_node = node_stack[stack_index] #pop!(node_stack)
+        stack_index -= 1
+        if child_index <= length(current_node.children)
+            stack_index += 1
+            node_stack[stack_index] = (child_index + 1, current_node)
+            #push!(node_stack, (child_index + 1, current_node))
+            i, child = current_node.children[child_index]
+            if g[i] > 0 || negative && g[i] < 0 || (tree.fullfilter && g[i] != 0)
+                #push!(node_stack, (1, child))
+                stack_index += 1
+                node_stack[stack_index] = (1, child)
+            end
+        else #Check whether this node contains a reducer
+            for reducer in current_node.binomial_list
+                if !isnothing(skipbinomial) && reducer === skipbinomial
+                    continue
+                end
+                if GBElements.reduces(
+                    g, current_node.filter, reducer, gb, fullfilter=tree.fullfilter,
+                    negative=negative, is_singular=is_singular
+                )
+                    return reducer
+                end
+            end
+        end
+    end
+    return nothing
+end
+
+"""
 Checks whether `g` is reducible by some element of `gb` and, if so, returns
 a reducer. Otherwise, returns `nothing`.
 
@@ -241,7 +297,6 @@ function find_reducer(
     negative :: Bool = false,
     is_singular :: Ref{Bool} = Ref(false)
 ) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
-    #TODO I think I wasn't passing params along, which may have lead to bugs?
     return find_reducer(
         g, gb, tree.root, fullfilter=tree.fullfilter, skipbinomial=skipbinomial,
         negative=negative, is_singular=is_singular
