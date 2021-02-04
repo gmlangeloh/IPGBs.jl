@@ -160,9 +160,10 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
     sigleads :: Vector{SigLead}
     comparator :: Comparator{SigLead, F}
     previous_signature :: Union{Signature, Nothing}
+    should_truncate :: Bool
     stats :: SignatureStats
 
-    function SignatureAlgorithm(T :: Type, C :: Array{Int, 2}, mod_order :: Symbol)
+    function SignatureAlgorithm(T :: Type, C :: Array{Int, 2}, mod_order :: Symbol, should_truncate :: Bool)
         syzygies = SignatureSet()
         basis_signatures = SignatureSet()
         generators = SigPoly{T}[]
@@ -186,7 +187,7 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
         stats = SignatureStats()
         new{T, typeof(module_order_lt)}(
             basis, heap, koszul, syzygies, basis_signatures, syz_pairs,
-            sigleads, comparator, nothing, stats
+            sigleads, comparator, nothing, should_truncate, stats
         )
     end
 end
@@ -194,9 +195,6 @@ end
 #
 # Accessors and modifiers for SignatureAlgorithm
 #
-
-GBAlgorithms.stats(algorithm :: SignatureAlgorithm) = algorithm.stats
-GBAlgorithms.current_basis(algorithm :: SignatureAlgorithm) = algorithm.basis
 
 is_syzygy(i, j, algorithm :: SignatureAlgorithm) = algorithm.syzygy_pairs[i, j]
 is_syzygy(pair :: SignaturePair, algorithm :: SignatureAlgorithm) =
@@ -432,7 +430,8 @@ function GBAlgorithms.initialize!(
     coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
     j = 1
     for i in 1:num_gens
-        e = lattice_generator(i, A, b, C, u, order(algorithm.basis))
+        e = lattice_generator(i, A, b, C, u, order(algorithm.basis),
+                              check_truncation=truncate_basis(algorithm))
         if !isnothing(e)
             s = Signature(j, coef)
             GBAlgorithms.update!(algorithm, SigPoly{T}(e, s), nothing)

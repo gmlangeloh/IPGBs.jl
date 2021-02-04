@@ -17,7 +17,8 @@ function test_buchberger(
     n :: Int;
     seed = 0,
     setseed = true,
-    implicit_representation = false
+    implicit_representation = false,
+    truncate = true
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
@@ -33,19 +34,22 @@ function test_buchberger(
     instance_4ti2 = MultiObjectiveInstances.fourti2_stdform(instance)
     initial_solution = MultiObjectiveInstances.Knapsack.knapsack_initial(
         instance_4ti2)
+    trunc_sol = truncate ? initial_solution : Int[]
     rgb, time, _, _, _ = @timed groebner(
-        lattice_4ti2, instance_4ti2.C, truncation_sol=initial_solution,
+        lattice_4ti2, instance_4ti2.C, truncation_sol=trunc_sol,
         lattice=true, quiet=false
     )
     println()
     println("4ti2 results")
     @show size(rgb, 1) time
     fourti2gb = IPGBs.GBTools.tovector(rgb)
+    println()
 
     #Compute a GB using my Buchberger implementation
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false,
-        implicit_representation=implicit_representation
+        implicit_representation=implicit_representation,
+        truncate=truncate
     )
     println()
     println("my results")
@@ -58,7 +62,8 @@ function test_siggb(
     n :: Int;
     seed = 0,
     setseed = true,
-    module_order = :ltpot
+    module_order = :ltpot,
+    truncate = true
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
@@ -74,8 +79,9 @@ function test_siggb(
     instance_4ti2 = MultiObjectiveInstances.fourti2_stdform(instance)
     initial_solution = MultiObjectiveInstances.Knapsack.knapsack_initial(
         instance_4ti2)
+    trunc_sol = truncate ? initial_solution : Int[]
     rgb, time, _, _, _ = @timed groebner(
-        lattice_4ti2, instance_4ti2.C, truncation_sol=initial_solution,
+        lattice_4ti2, instance_4ti2.C, truncation_sol=trunc_sol,
         lattice=true
     )
     println()
@@ -87,7 +93,7 @@ function test_siggb(
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=true,
-        module_order=module_order
+        module_order=module_order, truncate=truncate
     )
     println()
     println("Signature results")
@@ -95,7 +101,8 @@ function test_siggb(
     println()
     #Basic Buchberger results
     bgb, time, _, _, _ = @timed groebner_basis(
-        instance.A, instance.b, instance.C, instance.u, use_signatures=false
+        instance.A, instance.b, instance.C, instance.u, use_signatures=false,
+        truncate=truncate
     )
     println()
     println("Buchberger results")
@@ -109,7 +116,8 @@ function run_algorithm(
     setseed = true,
     module_order = :ltpot,
     use_signatures = true,
-    implicit_representation = false
+    implicit_representation = false,
+    truncate = true
 ) :: Vector{Vector{Int}}
     if setseed
         Random.seed!(seed)
@@ -123,7 +131,8 @@ function run_algorithm(
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u,
         use_signatures=use_signatures, module_order=module_order,
-        implicit_representation=implicit_representation
+        implicit_representation=implicit_representation,
+        truncate=truncate
     )
     println()
     println("My results")

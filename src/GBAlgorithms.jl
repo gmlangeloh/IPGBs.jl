@@ -1,6 +1,7 @@
 module GBAlgorithms
 
-export GBAlgorithm, run, current_basis, update!, GBStats, stats, data, order, increment
+export GBAlgorithm, run, current_basis, update!, GBStats, stats, order, increment,
+    truncate_basis
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements
@@ -34,11 +35,12 @@ or a SignatureAlgorithm.
 abstract type GBAlgorithm end
 
 # GBAlgorithm interface
-stats(:: GBAlgorithm) = error("Not implemented.") #Returns the GBStats object
+stats(algorithm :: GBAlgorithm) = algorithm.stats
 next_pair!(:: GBAlgorithm) = error("Not implemented.")
-current_basis(:: GBAlgorithm) = error("Not implemented.")
+current_basis(algorithm :: GBAlgorithm) = algorithm.basis
 update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
     error("Not implemented.")
+truncate_basis(algorithm :: GBAlgorithm) = algorithm.should_truncate
 
 function initialize!(
     :: GBAlgorithm,
@@ -94,6 +96,9 @@ function truncate(
     b :: Vector{Int},
     u :: Vector{Int}
 ) :: Bool
+    if !truncate_basis(algorithm)
+        return false
+    end
     should_truncate = !isfeasible(binomial, A, b, u)
     if should_truncate
         increment(algorithm, :eliminated_by_truncation)
@@ -144,8 +149,6 @@ function run(
         #end
     end
     println(stats(algorithm))
-    println("is gb: ", BinomialSets.is_groebner_basis(algorithm.basis))
-    println("is truncated gb: ", BinomialSets.is_truncated_groebner_basis(algorithm.basis, A, b, u))
     #minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet
     return fourti2_form(current_basis(algorithm))
 end

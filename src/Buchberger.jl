@@ -64,18 +64,16 @@ end
 struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     basis :: BinomialSet{T, MonomialOrder}
     state :: BuchbergerState
+    should_truncate :: Bool
     stats :: BuchbergerStats
 
-    function BuchbergerAlgorithm(T :: Type, C :: Array{Int, 2})
+    function BuchbergerAlgorithm(T :: Type, C :: Array{Int, 2}, should_truncate :: Bool)
         order = MonomialOrder(C)
         state = BuchbergerState(0)
         stats = BuchbergerStats()
-        new{T}(BinomialSet(T[], order), state, stats)
+        new{T}(BinomialSet(T[], order), state, should_truncate, stats)
     end
 end
-
-GBAlgorithms.stats(algorithm :: BuchbergerAlgorithm) = algorithm.stats
-GBAlgorithms.current_basis(algorithm :: BuchbergerAlgorithm) = algorithm.basis
 
 function GBAlgorithms.next_pair!(
     algorithm :: BuchbergerAlgorithm{T}
@@ -141,7 +139,8 @@ function GBAlgorithms.initialize!(
     end
     num_vars = size(A, 2)
     for i in 1:num_gens
-        e = lattice_generator(i, A, b, C, u, order(algorithm.basis))
+        e = lattice_generator(i, A, b, C, u, order(algorithm.basis),
+                              check_truncation=truncate_basis(algorithm))
         if !isnothing(e)
             update!(algorithm, e, nothing)
         end
