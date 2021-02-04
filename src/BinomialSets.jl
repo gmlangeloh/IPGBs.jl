@@ -223,7 +223,9 @@ end
 
 """
 Returns true iff `bs` is a Gröbner Basis. This is checked by applying Buchberger's
-theorem and generating all S-binomials, thus may be slow.
+theorem and generating all S-binomials, thus may be slow. Note that this verifies if
+`bs` is a Gröbner Basis, but not a truncated Gröbner Basis. To check the latter case,
+use is_truncated_groebner_basis.
 
 Useful for debugging and automatic tests.
 """
@@ -236,6 +238,34 @@ function is_groebner_basis(
             binomial = sbinomial(s, bs)
             reduced_to_zero = reduce!(binomial, bs)
             if !reduced_to_zero
+                return false
+            end
+        end
+    end
+    return true
+end
+
+"""
+Checks whether `bs` is a truncated Gröbner Basis where truncation is done with
+respect to
+
+Ax <= b
+x <= u
+"""
+function is_truncated_groebner_basis(
+    bs :: BinomialSet{T, S},
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    u :: Vector{Int}
+) :: Bool where {T <: GBElement, S <: GBOrder}
+    for i in 1:length(bs)
+        for j in 1:(i-1)
+            s = BinomialPair(i, j)
+            binomial = sbinomial(s, bs)
+            reduced_to_zero = reduce!(binomial, bs)
+            if !reduced_to_zero && isfeasible(binomial, A, b, u)
+                #Note we check isfeasible after reduction. This is often
+                #quicker, because then we skip the check for zero reductions
                 return false
             end
         end

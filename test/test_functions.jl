@@ -126,7 +126,7 @@ function run_algorithm(
         implicit_representation=implicit_representation
     )
     println()
-    println("Signature results")
+    println("My results")
     @show length(gb) time
     return gb
 end

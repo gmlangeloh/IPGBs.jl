@@ -144,6 +144,8 @@ function run(
         #end
     end
     println(stats(algorithm))
+    println("is gb: ", BinomialSets.is_groebner_basis(algorithm.basis))
+    println("is truncated gb: ", BinomialSets.is_truncated_groebner_basis(algorithm.basis, A, b, u))
     #minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet
     return fourti2_form(current_basis(algorithm))
 end
