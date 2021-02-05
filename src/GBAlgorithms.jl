@@ -122,7 +122,8 @@ function run(
     A :: Array{Int, 2},
     b :: Vector{Int},
     C :: Array{Int, 2},
-    u :: Vector{Int}
+    u :: Vector{Int};
+    quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #Compute the initial basis of the toric ideal
     A, b, C, u = GBTools.normalize(
@@ -148,7 +149,9 @@ function run(
         end
         #end
     end
-    println(stats(algorithm))
+    if !quiet
+        println(stats(algorithm))
+    end
     #minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet
     return fourti2_form(current_basis(algorithm))
 end

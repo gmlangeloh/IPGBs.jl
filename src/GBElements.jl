@@ -28,9 +28,8 @@ fullform(:: GBElement) :: Vector{Int} = error("Not implemented.")
 # Soft contract: concrete GBElements may reimplement these if necessary
 #
 
-has_signature(:: AbstractVector{Int}) = false
-has_signature(:: GBElement) = false
-is_implicit(:: Type{<: GBElement}) = false
+has_signature(:: Type{<: AbstractVector{Int}}) = false
+is_implicit(:: Type{<: AbstractVector{Int}}) = false
 
 """
 Computes the leading term of this GBElement as a vector.
@@ -69,8 +68,8 @@ end
 Returns true iff this binomial is zero, that is, all of its coordinates are 0.
 """
 function is_zero(
-    g :: GBElement
-) :: Bool
+    g :: T
+) :: Bool where {T <: AbstractVector{Int}}
     for gi in g
         if gi != 0
             return false
@@ -80,17 +79,17 @@ function is_zero(
 end
 
 function opposite!(
-    g :: GBElement
-)
+    g :: T
+) where {T <: AbstractVector{Int}}
     for i in 1:length(g)
         g[i] = -g[i]
     end
 end
 
 function orientate!(
-    g :: GBElement,
+    g :: T,
     order :: GBOrder
-)
+) where {T <: AbstractVector{Int}}
     #Applies tiebreaker by grevlex in case the cost is 0
     #if g.cost < 0 || (g.cost == 0 && !grevlex(g))
     #    GBElements.opposite!(g)
@@ -101,9 +100,9 @@ function orientate!(
 end
 
 function degrees(
-    g :: GBElement,
+    g :: T,
     A :: Array{Int, 2}
-) :: Tuple{Vector{Int}, Vector{Int}}
+) :: Tuple{Vector{Int}, Vector{Int}} where {T <: AbstractVector{Int}}
     #Get the positive and negative parts of g
     n = length(g)
     positive_g = zeros(Int, n)
@@ -123,7 +122,7 @@ end
 Computes bitsets with positive and negative supports of `g`.
 """
 function supports(
-    g :: GBElement
+    g :: AbstractVector{Int}
 ) :: Tuple{FastBitSet, FastBitSet}
     pos_supp = Int[]
     neg_supp = Int[]
@@ -136,6 +135,22 @@ function supports(
     end
     bitset_length = length(g)
     return makebitset(bitset_length, pos_supp), makebitset(bitset_length, neg_supp)
+end
+
+"""
+Computes bitsets with positive and negative supports of every element in `B`.
+"""
+function supports(
+    B :: Vector{T}
+) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}} where {T <: AbstractVector{Int}}
+    pos_supps = FastBitSet[]
+    neg_supps = FastBitSet[]
+    for g in B
+        p, n = GBElements.supports(g)
+        push!(pos_supps, p)
+        push!(neg_supps, n)
+    end
+    return pos_supps, neg_supps
 end
 
 """
@@ -162,9 +177,9 @@ singular_top_reducible(g :: GBElement, reducer_sig) = false
 Checks whether v is bounded coordinate by coordinate by u.
 """
 function le_upperbound(
-    v :: GBElement,
+    v :: T,
     u :: Vector{Int}
-) :: Bool
+) :: Bool where {T <: AbstractVector{Int}}
     for i in 1:length(v)
         if v[i] > 0 && v[i] > u[i]
             return false
@@ -190,11 +205,11 @@ Returns true iff v should be considered for reduction in a truncated GB
 algorithm.
 """
 function isfeasible(
-    v :: GBElement,
+    v :: T,
     A :: Array{Int, 2},
     b :: Vector{Int},
     u :: Vector{Int}
-) :: Bool
+) :: Bool where {T <: AbstractVector{Int}}
     head, tail = degrees(v, A)
     return le_coordinatewise(head, b) && le_coordinatewise(tail, b) &&
         le_upperbound(v, u)
@@ -266,7 +281,7 @@ function reduces(
     end
     #This is used in signature-based algorithms. Non-signature algorithms just
     #skip this part
-    if has_signature(g)
+    if has_signature(P)
         #1. Compute the reduction factor, for efficiency. It will be used in all
         #of the following tests
         quotient = monomial_quotient(g, reducer)
@@ -347,10 +362,14 @@ Returns true iff `binomial` reduced to 0.
 function reduce!(
     b :: T,
     r :: T,
-    :: GBOrder;
+    o :: GBOrder;
     negative :: Bool = false
 ) :: Bool where {T <: AbstractVector{Int}}
-    return reduce!(b, r, negative=negative)
+    reduced_to_zero = reduce!(b, r, negative=negative)
+    if !reduced_to_zero
+        orientate!(b, o)
+    end
+    return reduced_to_zero
 end
 
 function reduce!(
@@ -407,7 +426,7 @@ function build(
     u :: T,
     v :: T,
     pair :: CriticalPair #This is used for more complicated CriticalPairs
-) :: T where {T <: GBElement}
+) :: T where {T <: AbstractVector{Int}}
     return u - v
 end
 

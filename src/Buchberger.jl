@@ -71,7 +71,7 @@ struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         order = MonomialOrder(C)
         state = BuchbergerState(0)
         stats = BuchbergerStats()
-        new{T}(BinomialSet(T[], order), state, should_truncate, stats)
+        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state, should_truncate, stats)
     end
 end
 

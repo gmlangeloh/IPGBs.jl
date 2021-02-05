@@ -145,7 +145,7 @@ GBElements.cost(g :: SigPoly{T}) where {T} = GBElements.cost(g.polynomial)
 GBElements.fullform(g :: SigPoly{T}) where {T} = GBElements.fullform(g.polynomial)
 
 #TODO If I do GBElements.has_signature here, performance becomes terrible. Why?
-has_signature(g :: SigPoly{T}) where {T} = true
+GBElements.has_signature(:: Type{<: SigPoly}) = true
 signature(g :: SigPoly{T}) where {T} = g.signature
 
 function Base.show(
@@ -217,6 +217,24 @@ mutable struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
         monomial_order = MonomialOrder(costs)
         new{T}(monomial_order, module_order, generators)
     end
+end
+
+function ModuleMonomialOrdering(
+    costs :: Array{Int, 2},
+    module_order :: Symbol,
+    generators :: Vector{SigPoly{T}}
+) where {T <: GBElement}
+    monomial_order = MonomialOrder(costs)
+    if module_order == :pot
+        mod = pot_order
+    elseif module_order == :top
+        mod = top_order
+    elseif module_order == :ltpot
+        mod = ltpot_order
+    else
+        error("Unknown module monomial order. It must be one of :pot, :top or :ltpot.")
+    end
+    return ModuleMonomialOrdering(costs, mod, generators)
 end
 
 function Orders.is_inverted(

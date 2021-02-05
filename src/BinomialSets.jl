@@ -2,28 +2,21 @@ module BinomialSets
 
 export BinomialSet, order, binomials, reduction_tree,
     is_support_reducible, fourti2_form, sbinomial, minimal_basis!, reduced_basis!,
-    auto_reduce!, is_minimization, change_ordering!
+    auto_reduce!, is_minimization, change_ordering!, is_groebner_basis, is_truncated_groebner_basis
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
 using IPGBs.GBElements
 using IPGBs.SupportTrees
 
-#TODO consider putting this somewhere else, it doesn't really belong here
-function supports(
-    B :: Vector{T}
-) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}} where {T <: GBElement}
-    pos_supps = FastBitSet[]
-    neg_supps = FastBitSet[]
-    for g in B
-        p, n = GBElements.supports(g)
-        push!(pos_supps, p)
-        push!(neg_supps, n)
-    end
-    return pos_supps, neg_supps
-end
+"""
+Represents a set of binomials (e.g. a partial or complete Gröbner Basis),
+including structures for efficient reduction of elements.
 
-struct BinomialSet{T <: GBElement, S <: GBOrder} <: AbstractVector{T}
+In order to allow 4ti2-form bases, we allow elements to be Vector{Int},
+in addition to GBElements.
+"""
+struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     basis :: Vector{T}
     order :: S
     reduction_tree :: SupportTree{T}
@@ -35,10 +28,9 @@ struct BinomialSet{T <: GBElement, S <: GBOrder} <: AbstractVector{T}
     positive_supports :: Vector{FastBitSet}
     negative_supports :: Vector{FastBitSet}
 
-    function BinomialSet(basis :: Vector{T}, order :: S) where {T, S}
-        #TODO also try to build the order
+    function BinomialSet{T, S}(basis :: Vector{T}, order :: S) where {T, S}
         tree = support_tree(basis, fullfilter=is_implicit(T))
-        pos_supps, neg_supps = supports(basis)
+        pos_supps, neg_supps = GBElements.supports(basis)
         min = !is_implicit(T)
         new{T, S}(
             basis, order, tree, min, pos_supps, neg_supps
@@ -46,10 +38,25 @@ struct BinomialSet{T <: GBElement, S <: GBOrder} <: AbstractVector{T}
     end
 end
 
-function BinomialSet(T :: Type)
-    #TODO define order and minimization somewhere else, maybe pass them to this
-    #constructor
-    return BinomialSet{T, S}(T[])
+"""
+Creates a BinomialSet from `basis` with respect to `C`.
+
+`module_order` is only relevant when `T` is a type of binomial with signature.
+"""
+function BinomialSet(
+    basis :: Vector{T},
+    C :: Array{Int, 2};
+    module_order :: Symbol = :pot
+) where {T <: AbstractVector{Int}}
+    if has_signature(T)
+        #TODO this doesn't work yet, due to cyclic dependencies between
+        #this module and SignaturePolynomials. I need to find a way to
+        #break some of these dependencies.
+        #order = ModuleMonomialOrdering(C, module_order, basis)
+    else
+        order = MonomialOrder(C)
+    end
+    return BinomialSet{T, MonomialOrder}(basis, order)
 end
 
 """
@@ -59,7 +66,7 @@ Changes the ordering of `bs` to a monomial order given by the matrix
 function change_ordering!(
     bs :: BinomialSet{T, S},
     new_order :: Array{Int, 2}
-) where {T <: GBElement, S <: GBOrder}
+) where {T <: AbstractVector{Int}, S <: GBOrder}
     Orders.change_ordering!(bs.order, new_order)
     #TODO I probably should also reorientate all elements of bs
 end
@@ -82,27 +89,27 @@ is_minimization(bs :: BinomialSet) = bs.minimization_form
 
 function Base.size(
     bs :: BinomialSet{T, S}
-) :: Tuple where {T <: GBElement, S <: GBOrder}
+) :: Tuple where {T <: AbstractVector{Int}, S <: GBOrder}
     return size(bs.basis)
 end
 
 function Base.getindex(
     bs :: BinomialSet{T, S},
     i :: Int
-) :: T where {T <: GBElement, S <: GBOrder}
+) :: T where {T <: AbstractVector{Int}, S <: GBOrder}
     return bs.basis[i]
 end
 
 function Base.length(
     bs :: BinomialSet{T, S}
-) :: Int where {T <: GBElement, S <: GBOrder}
+) :: Int where {T <: AbstractVector{Int}, S <: GBOrder}
     return length(bs.basis)
 end
 
 function Base.push!(
     bs :: BinomialSet{T, S},
     g :: T
-) where {T <: GBElement, S <: GBOrder}
+) where {T <: AbstractVector{Int}, S <: GBOrder}
     push!(bs.basis, g)
     addbinomial!(bs.reduction_tree, bs[length(bs)])
     p, n = GBElements.supports(g)
@@ -121,7 +128,7 @@ reduced to zero.
 function reduce!(
     g :: T,
     bs :: BinomialSet{T, S}
-) :: Bool where {T <: GBElement, S <: GBOrder}
+) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     return reduce!(g, bs, reduction_tree(bs))
 end
 
@@ -142,7 +149,7 @@ function reduce!(
     tree :: SupportTree{T};
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing
-) :: Bool where {T <: GBElement, S <: AbstractVector{T}}
+) :: Bool where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     is_singular = Ref{Bool}(false)
     while true
         reducer = find_reducer(
@@ -188,7 +195,7 @@ called after we were unable to eliminate `pair`.
 function sbinomial(
     pair :: CriticalPair,
     bs :: BinomialSet{T, S}
-) :: T where {T <: GBElement, S <: GBOrder}
+) :: T where {T <: AbstractVector{Int}, S <: GBOrder}
     v = bs[GBElements.first(pair)]
     w = bs[GBElements.second(pair)]
     if Base.lt(order(bs), v, w)
@@ -211,7 +218,7 @@ function is_support_reducible(
     i :: Int,
     j :: Int,
     bs :: BinomialSet{T, S}
-) :: Bool where {T <: GBElement, S <: GBOrder}
+) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     if is_minimization(bs)
         return !disjoint(bs.negative_supports[i], bs.negative_supports[j]) ||
             disjoint(bs.positive_supports[i], bs.positive_supports[j])
@@ -231,7 +238,7 @@ Useful for debugging and automatic tests.
 """
 function is_groebner_basis(
     bs :: BinomialSet{T, S}
-) :: Bool where {T <: GBElement, S <: GBOrder}
+) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     for i in 1:length(bs)
         for j in 1:(i-1)
             s = BinomialPair(i, j)
@@ -257,7 +264,7 @@ function is_truncated_groebner_basis(
     A :: Array{Int, 2},
     b :: Vector{Int},
     u :: Vector{Int}
-) :: Bool where {T <: GBElement, S <: GBOrder}
+) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     for i in 1:length(bs)
         for j in 1:(i-1)
             s = BinomialPair(i, j)
@@ -278,7 +285,7 @@ Returns the binomials of `bs` as integer vectors in minimization form.
 """
 function fourti2_form(
     bs :: BinomialSet{T, S}
-) :: Vector{Vector{Int}} where {T <: GBElement, S <: GBOrder}
+) :: Vector{Vector{Int}} where {T <: AbstractVector{Int}, S <: GBOrder}
     sign = is_minimization(bs) ? 1 : -1
     return [ sign * fullform(g) for g in bs ]
 end
@@ -291,7 +298,7 @@ index in the main loop
 """
 function auto_reduce!(
     gb :: BinomialSet{T, S}
-) where {T <: GBElement, S <: GBOrder}
+) where {T <: AbstractVector{Int}, S <: GBOrder}
     for i in length(gb):-1:1
         nothing
     end
@@ -308,7 +315,7 @@ TODO doesn't work because deleteat! is not defined.
 """
 function minimal_basis!(
     gb :: BinomialSet{T, S}
-) where {T <: GBElement, S <: GBOrder}
+) where {T <: AbstractVector{Int}, S <: GBOrder}
     for i in length(gb):-1:1
         g = gb[i]
         reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
@@ -328,7 +335,7 @@ TODO bugfix this, it doesn't terminate or is just buggy overall
 """
 function reduced_basis!(
     gb :: BinomialSet{T, S}
-) where {T <: GBElement, S <: GBOrder}
+) where {T <: AbstractVector{Int}, S <: GBOrder}
     minimal_basis!(gb)
     for i in length(gb):-1:1
         g = gb[i]

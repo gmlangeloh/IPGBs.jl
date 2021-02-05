@@ -1,10 +1,12 @@
 using IPGBs
+using IPGBs.GBTools
 using IPGBs.GBElements
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.Buchberger
 using IPGBs.FourTi2
 using IPGBs.SignatureAlgorithms
+using IPGBs.BinomialSets
 
 using MultiObjectiveInstances
 import Random
@@ -18,7 +20,8 @@ function test_buchberger(
     seed = 0,
     setseed = true,
     implicit_representation = false,
-    truncate = true
+    truncate = true,
+    quiet = false
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
@@ -28,7 +31,7 @@ function test_buchberger(
         lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
                                  check_truncation=false)
         for i in 1:size(instance.A, 2)]
-    lattice_4ti2 = fourti2_form(lattice_basis)
+    lattice_4ti2 = GradedBinomials.fourti2_form(lattice_basis)
 
     #Use 4ti2 to compute a reduced GB for reference
     instance_4ti2 = MultiObjectiveInstances.fourti2_stdform(instance)
@@ -37,24 +40,27 @@ function test_buchberger(
     trunc_sol = truncate ? initial_solution : Int[]
     rgb, time, _, _, _ = @timed groebner(
         lattice_4ti2, instance_4ti2.C, truncation_sol=trunc_sol,
-        lattice=true, quiet=false
+        lattice=true, quiet=quiet
     )
-    println()
-    println("4ti2 results")
-    @show size(rgb, 1) time
+    if !quiet
+        println()
+        println("4ti2 results")
+        @show size(rgb, 1) time
+        println()
+    end
     fourti2gb = IPGBs.GBTools.tovector(rgb)
-    println()
 
     #Compute a GB using my Buchberger implementation
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false,
         implicit_representation=implicit_representation,
-        truncate=truncate
+        truncate=truncate, quiet=true
     )
-    println()
-    println("my results")
-    @show length(gb) time
-
+    if !quiet
+        println()
+        println("my results")
+        @show length(gb) time
+    end
     return gb, fourti2gb
 end
 
@@ -63,7 +69,8 @@ function test_siggb(
     seed = 0,
     setseed = true,
     module_order = :ltpot,
-    truncate = true
+    truncate = true,
+    quiet = false
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
         Random.seed!(seed)
@@ -73,7 +80,7 @@ function test_siggb(
         lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
                                  check_truncation=false)
         for i in 1:size(instance.A, 2)]
-    lattice_4ti2 = fourti2_form(lattice_basis)
+    lattice_4ti2 = GradedBinomials.fourti2_form(lattice_basis)
 
     #Use 4ti2 to compute a reduced GB for reference
     instance_4ti2 = MultiObjectiveInstances.fourti2_stdform(instance)
@@ -82,31 +89,37 @@ function test_siggb(
     trunc_sol = truncate ? initial_solution : Int[]
     rgb, time, _, _, _ = @timed groebner(
         lattice_4ti2, instance_4ti2.C, truncation_sol=trunc_sol,
-        lattice=true
+        lattice=true, quiet=quiet
     )
-    println()
-    println("4ti2 results")
-    @show size(rgb, 1) time
+    if !quiet
+        println()
+        println("4ti2 results")
+        @show size(rgb, 1) time
+        println()
+    end
     fourti2gb = IPGBs.GBTools.tovector(rgb)
-    println()
 
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=true,
-        module_order=module_order, truncate=truncate
+        module_order=module_order, truncate=truncate, quiet=true
     )
-    println()
-    println("Signature results")
-    @show length(gb) time
-    println()
+    if !quiet
+        println()
+        println("Signature results")
+        @show length(gb) time
+        println()
+    end
     #Basic Buchberger results
     bgb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false,
-        truncate=truncate
+        truncate=truncate, quiet=true
     )
-    println()
-    println("Buchberger results")
-    @show length(bgb) time
+    if !quiet
+        println()
+        println("Buchberger results")
+        @show length(bgb) time
+    end
     return gb, fourti2gb, bgb
 end
 
@@ -117,8 +130,9 @@ function run_algorithm(
     module_order = :ltpot,
     use_signatures = true,
     implicit_representation = false,
-    truncate = true
-) :: Vector{Vector{Int}}
+    truncate = true,
+    quiet = false
+)
     if setseed
         Random.seed!(seed)
     end
@@ -132,10 +146,18 @@ function run_algorithm(
         instance.A, instance.b, instance.C, instance.u,
         use_signatures=use_signatures, module_order=module_order,
         implicit_representation=implicit_representation,
-        truncate=truncate
+        truncate=truncate, quiet=quiet
     )
-    println()
-    println("My results")
-    @show length(gb) time
-    return gb
+    if !quiet
+        println()
+        println("My results")
+        @show length(gb) time
+    end
+
+    #Always apply normalization here, since we return GB in 4ti2 standard form.
+    A, b, C, u = GBTools.normalize(
+        instance.A, instance.b, instance.C, instance.u,
+        apply_normalization=true
+    )
+    return gb, A, b, C, u
 end

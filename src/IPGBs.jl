@@ -35,7 +35,8 @@ function groebner_basis(
     use_signatures :: Bool = false,
     implicit_representation :: Bool = false,
     module_order :: Symbol = :ltpot,
-    truncate :: Bool = true
+    truncate :: Bool = true,
+    quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #Setting parameters
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
@@ -50,7 +51,7 @@ function groebner_basis(
     else
         algorithm = algorithm_type(representation, C, truncate)
     end
-    return GBAlgorithms.run(algorithm, A, b, C, u)
+    return GBAlgorithms.run(algorithm, A, b, C, u, quiet=quiet)
 end
 
 end
