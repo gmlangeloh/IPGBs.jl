@@ -168,7 +168,6 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
         basis_signatures = SignatureSet()
         generators = SigPoly{T}[]
         sigleads = SigLead[]
-        #For now, fix the Schreyer order as module monomial order
         order = ModuleMonomialOrdering(C, mod_order, generators)
         module_order_lt = (s1, s2) -> SignaturePolynomials.signature_lt(s1, s2, order)
         basis = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}(generators, order)

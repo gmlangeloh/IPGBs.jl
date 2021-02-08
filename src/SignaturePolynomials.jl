@@ -144,8 +144,7 @@ end
 GBElements.cost(g :: SigPoly{T}) where {T} = GBElements.cost(g.polynomial)
 GBElements.fullform(g :: SigPoly{T}) where {T} = GBElements.fullform(g.polynomial)
 
-#TODO If I do GBElements.has_signature here, performance becomes terrible. Why?
-GBElements.has_signature(:: Type{<: SigPoly}) = true
+has_signature(:: Type{<: SigPoly}) = true
 signature(g :: SigPoly{T}) where {T} = g.signature
 
 function Base.show(
