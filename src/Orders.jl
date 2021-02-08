@@ -45,7 +45,6 @@ mutable struct MonomialOrder <: GBOrder
     MonomialOrder(costs :: Array{Int, 2}) = new(build_order(costs))
 end
 
-#TODO should the length be the number of rows or columns?
 Base.length(o :: MonomialOrder) = size(o.cost_matrix, 2)
 
 #This is implemented this way for locality and performance. It is only used
