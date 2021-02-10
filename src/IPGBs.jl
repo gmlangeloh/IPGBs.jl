@@ -36,20 +36,22 @@ function groebner_basis(
     implicit_representation :: Bool = false,
     module_order :: Symbol = :ltpot,
     truncate :: Bool = true,
-    quiet :: Bool = false
+    quiet :: Bool = false,
+    minimization :: Bool = true
 ) :: Vector{Vector{Int}}
     #Setting parameters
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
     representation = implicit_representation ? GradedBinomial : Binomial
+    use_minimization = implicit_representation ? false : minimization
 
     #Signatures aren't currently supported with implicit representation
     @assert !(use_signatures && implicit_representation)
 
     #Run GB algorithm over the given instance
     if use_signatures
-        algorithm = algorithm_type(representation, C, module_order, truncate)
+        algorithm = algorithm_type(representation, C, module_order, truncate, minimization)
     else
-        algorithm = algorithm_type(representation, C, truncate)
+        algorithm = algorithm_type(representation, C, truncate, minimization)
     end
     return GBAlgorithms.run(algorithm, A, b, C, u, quiet=quiet)
 end

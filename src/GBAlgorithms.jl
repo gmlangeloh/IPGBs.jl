@@ -41,6 +41,7 @@ current_basis(algorithm :: GBAlgorithm) = algorithm.basis
 update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
     error("Not implemented.")
 truncate_basis(algorithm :: GBAlgorithm) = algorithm.should_truncate
+use_implicit_representation(:: GBAlgorithm) = false
 
 function initialize!(
     :: GBAlgorithm,
@@ -127,7 +128,8 @@ function run(
 ) :: Vector{Vector{Int}}
     #Compute the initial basis of the toric ideal
     A, b, C, u = GBTools.normalize(
-        A, b, C, u, apply_normalization=is_minimization(algorithm)
+        A, b, C, u, apply_normalization=!use_implicit_representation(algorithm),
+        invert_objective=is_minimization(algorithm)
     )
     initialize!(algorithm, A, b, C, u)
     #Main loop: process all relevant S-pairs
@@ -152,7 +154,7 @@ function run(
     if !quiet
         println(stats(algorithm))
     end
-    #minimal_basis!(current_basis(algorithm)) #TODO I don't think this works with Signatures yet
+    reduced_basis!(current_basis(algorithm))
     return fourti2_form(current_basis(algorithm))
 end
 

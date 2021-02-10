@@ -28,14 +28,20 @@ struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     positive_supports :: Vector{FastBitSet}
     negative_supports :: Vector{FastBitSet}
 
-    function BinomialSet{T, S}(basis :: Vector{T}, order :: S) where {T, S}
+    function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
         tree = support_tree(basis, fullfilter=is_implicit(T))
         pos_supps, neg_supps = GBElements.supports(basis)
-        min = !is_implicit(T)
         new{T, S}(
             basis, order, tree, min, pos_supps, neg_supps
         )
     end
+end
+
+function BinomialSet(
+    basis :: Vector{T},
+    order :: S
+) where {T <: AbstractVector{Int}, S <: GBOrder}
+    return BinomialSet{T, S}(basis, order, !is_implicit(T))
 end
 
 """
@@ -115,6 +121,17 @@ function Base.push!(
     p, n = GBElements.supports(g)
     push!(bs.positive_supports, p)
     push!(bs.negative_supports, n)
+end
+
+function Base.deleteat!(
+    bs :: BinomialSet{T, S},
+    i :: Int
+) where {T <: AbstractVector{Int}, S <: GBOrder}
+    deleted_elem = bs[i]
+    removebinomial!(reduction_tree(bs), deleted_elem)
+    deleteat!(bs.basis, i)
+    deleteat!(bs.positive_supports, i)
+    deleteat!(bs.negative_supports, i)
 end
 
 #
@@ -310,8 +327,6 @@ Updates gb to a minimal Gröbner Basis.
 For more info on minimal GBs, see Lemma 3 from Cox, Little, O'Shea Chapter 2.7.
 In summary, it shows that one can remove from a GB any g such that LT(g) is a
 multiple of LT(h), for h distinct from g in the GB.
-
-TODO doesn't work because deleteat! is not defined.
 """
 function minimal_basis!(
     gb :: BinomialSet{T, S}
@@ -320,18 +335,13 @@ function minimal_basis!(
         g = gb[i]
         reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
         if !isnothing(reducer)
-            @show reducer
-            @show g
             deleteat!(gb, i)
-            removebinomial!(reduction_tree(gb), g)
         end
     end
 end
 
 """
 Updates gb to a reduced Gröbner Basis.
-
-TODO bugfix this, it doesn't terminate or is just buggy overall
 """
 function reduced_basis!(
     gb :: BinomialSet{T, S}

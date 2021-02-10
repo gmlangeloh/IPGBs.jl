@@ -52,7 +52,8 @@ function normalize(
     b :: Vector{Int},
     C :: Array{Int, 2},
     u :: Vector{Int};
-    apply_normalization :: Bool = true
+    apply_normalization :: Bool = true,
+    invert_objective :: Bool = true
 ) Tuple{Array{Int, 2}, Vector{Int}, Array{Int, 2}, Vector{Int}}
     if !apply_normalization
         return A, b, C, u
@@ -68,7 +69,8 @@ function normalize(
     #The reductions without fullfilter only work correctly if the problem
     #is in minimization form. Thus we take the opposite of C instead, as
     #this is easier than changing everything else
-    new_C = [-C zeros(Int, size(C, 1), n + m)]
+    sign = invert_objective ? -1 : 1
+    new_C = [sign * C zeros(Int, size(C, 1), n + m)]
     new_u = [u; [typemax(Int) for i in 1:(n+m)]]
     return new_A, new_b, new_C, new_u
 end

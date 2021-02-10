@@ -131,7 +131,8 @@ function run_algorithm(
     use_signatures = true,
     implicit_representation = false,
     truncate = true,
-    quiet = false
+    quiet = false,
+    minimization = true
 )
     if setseed
         Random.seed!(seed)
@@ -146,7 +147,7 @@ function run_algorithm(
         instance.A, instance.b, instance.C, instance.u,
         use_signatures=use_signatures, module_order=module_order,
         implicit_representation=implicit_representation,
-        truncate=truncate, quiet=quiet
+        truncate=truncate, quiet=quiet, minimization=minimization
     )
     if !quiet
         println()

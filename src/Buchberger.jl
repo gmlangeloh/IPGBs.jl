@@ -67,13 +67,23 @@ struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     should_truncate :: Bool
     stats :: BuchbergerStats
 
-    function BuchbergerAlgorithm(T :: Type, C :: Array{Int, 2}, should_truncate :: Bool)
+    function BuchbergerAlgorithm(
+        T :: Type,
+        C :: Array{Int, 2},
+        should_truncate :: Bool,
+        minimization :: Bool
+    )
         order = MonomialOrder(C)
         state = BuchbergerState(0)
         stats = BuchbergerStats()
-        new{T}(BinomialSet{T, MonomialOrder}(T[], order), state, should_truncate, stats)
+        new{T}(
+            BinomialSet{T, MonomialOrder}(T[], order, minimization), state,
+            should_truncate, stats
+        )
     end
 end
+
+GBAlgorithms.use_implicit_representation(:: BuchbergerAlgorithm{T}) where {T} = is_implicit(T)
 
 function GBAlgorithms.next_pair!(
     algorithm :: BuchbergerAlgorithm{T}

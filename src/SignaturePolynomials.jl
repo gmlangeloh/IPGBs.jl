@@ -575,17 +575,19 @@ Computes g -= h in-place, assumes this is a regular reduction, so that
 sig(g - h) = sig(g).
 
 Returns true iff `g` reduced to zero.
-
-TODO this has to implement a "negative" parameter for the reduced basis algorithm to work!
 """
 function GBElements.reduce!(
     g :: SigPoly{T},
     h :: SigPoly{T},
-    order :: GBOrder
+    order :: GBOrder;
+    negative :: Bool = false
 ) :: Bool where {T <: GBElement}
     #No need to update signature, as we assume it won't change
-    reduced_to_zero = GBElements.reduce!(g.polynomial, h.polynomial, order)
+    reduced_to_zero = GBElements.reduce!(g.polynomial, h.polynomial, order, negative=negative)
     #TODO this is necessary, but is inefficient as is. How can I do this cleanly and efficiently?
+    #TODO we ignore the negative parameter here. Currently, it is only necessary for reduced
+    #basis, and this is only done at the end of the computation. At that point, sigleads
+    #are irrelevant.
     for i in 1:length(g.siglead.monomial)
         lt_i = max(g[i], 0)
         g.siglead.monomial[i] = g.signature.monomial[i] - lt_i;

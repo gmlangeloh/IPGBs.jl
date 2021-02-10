@@ -163,14 +163,20 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
     should_truncate :: Bool
     stats :: SignatureStats
 
-    function SignatureAlgorithm(T :: Type, C :: Array{Int, 2}, mod_order :: Symbol, should_truncate :: Bool)
+    function SignatureAlgorithm(
+        T :: Type,
+        C :: Array{Int, 2},
+        mod_order :: Symbol,
+        should_truncate :: Bool,
+        minimization :: Bool
+    )
         syzygies = SignatureSet()
         basis_signatures = SignatureSet()
         generators = SigPoly{T}[]
         sigleads = SigLead[]
         order = ModuleMonomialOrdering(C, mod_order, generators)
         module_order_lt = (s1, s2) -> SignaturePolynomials.signature_lt(s1, s2, order)
-        basis = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}(generators, order)
+        basis = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}(generators, order, minimization)
         koszul = BinaryHeap{Signature}(order, [])
         syz_pairs = BitTriangle()
         comparator = Comparator{SigLead, typeof(module_order_lt)}(sigleads, module_order_lt)
@@ -198,6 +204,8 @@ end
 
 set_syzygy(pair :: SignaturePair, algorithm :: SignatureAlgorithm) =
     set_syzygy(pair.i, pair.j, algorithm)
+
+GBAlgorithms.use_implicit_representation(:: SignatureAlgorithm{T}) where {T} = is_implicit(T)
 
 #
 # GBAlgorithm interface implementation
