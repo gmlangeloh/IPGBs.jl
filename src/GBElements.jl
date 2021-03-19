@@ -5,7 +5,7 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!
+export GBElement, degree_reducible, filter, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -172,6 +172,25 @@ singular_top_reducible(g :: GBElement, reducer_sig) = false
 #
 # Additional GBElement logic
 #
+
+"""
+Checks whether the trailing terms of `g` and `h` are disjoint. In case
+negative = true, checks whether the leading term of `g` is disjoint
+with the trailing term of `h`.
+"""
+function is_negative_disjoint(
+    g :: T,
+    h :: T;
+    negative :: Bool = false
+) :: Bool where {T <: AbstractVector{Int}}
+    sign = negative ? -1 : 1
+    for i in 1:length(g)
+        if sign * g[i] < 0 && h[i] < 0
+            return false
+        end
+    end
+    return true
+end
 
 """
 Checks whether v is bounded coordinate by coordinate by u.

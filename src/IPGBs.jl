@@ -49,9 +49,9 @@ function groebner_basis(
 
     #Run GB algorithm over the given instance
     if use_signatures
-        algorithm = algorithm_type(representation, C, module_order, truncate, minimization)
+        algorithm = algorithm_type(representation, C, module_order, truncate, use_minimization)
     else
-        algorithm = algorithm_type(representation, C, truncate, minimization)
+        algorithm = algorithm_type(representation, C, truncate, use_minimization)
     end
     return GBAlgorithms.run(algorithm, A, b, C, u, quiet=quiet)
 end

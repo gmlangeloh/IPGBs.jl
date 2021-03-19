@@ -138,7 +138,11 @@ function run(
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
+        #println(pair.j - 1, " ", pair.i - 1)
+        #println("u = ", current_basis(algorithm)[pair.j])
+        #println("v = ", current_basis(algorithm)[pair.i])
         if late_pair_elimination(algorithm, pair)
+            #println("eliminated")
             continue
         end
         binomial = sbinomial(algorithm, pair)
@@ -146,8 +150,12 @@ function run(
         reduced_to_zero = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial, A, b, u)
             update!(algorithm, binomial, pair)
+            #println("basis")
         elseif reduced_to_zero #Update syzygies in case this makes sense
             process_zero_reduction!(algorithm, binomial, pair)
+            #println("zero")
+        else
+            #println("truncated")
         end
         #end
     end

@@ -168,37 +168,58 @@ function reduce!(
     skipbinomial :: Union{T, Nothing} = nothing
 ) :: Bool where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     is_singular = Ref{Bool}(false)
-    while true
-        reducer = find_reducer(
-            g, gb, tree, skipbinomial=skipbinomial, is_singular=is_singular
-        )
-        #g has a singular signature, so it reduces to zero
-        #We can ignore the reducer and just say `g` reduces to zero
-        #if haskey(params, "is_singular") && params["is_singular"]
-        if is_singular[]
-            return true
+    #Reduce both the leading and trailing terms, leading first
+    for negative in [false, true]
+        if negative && !is_minimization(gb)
+            #Currently not supported, can just be ignored
+            return false #Not reduced to zero, leave as is
         end
-        #No reducer found, terminate search
-        if isnothing(reducer)
-            return false
-        end
-        #Found some reducer, add it to histogram if one is available
-        if !isnothing(reduction_count)
-            for i in 1:length(gb)
-                if gb[i] === reducer
-                    reduction_count[i] += 1
-                    break
+        while true
+            reducer = find_reducer(
+                g, gb, tree, skipbinomial=skipbinomial, is_singular=is_singular,
+                negative=negative
+            )
+            #g has a singular signature, so it reduces to zero
+            #We can ignore the reducer and just say `g` reduces to zero
+            #if haskey(params, "is_singular") && params["is_singular"]
+            if is_singular[]
+                return true
+            end
+            #No reducer found, terminate search
+            if isnothing(reducer)
+                if negative
+                    return false
+                end
+                break
+            end
+            #Found some reducer, add it to histogram if one is available
+            if !isnothing(reduction_count)
+                for i in 1:length(gb)
+                    if gb[i] === reducer
+                        reduction_count[i] += 1
+                        break
+                    end
                 end
             end
-        end
-        #Now apply the reduction and check if it is a zero reduction
-        if has_order(gb)
-            reduced_to_zero = GBElements.reduce!(g, reducer, order(gb))
-        else
-            reduced_to_zero = GBElements.reduce!(g, reducer)
-        end
-        if reduced_to_zero
-            return true
+            #TODO prove this makes sense!
+            #The idea is that if this holds, we know g will reduce to zero
+            #This looks like an extension of the GCD criterion
+            if !is_negative_disjoint(g, reducer, negative=negative)
+                return true
+            end
+            #Now apply the reduction and check if it is a zero reduction
+            if has_order(gb)
+                reduced_to_zero = GBElements.reduce!(
+                    g, reducer, order(gb), negative=negative
+                )
+            else
+                reduced_to_zero = GBElements.reduce!(
+                    g, reducer, negative=negative
+                )
+            end
+            if reduced_to_zero
+                return true
+            end
         end
     end
     @assert false #We should never reach this
@@ -312,6 +333,8 @@ Reduces each element of the GB by the previous elements.
 
 TODO count number of removed elements so we can decrement the iteration
 index in the main loop
+
+TODO implement this function
 """
 function auto_reduce!(
     gb :: BinomialSet{T, S}
@@ -347,6 +370,11 @@ function reduced_basis!(
     gb :: BinomialSet{T, S}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     minimal_basis!(gb)
+    if !is_minimization(gb)
+        #Doesn't compute reduced basis for implicit representation
+        #TODO fix this in some later version!
+        return
+    end
     for i in length(gb):-1:1
         g = gb[i]
         reducing = true
