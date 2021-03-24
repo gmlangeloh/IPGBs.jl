@@ -344,21 +344,26 @@ the elements are in the basis relative to the way I generate pairs in
 Buchberger's algorithm. Check.
 """
 function auto_reduce_once!(
-    gb :: BinomialSet{T, S}
-) :: Int where {T <: AbstractVector{Int}, S <: GBOrder}
+    gb :: BinomialSet{T, S},
+    index :: Int
+) :: Tuple{Int, Int} where {T <: AbstractVector{Int}, S <: GBOrder}
     removed = 0
+    removed_before_index = 0
     for i in length(gb):-1:1
         g = gb[i]
         reduced_to_zero, changed = reduce!(g, gb, skipbinomial=g)
         if reduced_to_zero
             deleteat!(gb, i)
             removed += 1
+            if i < index
+                removed_before_index += 1
+            end
         elseif changed
-            deleteat!(gb, i)
-            push!(gb, g)
+            #Change was already made in-place in reduce!
+            #No need to update the basis in this case
         end
     end
-    return removed
+    return removed, removed_before_index
 end
 
 """
