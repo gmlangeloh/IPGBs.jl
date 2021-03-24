@@ -85,7 +85,7 @@ end
 function reduce!(
     algorithm :: GBAlgorithm,
     binomial :: GBElement
-) :: Bool
+) :: Tuple{Bool, Bool}
     increment(algorithm, :reduced_pairs)
     return BinomialSets.reduce!(binomial, current_basis(algorithm))
 end
@@ -146,14 +146,8 @@ function run(
             continue
         end
         binomial = sbinomial(algorithm, pair)
-        if pair.j - 1 == 413 && pair.i - 1 == 414
-            println(current_basis(algorithm)[pair.i])
-            println(current_basis(algorithm)[pair.j])
-            println(current_basis(algorithm).negative_supports[pair.i])
-            println(current_basis(algorithm).negative_supports[pair.j])
-        end
         #if !truncate(algorithm, binomial, A, b, u)
-        reduced_to_zero = reduce!(algorithm, binomial)
+        reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial, A, b, u)
             update!(algorithm, binomial, pair)
             #println("basis")
@@ -169,7 +163,9 @@ function run(
         println(stats(algorithm))
     end
     reduced_basis!(current_basis(algorithm))
-    return fourti2_form(current_basis(algorithm))
+    output = fourti2_form(current_basis(algorithm))
+    sort!(output)
+    return output
 end
 
 end

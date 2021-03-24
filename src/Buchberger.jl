@@ -15,6 +15,8 @@ using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
 
+const AUTO_REDUCE_FREQ = 2500
+
 """
 The state of Buchberger S-binomial generation.
 """
@@ -61,11 +63,12 @@ mutable struct BuchbergerStats <: GBStats
     BuchbergerStats() = new(0, 0, 0, 0, 0, 0, 0)
 end
 
-struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
+mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     basis :: BinomialSet{T, MonomialOrder}
     state :: BuchbergerState
     should_truncate :: Bool
     stats :: BuchbergerStats
+    num_iterations :: Int #Total number of binomials added to the basis at some point
 
     function BuchbergerAlgorithm(
         T :: Type,
@@ -85,12 +88,28 @@ end
 
 GBAlgorithms.use_implicit_representation(:: BuchbergerAlgorithm{T}) where {T} = is_implicit(T)
 
+"""
+Produces the next BinomialPair to be processed by the Buchberger algorithm,
+if one exists, or nothing otherwise.
+
+Auto-reduces the partial GB periodically (for consistency with 4ti2).
+"""
 function GBAlgorithms.next_pair!(
     algorithm :: BuchbergerAlgorithm{T}
 ) :: Union{BinomialPair, Nothing} where {T <: GBElement}
+    previous_i = algorithm.state.i
     s = next_state!(algorithm.state)
     if !isnothing(s)
         i, j = s
+        if i != previous_i
+            algorithm.num_iterations += 1
+            if algorithm.num_iterations % AUTO_REDUCE_FREQ == 0 &&
+                algorithm.num_iterations != 0
+                auto_reduce_once!(current_basis(algorithm))
+                #TODO get number of removed things from basis to update state
+                #TODO need number before my current index, actually... I'm lazy right now
+            end
+        end
         increment(algorithm, :queued_pairs)
         return BinomialPair(i, j)
     end

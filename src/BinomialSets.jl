@@ -2,7 +2,8 @@ module BinomialSets
 
 export BinomialSet, order, binomials, reduction_tree,
     is_support_reducible, fourti2_form, sbinomial, minimal_basis!, reduced_basis!,
-    auto_reduce!, is_minimization, change_ordering!, is_groebner_basis, is_truncated_groebner_basis
+    auto_reduce_once!, is_minimization, change_ordering!, is_groebner_basis,
+    is_truncated_groebner_basis
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -139,19 +140,23 @@ end
 #
 
 """
-Reduces `g` by `bs` efficiently using a Support Tree. Returns true iff `g`
-reduced to zero.
+Reduces `g` by `bs` efficiently using a Support Tree. Returns a pair of booleans
+(r, c) where r == true iff `g` reduced to zero, and c == true iff `g` was
+changed in this reduction.
 """
 function reduce!(
     g :: T,
-    bs :: BinomialSet{T, S}
-) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
-    return reduce!(g, bs, reduction_tree(bs))
+    bs :: BinomialSet{T, S};
+    skipbinomial :: Union{T, Nothing} = nothing
+) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: GBOrder}
+    return reduce!(g, bs, reduction_tree(bs), skipbinomial=skipbinomial)
 end
 
 """
 Fully reduce `binomial` by `gb` in-place, finding its normal form. Uses `tree`
-to speed up the search for reducers. Returns true iff `binomial` reduces to zero.
+to speed up the search for reducers. Returns a pair of booleans (r, c) where
+r == true iff `g` reduced to zero, and c == true iff `g` was changed in this
+reduction.
 
 `binomial` can also be a monomial.
 
@@ -166,8 +171,9 @@ function reduce!(
     tree :: SupportTree{T};
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing
-) :: Bool where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     is_singular = Ref{Bool}(false)
+    changed = false
     #Reduce both the leading and trailing terms, leading first
     for negative in [false, true]
         if negative && !is_minimization(gb)
@@ -183,15 +189,16 @@ function reduce!(
             #We can ignore the reducer and just say `g` reduces to zero
             #if haskey(params, "is_singular") && params["is_singular"]
             if is_singular[]
-                return true
+                return true, changed
             end
             #No reducer found, terminate search
             if isnothing(reducer)
                 if negative
-                    return false
+                    return false, changed
                 end
                 break
             end
+            changed = true
             #Found some reducer, add it to histogram if one is available
             if !isnothing(reduction_count)
                 for i in 1:length(gb)
@@ -205,7 +212,7 @@ function reduce!(
             #The idea is that if this holds, we know g will reduce to zero
             #This looks like an extension of the GCD criterion
             if !is_negative_disjoint(g, reducer, negative=negative)
-                return true
+                return true, changed
             end
             #Now apply the reduction and check if it is a zero reduction
             if has_order(gb)
@@ -218,12 +225,12 @@ function reduce!(
                 )
             end
             if reduced_to_zero
-                return true
+                return true, changed
             end
         end
     end
     @assert false #We should never reach this
-    return false
+    return false, false
 end
 
 """
@@ -281,7 +288,7 @@ function is_groebner_basis(
         for j in 1:(i-1)
             s = BinomialPair(i, j)
             binomial = sbinomial(s, bs)
-            reduced_to_zero = reduce!(binomial, bs)
+            reduced_to_zero, _ = reduce!(binomial, bs)
             if !reduced_to_zero
                 return false
             end
@@ -307,7 +314,7 @@ function is_truncated_groebner_basis(
         for j in 1:(i-1)
             s = BinomialPair(i, j)
             binomial = sbinomial(s, bs)
-            reduced_to_zero = reduce!(binomial, bs)
+            reduced_to_zero, _ = reduce!(binomial, bs)
             if !reduced_to_zero && isfeasible(binomial, A, b, u)
                 #Note we check isfeasible after reduction. This is often
                 #quicker, because then we skip the check for zero reductions
@@ -332,16 +339,26 @@ end
 Reduces each element of the GB by the previous elements.
 
 TODO count number of removed elements so we can decrement the iteration
-index in the main loop
-
-TODO implement this function
+index in the main loop. There is a potential issue with changing the order
+the elements are in the basis relative to the way I generate pairs in
+Buchberger's algorithm. Check.
 """
-function auto_reduce!(
+function auto_reduce_once!(
     gb :: BinomialSet{T, S}
-) where {T <: AbstractVector{Int}, S <: GBOrder}
+) :: Int where {T <: AbstractVector{Int}, S <: GBOrder}
+    removed = 0
     for i in length(gb):-1:1
-        nothing
+        g = gb[i]
+        reduced_to_zero, changed = reduce!(g, gb, skipbinomial=g)
+        if reduced_to_zero
+            deleteat!(gb, i)
+            removed += 1
+        elseif changed
+            deleteat!(gb, i)
+            push!(gb, g)
+        end
     end
+    return removed
 end
 
 """
