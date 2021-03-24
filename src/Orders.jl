@@ -22,7 +22,7 @@ function build_order(
     m = size(C, 1)
     n = size(C, 2)
     if m < n #Insufficient tiebreaking in C
-        tiebreaker = GBTools.grevlex_matrix(n)
+        tiebreaker = GBTools.revlex_matrix(n)
         full_matrix = vcat(C, tiebreaker)
     else
         full_matrix = C

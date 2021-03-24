@@ -54,7 +54,7 @@ function test_buchberger(
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false,
         implicit_representation=implicit_representation,
-        truncate=truncate, quiet=true
+        truncate=truncate, quiet=quiet
     )
     if !quiet
         println()

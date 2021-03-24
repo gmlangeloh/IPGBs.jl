@@ -101,4 +101,16 @@ function lex_matrix(
     return Matrix{Int}(I, n, n)
 end
 
+"""
+Returns a matrix representing the lex order for `n` variables with
+x_1 < x_2 < ... < x_n.
+
+This is the tiebreaking order used by 4ti2.
+"""
+function revlex_matrix(
+    n :: Int
+) :: Array{Int, 2}
+    return Matrix{Int}(-I, n, n)
+end
+
 end

@@ -138,7 +138,7 @@ function run(
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
-        #println(pair.j - 1, " ", pair.i - 1)
+        #println("(", pair.j - 1, ", ", pair.i - 1, ")")
         #println("u = ", current_basis(algorithm)[pair.j])
         #println("v = ", current_basis(algorithm)[pair.i])
         if late_pair_elimination(algorithm, pair)
@@ -146,6 +146,9 @@ function run(
             continue
         end
         binomial = sbinomial(algorithm, pair)
+        #if pair.j - 1 == 48 && pair.i - 1 == 194
+        #    println(binomial)
+        #end
         #if !truncate(algorithm, binomial, A, b, u)
         reduced_to_zero = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial, A, b, u)
