@@ -47,25 +47,27 @@ function Base.size(
 end
 
 function Base.getindex(
-    bitset :: FastBitSet,
+    bitset :: FastBitSet{T},
     i :: Int
-) :: Bool
-    mask = 1 << (i - 1)
+) :: Bool where {T <: Integer}
+    one = T(1)
+    mask = one << (i - 1)
     return mask & bitset.content == 0 ? false : true
 end
 
 function Base.setindex!(
-    bitset :: FastBitSet,
+    bitset :: FastBitSet{T},
     v :: Bool,
     i :: Int
-)
+) where {T <: Integer}
+    one = T(1)
     if v
         if !bitset[i]
-            bitset.content += 1 << (i - 1)
+            bitset.content += one << (i - 1)
         end
     else
         if bitset[i]
-            bitset.content -= 1 << (i - 1)
+            bitset.content -= one << (i - 1)
         end
     end
 end

@@ -146,9 +146,12 @@ function run(
             continue
         end
         binomial = sbinomial(algorithm, pair)
-        #if pair.j - 1 == 48 && pair.i - 1 == 194
-        #    println(binomial)
-        #end
+        if pair.j - 1 == 413 && pair.i - 1 == 414
+            println(current_basis(algorithm)[pair.i])
+            println(current_basis(algorithm)[pair.j])
+            println(current_basis(algorithm).negative_supports[pair.i])
+            println(current_basis(algorithm).negative_supports[pair.j])
+        end
         #if !truncate(algorithm, binomial, A, b, u)
         reduced_to_zero = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial, A, b, u)
