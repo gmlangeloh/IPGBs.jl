@@ -41,8 +41,9 @@ of the grevlex variables
 """
 mutable struct MonomialOrder <: GBOrder
     cost_matrix :: Array{Int, 2}
+    tiebreaker :: Symbol
     #Probably should carry a tiebreaker around too
-    MonomialOrder(costs :: Array{Int, 2}) = new(build_order(costs))
+    MonomialOrder(costs :: Array{Int, 2}) = new(build_order(costs), :invlex)
 end
 
 Base.length(o :: MonomialOrder) = size(o.cost_matrix, 2)
@@ -87,7 +88,7 @@ end
 Returns true iff the trailing and leading terms of `v` are inverted with
 respect to `order`.
 """
-function is_inverted(
+function is_inverted_generic(
     order :: MonomialOrder,
     v :: T
 ) :: Bool where {T <: AbstractVector{Int}}
@@ -103,6 +104,40 @@ function is_inverted(
         end
     end
     return false #This really should not happen
+end
+
+"""
+`v` is inverted according to invlex iff its first non-zero entry is positive.
+"""
+function is_inverted_invlex(
+    v :: T
+) :: Bool where {T <: AbstractVector{Int}}
+    i = 1
+    while i <= length(v) && v[i] == 0
+        i += 1
+    end
+    if i > length(v)
+        return false
+    end
+    return v[i] > 0
+end
+
+"""
+Efficiently returns whether v's leading and trailing terms are inverted.
+"""
+function is_inverted(
+    order :: MonomialOrder,
+    v :: T,
+    cost :: Int
+) :: Bool where {T <: AbstractVector{Int}}
+    if cost < 0
+        return true
+    elseif cost > 0
+        return false
+    elseif order.tiebreaker == :invlex
+        return is_inverted_invlex(v)
+    end
+    return is_inverted_generic(order, v)
 end
 
 """

@@ -240,7 +240,7 @@ function Orders.is_inverted(
     o :: ModuleMonomialOrdering{T},
     g :: T
 ) where {T <: GBElement}
-    return is_inverted(o.monomial_order, g)
+    return is_inverted(o.monomial_order, g, cost(g))
 end
 
 function Orders.change_ordering!(

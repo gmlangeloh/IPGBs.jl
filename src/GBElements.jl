@@ -21,7 +21,7 @@ abstract type GBElement <: AbstractVector{Int} end
 # Hard contract: a GBElement must implement at least the following functions.
 #
 
-cost(:: GBElement) :: Int = error("Not implemented.")
+cost(:: AbstractVector{Int}) :: Int = error("Not implemented.")
 fullform(:: GBElement) :: Vector{Int} = error("Not implemented.")
 
 #
@@ -94,7 +94,7 @@ function orientate!(
     #if g.cost < 0 || (g.cost == 0 && !grevlex(g))
     #    GBElements.opposite!(g)
     #end
-    if is_inverted(order, g)
+    if is_inverted(order, g, cost(g))
         GBElements.opposite!(g)
     end
 end

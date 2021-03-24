@@ -24,7 +24,11 @@ function Base.:-(
     g :: Binomial,
     h :: Binomial
 ) :: Binomial
-    new_element = g.element - h.element
+    new_element = Vector{Int}(undef, length(g))
+    for i in 1:length(g)
+        new_element[i] = g.element[i] - h.element[i]
+    end
+    #new_element = g.element - h.element
     new_cost = g.cost - h.cost
     return Binomial(new_element, new_cost)
 end
@@ -89,32 +93,6 @@ function GBElements.opposite!(
     g.element .= .-g.element
     g.cost = -g.cost
 end
-
-#"""
-#Returns true iff g is oriented in a compatible way to grevlex with xn > xn-1 ...
-#> x1
-#"""
-#function grevlex(
-#    g :: Binomial
-#) :: Bool
-#    sum_g = sum(g)
-#    if sum_g > 0
-#        return true
-#    elseif sum_g < 0
-#        return false
-#    end
-#    i = 1
-#    while sum_g == 0 && i < length(g)
-#        sum_g -= g[i]
-#        if sum_g > 0
-#            return true
-#        elseif sum_g < 0
-#            return false
-#        end
-#        i += 1
-#    end
-#    return true
-#end
 
 """
 Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem

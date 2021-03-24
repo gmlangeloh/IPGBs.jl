@@ -175,7 +175,7 @@ function reduce!(
     is_singular = Ref{Bool}(false)
     changed = false
     #Reduce both the leading and trailing terms, leading first
-    for negative in [false, true]
+    for negative in (false, true)
         if negative && !is_minimization(gb)
             #Currently not supported, can just be ignored
             return false #Not reduced to zero, leave as is
@@ -243,11 +243,8 @@ function sbinomial(
 ) :: T where {T <: AbstractVector{Int}, S <: GBOrder}
     v = bs[GBElements.first(pair)]
     w = bs[GBElements.second(pair)]
-    if Base.lt(order(bs), v, w)
-        r = build(w, v, pair)
-    else
-        r = build(v, w, pair)
-    end
+    r = build(v, w, pair)
+    orientate!(r, order(bs))
     return r
 end
 
@@ -337,11 +334,6 @@ end
 
 """
 Reduces each element of the GB by the previous elements.
-
-TODO count number of removed elements so we can decrement the iteration
-index in the main loop. There is a potential issue with changing the order
-the elements are in the basis relative to the way I generate pairs in
-Buchberger's algorithm. Check.
 """
 function auto_reduce_once!(
     gb :: BinomialSet{T, S},
