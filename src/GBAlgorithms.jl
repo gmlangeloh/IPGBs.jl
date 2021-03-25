@@ -36,6 +36,7 @@ abstract type GBAlgorithm end
 
 # GBAlgorithm interface
 stats(algorithm :: GBAlgorithm) = algorithm.stats
+elem(algorithm :: GBAlgorithm) = algorithm.preallocated #Memory allocated for current S-pair
 next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(algorithm :: GBAlgorithm) = algorithm.basis
 update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
@@ -79,7 +80,7 @@ function sbinomial(
     pair :: CriticalPair
 ) :: GBElement
     increment(algorithm, :built_pairs)
-    return BinomialSets.sbinomial(pair, current_basis(algorithm))
+    return BinomialSets.sbinomial(elem(algorithm), pair, current_basis(algorithm))
 end
 
 function reduce!(

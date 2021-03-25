@@ -24,13 +24,28 @@ function Base.:-(
     g :: Binomial,
     h :: Binomial
 ) :: Binomial
-    new_element = Vector{Int}(undef, length(g))
-    for i in 1:length(g)
-        new_element[i] = g.element[i] - h.element[i]
-    end
-    #new_element = g.element - h.element
+    new_element = g.element - h.element
     new_cost = g.cost - h.cost
     return Binomial(new_element, new_cost)
+end
+
+"""
+Creates g - h in preallocated vector result.
+"""
+function GBElements.minus(
+    result :: Vector{Int},
+    g :: Binomial,
+    h :: Binomial
+) :: Binomial
+    result .= g.element .- h.element
+    new_cost = g.cost - h.cost
+    return Binomial(result, new_cost)
+end
+
+function Base.copy(
+    g :: Binomial
+) :: Binomial
+    return Binomial(copy(g.element), g.cost)
 end
 
 #

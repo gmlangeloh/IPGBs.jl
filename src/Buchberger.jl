@@ -69,6 +69,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     state :: BuchbergerState
     should_truncate :: Bool
     stats :: BuchbergerStats
+    preallocated :: Vector{Int}
     num_iterations :: Int #Total number of binomials added to the basis at some point
 
     function BuchbergerAlgorithm(
@@ -82,7 +83,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         stats = BuchbergerStats()
         new{T}(
             BinomialSet{T, MonomialOrder}(T[], order, minimization), state,
-            should_truncate, stats
+            should_truncate, stats, Int[], 0
         )
     end
 end
@@ -125,7 +126,7 @@ function GBAlgorithms.update!(
     g :: T,
     :: Union{CriticalPair, Nothing} = nothing
 ) where {T <: GBElement}
-    push!(current_basis(algorithm), g)
+    push!(current_basis(algorithm), copy(g))
     increment_size!(algorithm.state)
     algorithm.stats.max_basis_size = max(algorithm.stats.max_basis_size,
                                          length(current_basis(algorithm)))
@@ -171,6 +172,7 @@ function GBAlgorithms.initialize!(
         lattice_generator = lattice_generator_graded
     end
     num_vars = size(A, 2)
+    algorithm.preallocated = Vector{Int}(undef, num_vars)
     for i in 1:num_gens
         e = lattice_generator(i, A, b, C, u, order(algorithm.basis),
                               check_truncation=truncate_basis(algorithm))

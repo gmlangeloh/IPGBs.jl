@@ -26,7 +26,7 @@ struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     #We store the supports here instead of on the elements themselves to avoid
     #having to compute them unnecessarily or having to compute them after creating
     #elements and then updating these elements.
-    positive_supports :: Vector{FastBitSet}
+    positive_supports :: Vector{FastBitSet} #TODO These FastBitSets are abstract types! Change this
     negative_supports :: Vector{FastBitSet}
 
     function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
@@ -238,12 +238,13 @@ Creates a concrete S-binomial from `pair`. In practice, this should only be
 called after we were unable to eliminate `pair`.
 """
 function sbinomial(
+    mem :: Vector{Int},
     pair :: CriticalPair,
     bs :: BinomialSet{T, S}
 ) :: T where {T <: AbstractVector{Int}, S <: GBOrder}
     v = bs[GBElements.first(pair)]
     w = bs[GBElements.second(pair)]
-    r = build(v, w, pair)
+    r = build(mem, v, w, pair)
     orientate!(r, order(bs))
     return r
 end

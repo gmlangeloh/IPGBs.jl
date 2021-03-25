@@ -23,6 +23,7 @@ abstract type GBElement <: AbstractVector{Int} end
 
 cost(:: AbstractVector{Int}) :: Int = error("Not implemented.")
 fullform(:: GBElement) :: Vector{Int} = error("Not implemented.")
+minus(:: Vector{Int}, :: GBElement, :: GBElement) = error("Not implemented.")
 
 #
 # Soft contract: concrete GBElements may reimplement these if necessary
@@ -90,10 +91,6 @@ function orientate!(
     g :: T,
     order :: GBOrder
 ) where {T <: AbstractVector{Int}}
-    #Applies tiebreaker by grevlex in case the cost is 0
-    #if g.cost < 0 || (g.cost == 0 && !grevlex(g))
-    #    GBElements.opposite!(g)
-    #end
     if is_inverted(order, g, cost(g))
         GBElements.opposite!(g)
     end
@@ -442,11 +439,12 @@ first(pair :: BinomialPair) = pair.i
 second(pair :: BinomialPair) = pair.j
 
 function build(
+    mem :: Vector{Int},
     u :: T,
     v :: T,
     pair :: CriticalPair #This is used for more complicated CriticalPairs
 ) :: T where {T <: AbstractVector{Int}}
-    return u - v
+    return minus(mem, u, v)
 end
 
 end
