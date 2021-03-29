@@ -7,7 +7,7 @@ module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
 export GBElement, degree_reducible, filter, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint
 
-using IPGBs.FasterBitSets
+using IPGBs.FastBitSets
 using IPGBs.Orders
 
 """
@@ -120,7 +120,7 @@ Computes bitsets with positive and negative supports of `g`.
 """
 function supports(
     g :: AbstractVector{Int}
-) :: Tuple{FasterBitSet, FasterBitSet}
+) :: Tuple{FastBitSet, FastBitSet}
     pos_supp = Int[]
     neg_supp = Int[]
     for i in 1:length(g)
@@ -131,7 +131,7 @@ function supports(
         end
     end
     bitset_length = length(g)
-    return FasterBitSet(bitset_length, pos_supp), FasterBitSet(bitset_length, neg_supp)
+    return FastBitSet(bitset_length, pos_supp), FastBitSet(bitset_length, neg_supp)
 end
 
 """
