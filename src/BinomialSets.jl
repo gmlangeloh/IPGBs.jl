@@ -5,7 +5,7 @@ export BinomialSet, order, binomials, reduction_tree,
     auto_reduce_once!, is_minimization, change_ordering!, is_groebner_basis,
     is_truncated_groebner_basis
 
-using IPGBs.FastBitSets
+using IPGBs.FasterBitSets
 using IPGBs.Orders
 using IPGBs.GBElements
 using IPGBs.SupportTrees
@@ -26,8 +26,8 @@ struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     #We store the supports here instead of on the elements themselves to avoid
     #having to compute them unnecessarily or having to compute them after creating
     #elements and then updating these elements.
-    positive_supports :: Vector{FastBitSet} #TODO These FastBitSets are abstract types! Change this
-    negative_supports :: Vector{FastBitSet}
+    positive_supports :: Vector{FasterBitSet}
+    negative_supports :: Vector{FasterBitSet}
 
     function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
         tree = support_tree(basis, fullfilter=is_implicit(T))
@@ -282,10 +282,11 @@ Useful for debugging and automatic tests.
 function is_groebner_basis(
     bs :: BinomialSet{T, S}
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+    mem = Vector{Int}(undef, length(bs[1]))
     for i in 1:length(bs)
         for j in 1:(i-1)
             s = BinomialPair(i, j)
-            binomial = sbinomial(s, bs)
+            binomial = sbinomial(mem, s, bs)
             reduced_to_zero, _ = reduce!(binomial, bs)
             if !reduced_to_zero
                 return false

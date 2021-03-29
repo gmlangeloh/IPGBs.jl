@@ -27,7 +27,7 @@ end
 
 function makebitset(
     length :: Int,
-    indices :: Array{Int}
+    indices :: Vector{Int}
 )
     bitset = makebitset(length)
     for i in indices
