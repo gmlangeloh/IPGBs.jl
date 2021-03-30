@@ -13,6 +13,7 @@ using IPGBs.GradedBinomials
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.SignaturePolynomials
+using IPGBs.Statistics
 using IPGBs.SupportTrees
 using IPGBs.TriangleHeaps
 

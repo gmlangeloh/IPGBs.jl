@@ -117,7 +117,7 @@ function lattice_generator_binomial(
     i :: Int,
     A :: Array{Int, 2},
     b :: Vector{Int},
-    c :: Array{Int},
+    c :: Array{Float64},
     u :: Vector{Int},
     order :: GBOrder;
     check_truncation :: Bool = true

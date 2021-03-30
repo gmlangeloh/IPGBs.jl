@@ -1,32 +1,12 @@
 module GBAlgorithms
 
-export GBAlgorithm, run, current_basis, update!, GBStats, stats, order, increment,
+export GBAlgorithm, run, current_basis, update!, stats, order, increment,
     truncate_basis
 
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.GBTools
 using IPGBs.Orders
-
-abstract type GBStats end
-
-function Base.show(
-    io :: IO,
-    stats :: GBStats
-)
-    println(io, "Algorithm statistics:")
-    i = 1
-    fields = fieldnames(typeof(stats))
-    num_fields = length(fields)
-    for field in fields
-        if i < num_fields
-            println(io, field, " => ", getfield(stats, field))
-        else
-            print(io, field, " => ", getfield(stats, field))
-        end
-        i += 1
-    end
-end
 
 """
 A generic Gröbner Basis algorithm. For now, it can be either a BuchbergerAlgorithm
@@ -123,7 +103,7 @@ function run(
     algorithm :: GBAlgorithm,
     A :: Array{Int, 2},
     b :: Vector{Int},
-    C :: Array{Int, 2},
+    C :: Array{Float64, 2},
     u :: Vector{Int};
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
@@ -139,29 +119,21 @@ function run(
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
-        #println("(", pair.j - 1, ", ", pair.i - 1, ")")
-        #println("u = ", current_basis(algorithm)[pair.j])
-        #println("v = ", current_basis(algorithm)[pair.i])
         if late_pair_elimination(algorithm, pair)
-            #println("eliminated")
             continue
         end
         binomial = sbinomial(algorithm, pair)
-        #if !truncate(algorithm, binomial, A, b, u)
         reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial, A, b, u)
             update!(algorithm, binomial, pair)
-            #println("basis")
         elseif reduced_to_zero #Update syzygies in case this makes sense
             process_zero_reduction!(algorithm, binomial, pair)
-            #println("zero")
-        else
-            #println("truncated")
         end
-        #end
     end
     if !quiet
         println(stats(algorithm))
+        #This is kind of a hack but works
+        println(current_basis(algorithm).reduction_tree.stats)
     end
     reduced_basis!(current_basis(algorithm))
     output = fourti2_form(current_basis(algorithm))

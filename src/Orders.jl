@@ -17,8 +17,10 @@ Returns a new matrix with the rows of C plus new rows consisting of
 a grevlex tiebreaker, if C might not specify a full monomial order.
 """
 function build_order(
-    C :: Array{Int, 2}
-) :: Array{Int, 2}
+    C :: Array{Float64, 2},
+    A :: Array{Int, 2},
+    b :: Vector{Int}
+) :: Array{Float64, 2}
     m = size(C, 1)
     n = size(C, 2)
     if m < n #Insufficient tiebreaking in C
@@ -26,6 +28,13 @@ function build_order(
         full_matrix = vcat(C, tiebreaker)
     else
         full_matrix = C
+    end
+    if any(full_matrix[1, j] < 0 for j in 1:n)
+        d = GBTools.positive_row_span(A, b)
+        lambda = 1 + maximum(-full_matrix[1, j] / d[j] for j in 1:n)
+        for j in 1:n
+            full_matrix[1, j] += lambda * d[j]
+        end
     end
     #Store the transpose to exploit the fact Julia stores matrices
     #in column-major form. This helps performance of cmp and lt.
@@ -35,15 +44,12 @@ end
 """
 Implements a monomial order from a given cost matrix, including a grevlex
 tiebreaker if necessary.
-
-- TODO support other tiebreakers such as lex, as well as other permutations
-of the grevlex variables
 """
 mutable struct MonomialOrder <: GBOrder
-    cost_matrix :: Array{Int, 2}
+    cost_matrix :: Array{Float64, 2}
     tiebreaker :: Symbol
     #Probably should carry a tiebreaker around too
-    MonomialOrder(costs :: Array{Int, 2}) = new(build_order(costs), :invlex)
+    MonomialOrder(costs :: Array{Float64, 2}, A, b) = new(build_order(costs, A, b), :invlex)
 end
 
 Base.length(o :: MonomialOrder) = size(o.cost_matrix, 2)
@@ -146,9 +152,11 @@ tiebreaker if necessary.
 """
 function change_ordering!(
     order :: MonomialOrder,
-    new_order :: Array{Int, 2}
+    new_order :: Array{Float64, 2},
+    A :: Array{Int, 2},
+    b :: Vector{Int}
 )
-    order.cost_matrix = build_order(new_order)
+    order.cost_matrix = build_order(new_order, A, b)
 end
 
 end

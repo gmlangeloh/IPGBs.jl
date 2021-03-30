@@ -1,6 +1,8 @@
 module GBTools
 
 using LinearAlgebra: I
+using JuMP
+using Clp
 
 function isincluded(
     gb1 :: Vector{Vector{Int}},
@@ -50,11 +52,11 @@ by adding slack variables.
 function normalize(
     A :: Array{Int, 2},
     b :: Vector{Int},
-    C :: Array{Int, 2},
+    C :: Array{T, 2},
     u :: Vector{Int};
     apply_normalization :: Bool = true,
     invert_objective :: Bool = true
-) Tuple{Array{Int, 2}, Vector{Int}, Array{Int, 2}, Vector{Int}}
+) :: Tuple{Array{Int, 2}, Vector{Int}, Array{Float64, 2}, Vector{Int}} where {T <: Real}
     if !apply_normalization
         return A, b, C, u
     end
@@ -111,6 +113,37 @@ function revlex_matrix(
     n :: Int
 ) :: Array{Int, 2}
     return Matrix{Int}(-I, n, n)
+end
+
+"""
+Computes a strictly positive vector in the row span of `A` using
+linear programming. Assumes Ax = b is feasible, and
+max x
+s.t. Ax = b
+x >= 0
+is bounded. Given these conditions, the dual variables of the
+constraints of the above LP give a positive row span vector.
+
+TODO Actually this thing is giving me some zeroes... check
+"""
+function positive_row_span(
+    A :: Array{Int, 2},
+    b :: Vector{Int}
+) :: Vector{Float64}
+    m, n = size(A)
+    model = Model(Clp.Optimizer)
+    set_silent(model)
+    @variable(model, x[1:n] >= 0)
+    constraints = []
+    for i in 1:m
+        ai = A[i, :]
+        con = @constraint(model, ai' * x == b[i])
+        push!(constraints, con)
+    end
+    @objective(model, Max, sum(x[i] for i in 1:n))
+    optimize!(model)
+    #TODO Check if duals are available, etc
+    return A' * shadow_price.(constraints)
 end
 
 end

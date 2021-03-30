@@ -11,6 +11,7 @@ using IPGBs.GBTools
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.Orders
+using IPGBs.Statistics
 using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
@@ -74,11 +75,13 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
 
     function BuchbergerAlgorithm(
         T :: Type,
-        C :: Array{Int, 2},
+        C :: Array{Float64, 2},
+        A :: Array{Int, 2},
+        b :: Vector{Int},
         should_truncate :: Bool,
         minimization :: Bool
     )
-        order = MonomialOrder(C)
+        order = MonomialOrder(C, A, b)
         state = BuchbergerState(0)
         stats = BuchbergerStats()
         new{T}(
@@ -160,10 +163,10 @@ function GBAlgorithms.initialize!(
     algorithm :: BuchbergerAlgorithm{T},
     A :: Array{Int, 2},
     b :: Vector{Int},
-    C :: Array{Int, 2},
+    C :: Array{Float64, 2},
     u :: Vector{Int}
 ) where {T <: GBElement}
-    change_ordering!(current_basis(algorithm), C) #TODO maybe this should be done in GBAlgorithm?
+    change_ordering!(current_basis(algorithm), C, A, b)
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial

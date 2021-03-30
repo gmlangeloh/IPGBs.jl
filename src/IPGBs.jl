@@ -4,6 +4,7 @@ module IPGBs
 export groebner_basis
 
 include("./FastBitSets.jl")
+include("./Statistics.jl")
 include("./GBTools.jl")
 include("./Orders.jl")
 include("./FastComparator.jl")
@@ -30,7 +31,7 @@ import .GradedBinomials: GradedBinomial
 function groebner_basis(
     A :: Array{Int, 2},
     b :: Vector{Int},
-    C :: Array{Int, 2},
+    C :: Array{T, 2},
     u :: Vector{Int};
     use_signatures :: Bool = false,
     implicit_representation :: Bool = false,
@@ -38,22 +39,23 @@ function groebner_basis(
     truncate :: Bool = true,
     quiet :: Bool = false,
     minimization :: Bool = true
-) :: Vector{Vector{Int}}
+) :: Vector{Vector{Int}} where {T <: Real}
     #Setting parameters
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
     representation = implicit_representation ? GradedBinomial : Binomial
     use_minimization = implicit_representation ? false : minimization
+    obj = Float64.(C) #Consider the objective function as floating point regardless
 
     #Signatures aren't currently supported with implicit representation
     @assert !(use_signatures && implicit_representation)
 
     #Run GB algorithm over the given instance
     if use_signatures
-        algorithm = algorithm_type(representation, C, module_order, truncate, use_minimization)
+        algorithm = algorithm_type(representation, obj, module_order, truncate, use_minimization)
     else
-        algorithm = algorithm_type(representation, C, truncate, use_minimization)
+        algorithm = algorithm_type(representation, obj, A, b, truncate, use_minimization)
     end
-    return GBAlgorithms.run(algorithm, A, b, C, u, quiet=quiet)
+    return GBAlgorithms.run(algorithm, A, b, obj, u, quiet=quiet)
 end
 
 end

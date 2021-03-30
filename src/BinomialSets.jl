@@ -72,9 +72,11 @@ Changes the ordering of `bs` to a monomial order given by the matrix
 """
 function change_ordering!(
     bs :: BinomialSet{T, S},
-    new_order :: Array{Int, 2}
+    new_order :: Array{Float64, 2},
+    A :: Array{Int, 2},
+    b :: Vector{Int}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
-    Orders.change_ordering!(bs.order, new_order)
+    Orders.change_ordering!(bs.order, new_order, A, b)
     #TODO I probably should also reorientate all elements of bs
 end
 

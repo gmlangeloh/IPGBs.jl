@@ -8,6 +8,14 @@ export SupportTree, find_reducer, support_tree, addbinomial!,
     removebinomial!, enumerate_reducers, find_reducer_iter
 
 using IPGBs.GBElements
+using IPGBs.Statistics
+
+mutable struct TreeStats <: GBStats
+    reduction_steps :: Int #Number of calls to find_reducer (recursive)
+    reducers_checked :: Int #Number of candidate reducers / calls to GBElements.reduces
+
+    TreeStats() = new(0, 0)
+end
 
 """
 Each binomial in the GB is inserted in some node of the tree.
@@ -68,12 +76,13 @@ mutable struct SupportTree{T <: AbstractVector{Int}}
     size :: Int
     depth :: Int #This is useful to know how balanced the tree is
     fullfilter :: Bool
+    stats :: TreeStats
 
     #For efficiency of the find_reducer_iter function
     node_stack :: Vector{Tuple{Int, SupportNode{T}}}
 
     SupportTree{T}(fullfilter) where {T <: AbstractVector{Int}} = begin
-        new(SupportNode{T}(), 0, 1, fullfilter, Vector(undef, 2))
+        new(SupportNode{T}(), 0, 1, fullfilter, TreeStats(), Vector(undef, 2))
     end
 end
 
@@ -294,8 +303,8 @@ function find_reducer(
     is_singular :: Ref{Bool} = Ref(false)
 ) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     return find_reducer(
-        g, gb, tree.root, fullfilter=tree.fullfilter, skipbinomial=skipbinomial,
-        negative=negative, is_singular=is_singular
+        g, gb, tree.root, tree.stats, fullfilter=tree.fullfilter,
+        skipbinomial=skipbinomial, negative=negative, is_singular=is_singular
     )
 end
 
@@ -313,17 +322,19 @@ contained in the filter of `g`.
 function find_reducer(
     g :: T,
     gb :: S,
-    node :: SupportNode{T};
+    node :: SupportNode{T},
+    stats :: TreeStats;
     fullfilter :: Bool = false,
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
     is_singular :: Ref{Bool} = Ref(false)
 ) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    stats.reduction_steps += 1
     for (i, child) in node.children
         if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
             #Look for reducer recursively in the children of this node
             reducer = find_reducer(
-                g, gb, child, fullfilter=fullfilter, skipbinomial=skipbinomial,
+                g, gb, child, stats, fullfilter=fullfilter, skipbinomial=skipbinomial,
                 negative=negative, is_singular=is_singular
             )
             if !isnothing(reducer) #Found a reducer, return it
@@ -340,6 +351,7 @@ function find_reducer(
         if !isnothing(skipbinomial) && reducer === skipbinomial
             continue
         end
+        stats.reducers_checked += 1
         if GBElements.reduces(
             g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
             is_singular=is_singular
