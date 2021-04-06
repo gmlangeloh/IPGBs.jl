@@ -144,7 +144,7 @@ end
 GBElements.cost(g :: SigPoly{T}) where {T} = GBElements.cost(g.polynomial)
 GBElements.fullform(g :: SigPoly{T}) where {T} = GBElements.fullform(g.polynomial)
 
-has_signature(:: Type{<: SigPoly}) = true
+GBElements.has_signature(:: Type{<: SigPoly}) = true
 signature(g :: SigPoly{T}) where {T} = g.signature
 
 function Base.show(
@@ -172,7 +172,7 @@ function Base.getindex(
     return g.polynomial[i]
 end
 
-function Base.setindex(
+function Base.setindex!(
     g :: SigPoly{T},
     v :: Int,
     i :: Int
@@ -209,21 +209,25 @@ mutable struct ModuleMonomialOrdering{T <: GBElement} <: GBOrder
     generators :: Vector{SigPoly{T}}
 
     function ModuleMonomialOrdering(
-        costs :: Array{Int, 2},
+        costs :: Array{Float64, 2},
+        A :: Array{Int, 2},
+        b :: Vector{Int},
         module_order :: ModuleMonomialOrder,
         generators :: Vector{SigPoly{T}}
     ) where {T <: GBElement}
-        monomial_order = MonomialOrder(costs)
+        monomial_order = MonomialOrder(costs, A, b)
         new{T}(monomial_order, module_order, generators)
     end
 end
 
 function ModuleMonomialOrdering(
-    costs :: Array{Int, 2},
+    costs :: Array{Float64, 2},
+    A :: Array{Int, 2},
+    b :: Vector{Int},
     module_order :: Symbol,
     generators :: Vector{SigPoly{T}}
 ) where {T <: GBElement}
-    monomial_order = MonomialOrder(costs)
+    monomial_order = MonomialOrder(costs, A, b)
     if module_order == :pot
         mod = pot_order
     elseif module_order == :top
@@ -233,21 +237,27 @@ function ModuleMonomialOrdering(
     else
         error("Unknown module monomial order. It must be one of :pot, :top or :ltpot.")
     end
-    return ModuleMonomialOrdering(costs, mod, generators)
+    return ModuleMonomialOrdering(costs, A, b, mod, generators)
 end
 
 function Orders.is_inverted(
     o :: ModuleMonomialOrdering{T},
-    g :: T
-) where {T <: GBElement}
-    return is_inverted(o.monomial_order, g, cost(g))
+    g :: S,
+    c :: Union{Int, Nothing} = nothing
+) where {T <: GBElement, S <: GBElement}
+    if isnothing(c)
+        return is_inverted(o.monomial_order, g, cost(g))
+    end
+    return is_inverted(o.monomial_order, g, c)
 end
 
 function Orders.change_ordering!(
     order :: ModuleMonomialOrdering{T},
-    new_order :: Array{Int, 2}
+    new_order :: Array{Float64, 2},
+    A :: Array{Int, 2},
+    b :: Vector{Int}
 ) where {T <: GBElement}
-    Orders.change_ordering!(order.monomial_order, new_order)
+    Orders.change_ordering!(order.monomial_order, new_order, A, b)
 end
 
 """
@@ -472,13 +482,14 @@ end
 Builds u - v with signature given by `pair`.
 """
 function GBElements.build(
+    mem :: Vector{Int},
     u :: SigPoly{T},
     v :: SigPoly{T},
     pair :: SignaturePair
 ) :: SigPoly{T} where {T <: GBElement}
-    element = u.polynomial - v.polynomial
+    new_poly = GBElements.minus(mem, u.polynomial, v.polynomial)
     signature = pair.signature
-    return SigPoly{T}(element, signature)
+    return SigPoly{T}(new_poly, signature)
 end
 
 #

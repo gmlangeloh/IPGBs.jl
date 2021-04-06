@@ -29,6 +29,7 @@ function build_order(
     else
         full_matrix = C
     end
+    #Make the first row strictly positive
     if any(full_matrix[1, j] < 0 for j in 1:n)
         d = GBTools.positive_row_span(A, b)
         lambda = 1 + maximum(-full_matrix[1, j] / d[j] for j in 1:n)

@@ -388,6 +388,11 @@ Updates gb to a reduced Gröbner Basis.
 function reduced_basis!(
     gb :: BinomialSet{T, S}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
+    #Currently, this implementation doesn't support signatures
+    #TODO Fix this later
+    if has_signature(T)
+        return
+    end
     minimal_basis!(gb)
     if !is_minimization(gb)
         #Doesn't compute reduced basis for implicit representation

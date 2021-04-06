@@ -123,8 +123,6 @@ s.t. Ax = b
 x >= 0
 is bounded. Given these conditions, the dual variables of the
 constraints of the above LP give a positive row span vector.
-
-TODO Actually this thing is giving me some zeroes... check
 """
 function positive_row_span(
     A :: Array{Int, 2},

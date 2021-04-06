@@ -163,10 +163,13 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
     previous_signature :: Union{Signature, Nothing}
     should_truncate :: Bool
     stats :: SignatureStats
+    preallocated :: Vector{Int}
 
     function SignatureAlgorithm(
         T :: Type,
-        C :: Array{Int, 2},
+        C :: Array{Float64, 2},
+        A :: Array{Int, 2},
+        b :: Vector{Int},
         mod_order :: Symbol,
         should_truncate :: Bool,
         minimization :: Bool
@@ -175,7 +178,7 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
         basis_signatures = SignatureSet()
         generators = SigPoly{T}[]
         sigleads = SigLead[]
-        order = ModuleMonomialOrdering(C, mod_order, generators)
+        order = ModuleMonomialOrdering(C, A, b, mod_order, generators)
         module_order_lt = (s1, s2) -> SignaturePolynomials.signature_lt(s1, s2, order)
         basis = BinomialSet{SigPoly{T}, ModuleMonomialOrdering{T}}(generators, order, minimization)
         koszul = BinaryHeap{Signature}(order, [])
@@ -186,7 +189,7 @@ mutable struct SignatureAlgorithm{T, F <: Function} <: GBAlgorithm
         stats = SignatureStats()
         new{T, typeof(module_order_lt)}(
             basis, heap, koszul, syzygies, basis_signatures, syz_pairs,
-            sigleads, comparator, nothing, should_truncate, stats
+            sigleads, comparator, nothing, should_truncate, stats, Int[]
         )
     end
 end
@@ -409,13 +412,13 @@ function GBAlgorithms.initialize!(
     algorithm :: SignatureAlgorithm{T},
     A :: Array{Int, 2},
     b :: Vector{Int},
-    C :: Array{Int, 2},
+    C :: Array{Float64, 2},
     u :: Vector{Int}
 ) where {T <: GBElement}
     # This assumes binary constraints
     # Must change the ordering due to new variables being added when C
     # was put into a standard form
-    change_ordering!(current_basis(algorithm), C)
+    change_ordering!(current_basis(algorithm), C, A, b)
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial
@@ -428,6 +431,7 @@ function GBAlgorithms.initialize!(
     initialize!(algorithm.syzygies, num_gens)
     initialize!(algorithm.basis_signatures, num_gens)
     num_vars = size(A, 2)
+    algorithm.preallocated = Vector{Int}(undef, num_vars)
     coef = zeros(Int, num_vars) #Coefficient of the signatures of these generators
     j = 1
     for i in 1:num_gens
