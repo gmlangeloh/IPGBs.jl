@@ -254,10 +254,20 @@ end
 """
 Returns true if (i, j) should be discarded.
 
-In a maximization problem, if (i, j) ..
+This is an implementation of Criteria 1 and 2 from Malkin's thesis.
 
-TODO actually document this thing, it's not that trivial
-BTW, this name is terrible. It should make clear that this is the gcd criterion
+Criterion 1 is simply the classical Buchberger GCD criterion. If the
+positive supports are disjoint (= GCD of the leading terms is 1) then the
+pair may be discarded.
+
+Criterion 2 is specific to homogeneous ideals (or just ideals coming from
+lattices?) Either way, if the negative supports are not disjoint (= GCD of
+trailing terms is not 1) then the pair may be discarded. This applies
+specifically to the bounded components (= variables) of the problem, but
+we currently do no such boundedness check here.
+
+TODO implement the boundedness check and run it early on. The boundedness
+check may be implemented as a single LP per variable.
 """
 function is_support_reducible(
     i :: Int,
