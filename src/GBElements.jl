@@ -381,6 +381,7 @@ function reduce!(
     o :: GBOrder;
     negative :: Bool = false
 ) :: Bool where {T <: AbstractVector{Int}}
+    println("I HATE THIS LANGUAGE")
     reduced_to_zero = reduce!(b, r, negative=negative)
     if !reduced_to_zero
         orientate!(b, o)

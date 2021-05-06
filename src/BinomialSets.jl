@@ -179,8 +179,9 @@ function reduce!(
     #Reduce both the leading and trailing terms, leading first
     for negative in (false, true)
         if negative && !is_minimization(gb)
-            #Currently not supported, can just be ignored
-            return false #Not reduced to zero, leave as is
+            #In implicit form, the reduction already reduces both leading and
+            #trailing term. In this case, there's nothing to do here.
+            return false, changed
         end
         while true
             reducer = find_reducer(

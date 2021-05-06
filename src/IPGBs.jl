@@ -55,7 +55,8 @@ function groebner_basis(
     else
         algorithm = algorithm_type(representation, obj, A, b, truncate, use_minimization)
     end
-    return GBAlgorithms.run(algorithm, A, b, obj, u, quiet=quiet)
+    results = GBAlgorithms.run(algorithm, A, b, obj, u, quiet=quiet)
+    return results
 end
 
 end

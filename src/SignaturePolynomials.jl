@@ -137,9 +137,11 @@ struct SigPoly{T <: GBElement} <: GBElement
     polynomial :: T
     signature :: Signature
     siglead :: SigLead
-    SigPoly{T}(p :: T, s :: Signature) where {T <: GBElement} =
-        new{T}(p, s, siglead(p, s))
+    SigPoly{T}(p :: T, s :: Signature, sl) where {T <: GBElement} =
+        new{T}(p, s, sl)
 end
+
+SigPoly{T}(p :: T, s :: Signature) where {T} = SigPoly{T}(p, s, siglead(p, s))
 
 GBElements.cost(g :: SigPoly{T}) where {T} = GBElements.cost(g.polynomial)
 GBElements.fullform(g :: SigPoly{T}) where {T} = GBElements.fullform(g.polynomial)
@@ -152,6 +154,12 @@ function Base.show(
     g :: SigPoly{T}
 ) where {T <: GBElement}
     print(io, g.polynomial, " signature: ", g.signature)
+end
+
+function Base.copy(
+    g :: SigPoly{T}
+) :: SigPoly{T} where {T <: GBElement}
+    return SigPoly{T}(copy(g.polynomial), g.signature, g.siglead)
 end
 
 #

@@ -16,7 +16,8 @@ using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
 
-const AUTO_REDUCE_FREQ = 2500
+#4ti2 uses 2500 here. I think auto-reducing makes things slower, though...
+const AUTO_REDUCE_FREQ = 100000
 
 """
 The state of Buchberger S-binomial generation.

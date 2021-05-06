@@ -138,6 +138,8 @@ function run(
     reduced_basis!(current_basis(algorithm))
     output = fourti2_form(current_basis(algorithm))
     sort!(output)
+    #TODO We need to reintroduce generators which were truncated!
+    #To do this, I need to change some stuff in initialize / lattice_generator
     return output
 end
 

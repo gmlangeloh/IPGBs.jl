@@ -28,8 +28,9 @@ function test_buchberger(
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
     lattice_basis = [
-        lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
-                                 check_truncation=false)
+        lattice_generator_graded(
+            i, instance.A, instance.b, Float64.(instance.C), instance.u,
+            check_truncation=false)
         for i in 1:size(instance.A, 2)]
     lattice_4ti2 = GradedBinomials.fourti2_form(lattice_basis)
 
@@ -77,8 +78,9 @@ function test_siggb(
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
     lattice_basis = [
-        lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
-                                 check_truncation=false)
+        lattice_generator_graded(
+            i, instance.A, instance.b, Float64.(instance.C), instance.u,
+            check_truncation=false)
         for i in 1:size(instance.A, 2)]
     lattice_4ti2 = GradedBinomials.fourti2_form(lattice_basis)
 
@@ -139,8 +141,9 @@ function run_algorithm(
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
     lattice_basis = [
-        lattice_generator_graded(i, instance.A, instance.b, instance.C, instance.u,
-                                 check_truncation=false)
+        lattice_generator_graded(
+            i, instance.A, instance.b, Float64.(instance.C), instance.u,
+            check_truncation=false)
         for i in 1:size(instance.A, 2)]
     #My results
     gb, time, _, _, _ = @timed groebner_basis(

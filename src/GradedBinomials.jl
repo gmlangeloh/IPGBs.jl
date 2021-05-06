@@ -1,6 +1,8 @@
 """
 A structure for efficient computation of truncated GBs of IPs where the data
 is positive, as described in Section 3 of Thomas and Weismantel (1997).
+This type of implicit representation of GB elements is also used in Urbaniak,
+Weismantel and Ziegler (1997).
 
 TODO there are multiple implementations of sparse subtraction of GradedBinomials
 here. I should probably check whether I need them all
@@ -25,6 +27,33 @@ mutable struct GradedBinomial <: GBElement
     degree :: Vector{Int} #The degree of this element, for efficiency
     positive_degree :: Vector{Int} #Degree of the positive part of this element
     negative_degree :: Vector{Int} #Degree of the negative part of this element
+end
+
+function Base.copy(
+    g :: GradedBinomial
+) :: GradedBinomial
+    #TODO Check if I really only need to copy g.element.
+    #It is quite possible I need to copy at least the degrees as well...
+    return GradedBinomial(
+        copy(g.element),
+        g.head,
+        g.tail,
+        g.cost,
+        g.degree,
+        g.positive_degree,
+        g.negative_degree
+    )
+end
+
+"""
+TODO do this in a memory-efficient way by reusing `result`
+"""
+function GBElements.minus(
+    result :: Vector{Int},
+    g :: GradedBinomial,
+    h :: GradedBinomial
+) :: GradedBinomial
+    return g - h
 end
 
 GBElements.is_implicit(:: Type{<: GradedBinomial}) = true
@@ -498,8 +527,8 @@ Computes bitsets with the positive and negative supports of `g`.
 function GBElements.supports(
     g :: GradedBinomial
 ) :: Tuple{FastBitSet, FastBitSet}
-    pos_supp = Array(g.head)
-    neg_supp = Array(g.tail)
+    pos_supp = Vector(g.head)
+    neg_supp = Vector(g.tail)
     n = length(g)
     m = length(g.degree)
     for i in 1:m
@@ -516,7 +545,7 @@ function GBElements.supports(
         push!(pos_supp, i + n + m)
     end
     bitset_length = 2n + m
-    return makebitset(bitset_length, pos_supp), makebitset(bitset_length, neg_supp)
+    return FastBitSet(bitset_length, pos_supp), FastBitSet(bitset_length, neg_supp)
 end
 
 """
@@ -526,7 +555,7 @@ function lattice_generator_graded(
     i :: Int,
     A :: Array{Int, 2},
     b :: Vector{Int},
-    c :: Array{Int},
+    c :: Array{Float64},
     u :: Vector{Int},
     :: Union{GBOrder, Nothing} = nothing;
     check_truncation :: Bool = true
