@@ -11,6 +11,13 @@ TODO Currently, using GradedBinomials gives different (but apparently correct)
 GBs than using Binomials. There's probably something implicit about the monomial
 order they're computed wrt that I'm missing, due to one being maximization and the
 other being minimization.
+
+Regardless, I'm unconvinced this will ever be more efficient than the usual Binomials.
+The main reason is that the implicit variables are updated and checked in the
+reduction process regardless, only this happens in a different way in the SupportTree.
+A slightly different implementation, where the implicit variables aren't stored
+anywhere and are computed as needed could be useful if memory became an issue,
+but that is another thing entirely.
 """
 module GradedBinomials
 export GradedBinomial, lattice_generator_graded, fourti2_form
