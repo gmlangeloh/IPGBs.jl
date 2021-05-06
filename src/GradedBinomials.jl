@@ -6,6 +6,11 @@ Weismantel and Ziegler (1997).
 
 TODO there are multiple implementations of sparse subtraction of GradedBinomials
 here. I should probably check whether I need them all
+
+TODO Currently, using GradedBinomials gives different (but apparently correct)
+GBs than using Binomials. There's probably something implicit about the monomial
+order they're computed wrt that I'm missing, due to one being maximization and the
+other being minimization.
 """
 module GradedBinomials
 export GradedBinomial, lattice_generator_graded, fourti2_form
@@ -58,6 +63,13 @@ end
 
 GBElements.is_implicit(:: Type{<: GradedBinomial}) = true
 
+"""
+Computes the filter of `binomial`. In case fullfilter == false, this is just
+the indices in the support of the leading term of `binomial`.
+
+Otherwise (fullfilter == true) this is the vector of ordered indices of the
+support of `binomial`, so it also includes indices in the trailing term.
+"""
 function filter(
     binomial :: GradedBinomial;
     fullfilter :: Bool = false

@@ -49,6 +49,8 @@ end
 Creates a BinomialSet from `basis` with respect to `C`.
 
 `module_order` is only relevant when `T` is a type of binomial with signature.
+
+TODO I think this isn't used anywhere. In this case, it could be deleted.
 """
 function BinomialSet(
     basis :: Vector{T},
@@ -61,7 +63,7 @@ function BinomialSet(
         #break some of these dependencies.
         #order = ModuleMonomialOrdering(C, module_order, basis)
     else
-        order = MonomialOrder(C)
+        order = MonomialOrder(C, !is_implicit(T))
     end
     return BinomialSet{T, MonomialOrder}(basis, order)
 end

@@ -49,8 +49,11 @@ tiebreaker if necessary.
 mutable struct MonomialOrder <: GBOrder
     cost_matrix :: Array{Float64, 2}
     tiebreaker :: Symbol
+    is_minimization :: Bool
     #Probably should carry a tiebreaker around too
-    MonomialOrder(costs :: Array{Float64, 2}, A, b) = new(build_order(costs, A, b), :invlex)
+    function MonomialOrder(costs :: Array{Float64, 2}, A, b, is_minimization)
+        new(build_order(costs, A, b), :invlex, is_minimization)
+    end
 end
 
 Base.length(o :: MonomialOrder) = size(o.cost_matrix, 2)
@@ -68,6 +71,8 @@ function Base.cmp(
     v2 :: T
 ) :: Int where {T <: AbstractVector{Int}}
     @assert length(v1) == length(v2)
+    #TODO check if I should really change the sign in the maximization case
+    minimization = order.is_minimization ? 1 : 1
     for i in 1:length(order)
         #Compute o' * (v1 - v2) without allocations
         s = 0
@@ -75,9 +80,9 @@ function Base.cmp(
             s += order[i, j] * (v1[j] - v2[j])
         end
         if s < 0
-            return -1
+            return -1 * minimization
         elseif s > 0
-            return 1
+            return 1 * minimization
         end #s == 0, tie. Try next vector in order
     end
     return 0 #tied completely, v1 == v2.
@@ -89,6 +94,21 @@ function Base.lt(
     v2 :: T
 ) where {T <: AbstractVector{Int}}
     return cmp(order, v1, v2) == -1
+end
+
+"""
+Inverts `result` in case `order` is a maximization order.
+"""
+function invert_maximization(
+    order :: MonomialOrder,
+    result :: Bool
+) :: Bool
+    #TODO I don't know if this is correct in the maximization case...
+    #if order.is_minimization
+    #    return result
+    #end
+    #return !result
+    return result
 end
 
 """
@@ -105,9 +125,9 @@ function is_inverted_generic(
             s += order[i, j] * v[j]
         end
         if s < 0
-            return true
+            return invert_maximization(order, true)
         elseif s > 0
-            return false
+            return invert_maximization(order, false)
         end
     end
     return false #This really should not happen
@@ -117,6 +137,7 @@ end
 `v` is inverted according to invlex iff its first non-zero entry is positive.
 """
 function is_inverted_invlex(
+    order :: MonomialOrder,
     v :: T
 ) :: Bool where {T <: AbstractVector{Int}}
     i = 1
@@ -124,9 +145,9 @@ function is_inverted_invlex(
         i += 1
     end
     if i > length(v)
-        return false
+        return invert_maximization(order, false)
     end
-    return v[i] > 0
+    return invert_maximization(order, v[i] > 0)
 end
 
 """
@@ -138,11 +159,11 @@ function is_inverted(
     cost :: Int
 ) :: Bool where {T <: AbstractVector{Int}}
     if cost < 0
-        return true
+        return invert_maximization(order, true)
     elseif cost > 0
-        return false
+        return invert_maximization(order, false)
     elseif order.tiebreaker == :invlex
-        return is_inverted_invlex(v)
+        return is_inverted_invlex(order, v)
     end
     return is_inverted_generic(order, v)
 end

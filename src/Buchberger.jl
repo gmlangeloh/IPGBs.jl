@@ -82,7 +82,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         should_truncate :: Bool,
         minimization :: Bool
     )
-        order = MonomialOrder(C, A, b)
+        order = MonomialOrder(C, A, b, minimization)
         state = BuchbergerState(0)
         stats = BuchbergerStats()
         new{T}(
