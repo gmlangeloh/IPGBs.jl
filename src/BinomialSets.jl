@@ -330,7 +330,8 @@ function is_truncated_groebner_basis(
             s = BinomialPair(i, j)
             binomial = sbinomial(mem, s, bs)
             reduced_to_zero, _ = reduce!(binomial, bs)
-            if !reduced_to_zero && isfeasible(binomial, A, b, u)
+            #TODO we likely can't always use simple_truncation here.
+            if !reduced_to_zero && simple_truncation(binomial, A, b, u)
                 #Note we check isfeasible after reduction. This is often
                 #quicker, because then we skip the check for zero reductions
                 return false

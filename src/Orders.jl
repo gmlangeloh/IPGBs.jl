@@ -3,6 +3,7 @@ module Orders
 export GBOrder, MonomialOrder, is_inverted
 
 using IPGBs.GBTools
+using IPGBs.SolverTools
 
 """
 This is specialized by MonomialOrder in case of Buchberger's algorithm and by
@@ -31,7 +32,7 @@ function build_order(
     end
     #Make the first row strictly positive
     if any(full_matrix[1, j] < 0 for j in 1:n)
-        d = GBTools.positive_row_span(A, b)
+        d = SolverTools.positive_row_span(A, b)
         lambda = 1 + maximum(-full_matrix[1, j] / d[j] for j in 1:n)
         for j in 1:n
             full_matrix[1, j] += lambda * d[j]

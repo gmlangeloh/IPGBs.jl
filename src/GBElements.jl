@@ -5,10 +5,13 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, isfeasible, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
+using IPGBs.SolverTools
+
+using JuMP
 
 """
 Abstract type used for GB computations. It is meant to generalize both binomials
@@ -220,7 +223,7 @@ end
 Returns true iff v should be considered for reduction in a truncated GB
 algorithm.
 """
-function isfeasible(
+function simple_truncation(
     v :: T,
     A :: Array{Int, 2},
     b :: Vector{Int},
@@ -230,6 +233,30 @@ function isfeasible(
     return le_coordinatewise(head, b) && le_coordinatewise(tail, b) &&
         le_upperbound(v, u)
         #sparse_le(v.head, v.element, u) && sparse_le(v.tail, v.element, u)
+end
+
+"""
+Checks feasibility of:
+
+Ax = b - Av
+0 <= x <= u
+
+with x either a vector of real variables or integer variables, whatever is
+defined in `model`. In order to do this efficiently, updates the RHS of the
+previously built `model` by modifying `constraints`.
+
+Returns true iff `v` is feasible for the above model, which means it should NOT
+be truncated.
+"""
+function model_truncation(
+    v :: T,
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    model :: JuMP.Model,
+    constraints :: Vector{ConstraintRef}
+) :: Bool where  {T <: AbstractVector{Int}}
+    SolverTools.update_feasibility_model_rhs(constraints, A, b, v)
+    return SolverTools.is_feasible(model)
 end
 
 #
@@ -381,7 +408,6 @@ function reduce!(
     o :: GBOrder;
     negative :: Bool = false
 ) :: Bool where {T <: AbstractVector{Int}}
-    println("I HATE THIS LANGUAGE")
     reduced_to_zero = reduce!(b, r, negative=negative)
     if !reduced_to_zero
         orientate!(b, o)

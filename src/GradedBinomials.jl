@@ -593,7 +593,8 @@ function lattice_generator_graded(
     generator = GradedBinomial(
         v, Int[i], Int[], cost, degree, pos_degree, neg_degree
     )
-    if !check_truncation || isfeasible(generator, A, b, u)
+    #TODO will we always be able to use simple_truncation here?
+    if !check_truncation || simple_truncation(generator, A, b, u)
         return generator
     end
     return nothing

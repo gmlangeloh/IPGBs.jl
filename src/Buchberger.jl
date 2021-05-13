@@ -11,6 +11,7 @@ using IPGBs.GBTools
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.Orders
+using IPGBs.SolverTools
 using IPGBs.Statistics
 using IPGBs.SupportTrees
 
@@ -70,24 +71,35 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     basis :: BinomialSet{T, MonomialOrder}
     state :: BuchbergerState
     should_truncate :: Bool
+    truncation_type :: Symbol
     stats :: BuchbergerStats
     preallocated :: Vector{Int}
     num_iterations :: Int #Total number of binomials added to the basis at some point
+    model :: JuMP.Model
+    model_vars :: Vector{VariableRef}
+    model_constraints :: Vector{ConstraintRef}
 
     function BuchbergerAlgorithm(
         T :: Type,
         C :: Array{Float64, 2},
         A :: Array{Int, 2},
         b :: Vector{Int},
-        should_truncate :: Bool,
+        u :: Vector{Int},
+        truncation_type :: Symbol,
+        trunc_var_type :: DataType,
         minimization :: Bool
     )
         order = MonomialOrder(C, A, b, minimization)
         state = BuchbergerState(0)
         stats = BuchbergerStats()
+        should_truncate = truncation_type != :None
+        #Initialize a feasibility model in case we want to use model truncation
+        model, vars, constrs = SolverTools.feasibility_model(
+            A, b, u, trunc_var_type
+        )
         new{T}(
             BinomialSet{T, MonomialOrder}(T[], order, minimization), state,
-            should_truncate, stats, Int[], 0
+            should_truncate, :Simple, stats, Int[], 0, model, vars, constrs
         )
     end
 end

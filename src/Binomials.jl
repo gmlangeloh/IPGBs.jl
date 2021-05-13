@@ -145,7 +145,7 @@ function lattice_generator_binomial(
     orientate!(generator, order)
     #Check whether the Binomial should be truncated. If it should, just
     #return nothing instead
-    if !check_truncation || isfeasible(generator, A, b, u)
+    if !check_truncation || simple_truncation(generator, A, b, u)
         return generator
     end
     return nothing

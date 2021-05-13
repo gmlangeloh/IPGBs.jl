@@ -71,6 +71,24 @@ function reduce!(
     return BinomialSets.reduce!(binomial, current_basis(algorithm))
 end
 
+"""
+Simple truncation works when the data in A, b are all non-negative.
+This is more efficient than IP truncation, and is exact, contrary to LP
+truncation, so it should be used whenever possible.
+
+This function returns whether simple truncation can be used.
+"""
+function use_simple_truncation(
+    A :: Array{Int, 2},
+    b :: Vector{Int}
+) :: Bool
+    m, n = size(A)
+    return all(A[i, j] >= 0 for j in 1:n for i in 1:m) &&
+        all(b[i] >= 0 for i in 1:m)
+end
+
+#TODO should update this to be able to use IP and LP truncations...
+#Also, add a parameter somewhere so that the user can choose between LP and IP trunc
 function truncate(
     algorithm :: GBAlgorithm,
     binomial :: GBElement,
@@ -81,7 +99,14 @@ function truncate(
     if !truncate_basis(algorithm)
         return false
     end
-    should_truncate = !isfeasible(binomial, A, b, u)
+    if algorithm.truncation_type == :Simple
+        should_truncate = !simple_truncation(binomial, A, b, u)
+    elseif algorithm.truncation_type == :Model
+        should_truncate = !model_truncation(binomial, A, b, algorithm.model,
+                                            algorithm.model_constraints)
+    else #Unknown truncation type, error
+        error("Unknown truncation type.")
+    end
     if should_truncate
         increment(algorithm, :eliminated_by_truncation)
         return true
@@ -108,6 +133,7 @@ function run(
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #Compute the initial basis of the toric ideal
+    #TODO this normalization should probably be done somewhere else
     A, b, C, u = GBTools.normalize(
         A, b, C, u, apply_normalization=!use_implicit_representation(algorithm),
         invert_objective=is_minimization(algorithm)
