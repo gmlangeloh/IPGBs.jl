@@ -4,6 +4,7 @@ authors = ["Gabriel Langeloh <gmlangeloh@inf.ufrgs.br> and contributors"]
 version = "0.1.0"
 
 [deps]
+CPLEX = "a076750e-1247-5638-91d2-ce28b192dca0"
 Clp = "e2554f3b-3117-50c0-817c-e040a3ddf72d"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Debugger = "31a5f54b-26ea-5ae9-a837-f05ce5417438"

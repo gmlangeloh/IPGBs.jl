@@ -17,6 +17,8 @@ using IPGBs.SupportTrees
 
 using IPGBs.GBAlgorithms
 
+using JuMP
+
 #4ti2 uses 2500 here. I think auto-reducing makes things slower, though...
 const AUTO_REDUCE_FREQ = 100000
 
@@ -97,9 +99,10 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         model, vars, constrs = SolverTools.feasibility_model(
             A, b, u, trunc_var_type
         )
+        print(model)
         new{T}(
             BinomialSet{T, MonomialOrder}(T[], order, minimization), state,
-            should_truncate, :Simple, stats, Int[], 0, model, vars, constrs
+            should_truncate, truncation_type, stats, Int[], 0, model, vars, constrs
         )
     end
 end

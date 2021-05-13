@@ -49,8 +49,8 @@ function parse_truncation(
     truncation_type :: Symbol,
     A :: Array{Int, 2},
     b :: Vector{Int}
-) :: Tuple{:Symbol, DataType}
-    var_type = Any #Doesn't matter
+) :: Tuple{Symbol, DataType}
+    var_type = Any #Only matters when some LP/IP model will be built
     if truncation_type == :Heuristic
         #Choose either LP or simple, depending on the form of A and b
         if use_simple_truncation(A, b)
@@ -103,15 +103,24 @@ function groebner_basis(
     representation = implicit_representation ? GradedBinomial : Binomial
     use_minimization = implicit_representation ? false : minimization
     obj = Float64.(C) #Consider the objective function as floating point regardless
+    trunc_type, trunc_var = parse_truncation(truncation_type, A, b)
+    A, b, C, u = GBTools.normalize(
+        A, b, C, u, apply_normalization=!implicit_representation,
+        invert_objective=!implicit_representation
+    )
 
     #Signatures aren't currently supported with implicit representation
     @assert !(use_signatures && implicit_representation)
 
     #Run GB algorithm over the given instance
     if use_signatures
-        algorithm = algorithm_type(representation, obj, A, b, module_order, truncate, use_minimization)
+        algorithm = algorithm_type(
+            representation, obj, A, b, module_order, truncate, use_minimization
+        )
     else
-        algorithm = algorithm_type(representation, obj, A, b, u, , use_minimization)
+        algorithm = algorithm_type(
+            representation, obj, A, b, u, trunc_type, trunc_var, use_minimization
+        )
     end
     results = GBAlgorithms.run(algorithm, A, b, obj, u, quiet=quiet)
     return results

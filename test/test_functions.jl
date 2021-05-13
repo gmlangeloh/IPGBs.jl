@@ -20,7 +20,7 @@ function test_buchberger(
     seed = 0,
     setseed = true,
     implicit_representation = false,
-    truncate = true,
+    truncation_type = :Heuristic,
     quiet = false
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
@@ -38,6 +38,7 @@ function test_buchberger(
     instance_4ti2 = MultiObjectiveInstances.fourti2_stdform(instance)
     initial_solution = MultiObjectiveInstances.Knapsack.knapsack_initial(
         instance_4ti2)
+    truncate = truncation_type != :None
     trunc_sol = truncate ? initial_solution : Int[]
     rgb, time, _, _, _ = @timed groebner(
         lattice_4ti2, instance_4ti2.C, truncation_sol=trunc_sol,
@@ -55,7 +56,7 @@ function test_buchberger(
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false,
         implicit_representation=implicit_representation,
-        truncate=truncate, quiet=quiet
+        truncation_type=truncation_type, quiet=quiet
     )
     if !quiet
         println()
@@ -70,7 +71,7 @@ function test_siggb(
     seed = 0,
     setseed = true,
     module_order = :ltpot,
-    truncate = true,
+    truncation_type = :Heuristic,
     quiet = false
 ) :: Tuple{Vector{Vector{Int}}, Vector{Vector{Int}}, Vector{Vector{Int}}}
     if setseed
@@ -88,6 +89,7 @@ function test_siggb(
     instance_4ti2 = MultiObjectiveInstances.fourti2_stdform(instance)
     initial_solution = MultiObjectiveInstances.Knapsack.knapsack_initial(
         instance_4ti2)
+    truncate = truncation_type != :None
     trunc_sol = truncate ? initial_solution : Int[]
     rgb, time, _, _, _ = @timed groebner(
         lattice_4ti2, instance_4ti2.C, truncation_sol=trunc_sol,
@@ -104,7 +106,7 @@ function test_siggb(
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=true,
-        module_order=module_order, truncate=truncate, quiet=true
+        module_order=module_order, truncation_type=truncation_type, quiet=true
     )
     if !quiet
         println()
@@ -115,7 +117,7 @@ function test_siggb(
     #Basic Buchberger results
     bgb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u, use_signatures=false,
-        truncate=truncate, quiet=true
+        truncation_type=truncation_type, quiet=true
     )
     if !quiet
         println()
@@ -132,7 +134,7 @@ function run_algorithm(
     module_order = :ltpot,
     use_signatures = true,
     implicit_representation = false,
-    truncate = true,
+    truncation_type = :Heuristic,
     quiet = false,
     minimization = true
 )
@@ -150,7 +152,8 @@ function run_algorithm(
         instance.A, instance.b, instance.C, instance.u,
         use_signatures=use_signatures, module_order=module_order,
         implicit_representation=implicit_representation,
-        truncate=truncate, quiet=quiet, minimization=minimization
+        truncation_type=truncation_type, quiet=quiet,
+        minimization=minimization
     )
     if !quiet
         println()
