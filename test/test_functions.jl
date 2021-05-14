@@ -7,6 +7,7 @@ using IPGBs.Buchberger
 using IPGBs.FourTi2
 using IPGBs.SignatureAlgorithms
 using IPGBs.BinomialSets
+using IPGBs.IPInstances
 
 using MultiObjectiveInstances
 import Random
@@ -162,7 +163,7 @@ function run_algorithm(
     end
 
     #Always apply normalization here, since we return GB in 4ti2 standard form.
-    A, b, C, u = GBTools.normalize(
+    A, b, C, u = IPInstances.normalize(
         instance.A, instance.b, instance.C, instance.u,
         apply_normalization=true
     )

@@ -35,47 +35,6 @@ function tovector(
 end
 
 """
-Transforms a problem in the form:
-max C * x
-s.t. Ax <= b
-0 <= x <= u
-
-to something of the form
-max C * x
-s.t. Ax == b
-x == u
-
-by adding slack variables.
-"""
-function normalize(
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{T, 2},
-    u :: Vector{Int};
-    apply_normalization :: Bool = true,
-    invert_objective :: Bool = true
-) :: Tuple{Array{Int, 2}, Vector{Int}, Array{Float64, 2}, Vector{Int}} where {T <: Real}
-    if !apply_normalization
-        return A, b, C, u
-    end
-    m, n = size(A)
-    In = Matrix{Int}(I, n, n)
-    Zn = zeros(Int, n, n)
-    Im = Matrix{Int}(I, m, m)
-    Znm = zeros(Int, n, m)
-    Zmn = zeros(Int, m, n)
-    new_A = [A Im Zmn; In Znm In]
-    new_b = [b; u]
-    #The reductions without fullfilter only work correctly if the problem
-    #is in minimization form. Thus we take the opposite of C instead, as
-    #this is easier than changing everything else
-    sign = invert_objective ? -1 : 1
-    new_C = [sign * C zeros(Int, size(C, 1), n + m)]
-    new_u = [u; [typemax(Int) for i in 1:(n+m)]]
-    return new_A, new_b, new_C, new_u
-end
-
-"""
 Returns a matrix representing the grevlex order for `n` variables with
 x_n > x_{n-1} > ... > x_1
 """

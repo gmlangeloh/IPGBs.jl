@@ -90,6 +90,7 @@ function update_feasibility_model_rhs(
     v :: T
 ) where {T <: AbstractVector{Int}}
     delta = A * v
+    new_rhs = (b - delta)[1:length(constraints)]
     set_normalized_rhs.(constraints, b - delta)
 end
 

@@ -255,7 +255,7 @@ function model_truncation(
     model :: JuMP.Model,
     constraints :: Vector{ConstraintRef}
 ) :: Bool where  {T <: AbstractVector{Int}}
-    SolverTools.update_feasibility_model_rhs(constraints, A, b, v)
+    SolverTools.update_feasibility_model_rhs(constraints, A, b, leading_term(v))
     return SolverTools.is_feasible(model)
 end
 

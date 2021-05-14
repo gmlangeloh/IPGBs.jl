@@ -6,6 +6,7 @@ export GBAlgorithm, run, current_basis, update!, stats, order, increment,
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.GBTools
+using IPGBs.IPInstances
 using IPGBs.Orders
 
 """
@@ -73,11 +74,11 @@ end
 
 function truncate(
     algorithm :: GBAlgorithm,
-    binomial :: GBElement,
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    u :: Vector{Int}
+    binomial :: GBElement
 ) :: Bool
+    A = algorithm.instance.A
+    b = algorithm.instance.b
+    u = algorithm.instance.u
     if !truncate_basis(algorithm)
         return false
     end
@@ -107,14 +108,11 @@ end
 # Main GB algorithm logic. Does not depend on the specific algorithm.
 function run(
     algorithm :: GBAlgorithm,
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{Float64, 2},
-    u :: Vector{Int};
+    instance :: IPInstance;
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #TODO move the computation of the initial basis somewhere else
-    initialize!(algorithm, A, b, C, u)
+    initialize!(algorithm)
     #Main loop: process all relevant S-pairs
     while true
         pair = next_pair!(algorithm)
@@ -126,7 +124,7 @@ function run(
         end
         binomial = sbinomial(algorithm, pair)
         reduced_to_zero, _ = reduce!(algorithm, binomial)
-        if !reduced_to_zero && !truncate(algorithm, binomial, A, b, u)
+        if !reduced_to_zero && !truncate(algorithm, binomial)
             update!(algorithm, binomial, pair)
         elseif reduced_to_zero #Update syzygies in case this makes sense
             process_zero_reduction!(algorithm, binomial, pair)

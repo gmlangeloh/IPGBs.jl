@@ -10,6 +10,7 @@ using IPGBs.GBElements
 using IPGBs.GBTools
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
+using IPGBs.IPInstances
 using IPGBs.Orders
 using IPGBs.SolverTools
 using IPGBs.Statistics
@@ -80,29 +81,27 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     model :: JuMP.Model
     model_vars :: Vector{VariableRef}
     model_constraints :: Vector{ConstraintRef}
+    instance :: IPInstance
 
     function BuchbergerAlgorithm(
         T :: Type,
-        C :: Array{Float64, 2},
-        A :: Array{Int, 2},
-        b :: Vector{Int},
-        u :: Vector{Int},
+        instance :: IPInstance,
         truncation_type :: Symbol,
         trunc_var_type :: DataType,
         minimization :: Bool
     )
-        order = MonomialOrder(C, A, b, minimization)
+        order = MonomialOrder(instance.C, instance.A, instance.b, minimization)
         state = BuchbergerState(0)
         stats = BuchbergerStats()
         should_truncate = truncation_type != :None
         #Initialize a feasibility model in case we want to use model truncation
         model, vars, constrs = SolverTools.feasibility_model(
-            A, b, u, trunc_var_type
+            instance.A, instance.b, instance.u, trunc_var_type
         )
-        print(model)
         new{T}(
             BinomialSet{T, MonomialOrder}(T[], order, minimization), state,
-            should_truncate, truncation_type, stats, Int[], 0, model, vars, constrs
+            should_truncate, truncation_type, stats, Int[], 0, model, vars,
+            constrs, instance
         )
     end
 end
@@ -175,14 +174,15 @@ function GBAlgorithms.process_zero_reduction!(
     increment(algorithm, :zero_reductions)
 end
 
+#TODO this one should likely be removed when the Markov basis functions
+#are implemented!
 function GBAlgorithms.initialize!(
-    algorithm :: BuchbergerAlgorithm{T},
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{Float64, 2},
-    u :: Vector{Int}
+    algorithm :: BuchbergerAlgorithm{T}
 ) where {T <: GBElement}
-    change_ordering!(current_basis(algorithm), C, A, b)
+    A = algorithm.instance.A
+    b = algorithm.instance.b
+    C = algorithm.instance.C
+    u = algorithm.instance.u
     if T == Binomial
         num_gens = size(A, 2) - size(A, 1)
         lattice_generator = lattice_generator_binomial

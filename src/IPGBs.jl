@@ -5,6 +5,7 @@ export groebner_basis
 
 include("./SolverTools.jl")
 include("./FastBitSets.jl")
+include("./IPInstances.jl")
 include("./Statistics.jl")
 include("./GBTools.jl")
 include("./Orders.jl")
@@ -24,6 +25,7 @@ include("./SignatureAlgorithms.jl")
 include("./FourTi2.jl")
 
 using .GBAlgorithms
+using .IPInstances
 import .Buchberger: BuchbergerAlgorithm
 import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial
@@ -102,12 +104,8 @@ function groebner_basis(
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
     representation = implicit_representation ? GradedBinomial : Binomial
     use_minimization = implicit_representation ? false : minimization
-    obj = Float64.(C) #Consider the objective function as floating point regardless
     trunc_type, trunc_var = parse_truncation(truncation_type, A, b)
-    A, b, C, u = GBTools.normalize(
-        A, b, C, u, apply_normalization=!implicit_representation,
-        invert_objective=!implicit_representation
-    )
+    instance = IPInstance(A, b, C, u)
 
     #Signatures aren't currently supported with implicit representation
     @assert !(use_signatures && implicit_representation)
@@ -119,10 +117,10 @@ function groebner_basis(
         )
     else
         algorithm = algorithm_type(
-            representation, obj, A, b, u, trunc_type, trunc_var, use_minimization
+            representation, instance, trunc_type, trunc_var, use_minimization
         )
     end
-    results = GBAlgorithms.run(algorithm, A, b, obj, u, quiet=quiet)
+    results = GBAlgorithms.run(algorithm, instance, quiet=quiet)
     return results
 end
 
