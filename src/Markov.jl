@@ -24,4 +24,14 @@ function lattice_basis(
     return [ julia_form[:, j] for j in 1:size(julia_form, 2)]
 end
 
+"""
+TODO understand what exactly will be the inputs of this function
+Is it the original problem formulation or the lattice basis or...?
+"""
+function project_and_lift(
+
+) :: Vector{Vector{BigInt}}
+
+end
+
 end

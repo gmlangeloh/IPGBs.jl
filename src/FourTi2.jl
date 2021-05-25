@@ -1,9 +1,10 @@
 """
 Basic Julia-4ti2 interface using system calls.
-Currently includes the minimize, groebner, normalform and markov 4ti2 commands.
+Currently includes the minimize, groebner, normalform, markov and graver 4ti2
+commands.
 """
 module FourTi2
-export minimize, groebner, normalform, markov, groebnernf
+export minimize, groebner, normalform, markov, groebnernf, graver
 
 using DelimitedFiles
 using LinearAlgebra
@@ -48,7 +49,10 @@ Removes the temporary files used to communicate between Julia and 4ti2.
 function _4ti2_clear(
     filename :: String
 )
-    extensions = [ ".zsol", ".mat", ".cost", ".gro", ".feas", ".nf", ".sign", ".min" ]
+    extensions = [
+        ".zsol", ".lat", ".mat", ".cost", ".gro", "gra", ".feas", ".nf",
+        ".sign", ".min"
+    ]
     for ext in extensions
         path = filename * ext
         rm = `rm -f $path`
@@ -165,7 +169,7 @@ binomial in it.
 """
 function groebner(
     A :: Array{Int, 2},
-    c :: Array{Int},
+    c :: Union{Array{Int}, Nothing} = nothing,
     project_name :: String = "tmp",
     nonnegative :: Bool = true;
     truncation_sol = [],
@@ -181,8 +185,10 @@ function groebner(
         lattice_file = project_name * ".lat"
         _4ti2_write(A, lattice_file)
     end
-    obj_file = project_name * ".cost"
-    _4ti2_write(c, obj_file)
+    if !isnothing(c)
+        obj_file = project_name * ".cost"
+        _4ti2_write(c, obj_file)
+    end
     write_4ti2_sign(nonnegative, size(A, 2), project_name)
     #Set options for truncated bases
     truncation_opt = ""
@@ -298,6 +304,30 @@ function markov(
 
     #Returns the markov basis as a matrix where rows are elements of the test set
     return markov_basis
+end
+
+"""
+Calls 4ti2's graver command.
+
+TODO Implement other options (lower and upper bound, arbitrary signs,
+support to lattice bases instead of matrices...)
+"""
+function graver(
+    A :: Array{Int, 2},
+    project_name :: String = "tmp",
+    nonnegative :: Bool = true
+) :: Array{Int, 2}
+    _4ti2_clear(project_name)
+    #Write project files
+    matrix_file = project_name * ".mat"
+    _4ti2_write(A, matrix_file)
+    #Run 4ti2
+    cmd = `graver -q $project_name`
+    run(cmd)
+
+    out_file = project_name * ".gra"
+    graver_basis = Int.(_4ti2_read(out_file))
+    return graver_basis
 end
 
 end
