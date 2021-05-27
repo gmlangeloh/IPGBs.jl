@@ -1,0 +1,96 @@
+"""
+Experiment with cover inequalities of binary knapsacks. The idea is checking what
+happens to GBs (and the performance of Buchberger's algorithm) as I add cover
+inequalities.
+
+Initial results:
+- the GBs do get bigger with the cover inequalities
+- the running time also gets a lot larger... probably due to the GB sizes
+- my main hypothesis for this is that the cover inequalities make the < b fibers
+more complicated, leading to more stuff in the GB
+
+TODO move these cover inequality generating functions to
+MultiObjectiveInstances.Knapsacks
+"""
+
+using IPGBs
+using IPGBs.FourTi2
+
+using MultiObjectiveInstances
+import Combinatorics
+import Random
+
+"""
+Generates all cover inequalities for a binary knapsack.
+Each is represented by a vector of variable indices occurring in the
+inequality.
+
+If max_inequalities != nothing, generates only max_inequalities cover
+inequalities instead.
+"""
+function cover_inequalities(instance, n; max_inequalities=nothing)
+    a = instance.A[1, :]
+    ineqs = []
+    if !isnothing(max_inequalities) && max_inequalities == 0
+        return ineqs
+    end
+    for var_subset in Combinatorics.powerset(1:n)
+        if !isempty(var_subset)
+            s = sum(a[i] for i in var_subset)
+            if s > instance.b[1]
+                push!(ineqs, var_subset)
+                if !isnothing(max_inequalities) && length(ineqs) == max_inequalities
+                    return ineqs
+                end
+            end
+        end
+    end
+    return ineqs
+end
+
+"""
+Generates instance data for `instance` that includes cover inequalities.
+"""
+function add_cover_inequalities(instance, n; max_inequalities=nothing)
+    ineqs = cover_inequalities(instance, n, max_inequalities=max_inequalities)
+    new_vars = length(ineqs) #One new slack per inequality
+    total_vars = size(instance.A, 2) + new_vars
+    new_C = [instance.C zeros(Int, size(instance.C, 1), new_vars)]
+    #Update A, b
+    new_b = instance.b
+    new_A = [instance.A zeros(Int, size(instance.A, 1), new_vars)]
+    j = 1
+    for ineq in ineqs
+        new_constr = zeros(Int, 1, total_vars)
+        for index in ineq
+            new_constr[1, index] = 1
+        end
+        new_constr[1, size(instance.A, 2) + j] = 1
+        push!(new_b, length(ineq) - 1)
+        new_A = [new_A; new_constr]
+        j += 1
+    end
+    initial_sol = [zeros(Int, n); new_b ]
+    return new_A, new_b, new_C, initial_sol
+end
+
+function test_valid(
+    n :: Int,
+    seed = 0,
+    setseed = true;
+    max_inequalities = nothing
+)
+    if setseed
+        Random.seed!(seed)
+    end
+    instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true, format="4ti2")
+    initial_sol = MultiObjectiveInstances.Knapsack.knapsack_initial(instance)
+    #Compute the original GB
+    gb, t, _, _, _ = @timed groebner(instance.A, instance.C, truncation_sol=initial_sol)
+    @show size(gb, 1) t
+
+    #Compute the GB with cover inequalities
+    A, b, C, initial_sol2 = add_cover_inequalities(instance, n, max_inequalities=max_inequalities)
+    gb2, t2, _, _, _ = @timed groebner(A, C, truncation_sol=initial_sol2)
+    @show size(gb2, 1) t2
+end

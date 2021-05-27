@@ -82,13 +82,14 @@ function test_lawrence(
         gra = graver(instance.A)
         println("Graver size: ", size(gra, 1))
     end
+    init_gb = gb
 
     println("After Lawrence lifting")
     for n_lift in max_lifting:-1:1
         new_sol = []
         if truncate
             if n_lift == size(instance.A, 2)
-                new_sol = [ sol; ones(Int, n_lift); 0]
+                new_sol = [ sol; ones(Int, n_lift - 1); 0]
             else
                 new_sol = [ sol; ones(Int, n_lift) ]
             end
@@ -102,4 +103,5 @@ function test_lawrence(
             println("Graver size: ", size(gra, 1))
         end
     end
+    return init_gb
 end
