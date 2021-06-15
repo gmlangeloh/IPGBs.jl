@@ -247,6 +247,9 @@ previously built `model` by modifying `constraints`.
 
 Returns true iff `v` is feasible for the above model, which means it should NOT
 be truncated.
+
+TODO LP truncation is slightly slower than I hoped. IP truncation is very slow.
+Can I implement the model more efficiently somehow?
 """
 function model_truncation(
     v :: T,

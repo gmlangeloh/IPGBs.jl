@@ -1,6 +1,19 @@
 """
-- TODO compute and store which variables are bounded and which aren't
-- TODO store the unrestricted variables (useful for Markov basis stuff)
+TODO compute and store which variables are bounded and which aren't
+- to do this I need to create some LP model of the instance
+- this LP model should probably be stored along the instance itself
+- I can store variables saying whether something is bounded or not, do memoization
+
+TODO store the unrestricted variables (useful for Markov basis stuff)
+- this has to come from the instance itself, so I'll need some way to specify which
+variables are unrestricted
+- 4ti2 implements this as a bitset. I should probably use a Vector{Bool} or something
+for now, and then change it for something more efficient later
+
+TODO implement 'projections'
+- 4ti2 implements projections where some variables are set to unrestricted
+- I should do this as well, as soon as I finish implementing the above point on
+unrestricted variables
 """
 module IPInstances
 
@@ -8,6 +21,9 @@ export IPInstance, original_matrix, original_rhs, original_upper_bounds,
     original_objective
 
 import LinearAlgebra: I
+import JuMP
+
+using SolverTools
 
 """
 Transforms a problem in the form:
@@ -50,7 +66,6 @@ function normalize(
     return new_A, new_b, new_C, new_u
 end
 
-
 """
 Represents an instance of a problem
 
@@ -70,20 +85,32 @@ struct IPInstance
     n :: Int
     sense :: Bool #true if minimization
 
+    #Store a linear relaxation of this instance as a JuMP model
+    #It is used to check whether variables are bounded
+    model :: JuMP.Model
+    model_vars :: Vector{JuMP.VariableRef}
+    model_cons :: Vector{JuMP.ConstraintRef} #TODO not a concrete type, fix this
+
     #TODO put a parameter to determine whether it is minimization or not
     function IPInstance(A, b, C, u)
         m, n = size(A)
         @assert m == length(b)
         @assert n == size(C, 2)
         @assert n == length(u)
+        model, model_vars, model_cons = relaxation_model(A, b, C, u)
+        @assert is_feasible(model) #Checks feasibility of the linear relaxation
         A, b, C, u = normalize(
             A, b, C, u, apply_normalization=true, invert_objective=true
         )
         new_m, new_n = size(A)
         C = Float64.(C)
-        new(A, b, C, u, m, n, new_m, new_n, true)
+        new(A, b, C, u, m, n, new_m, new_n, true, model, model_vars, model_cons)
     end
 end
+
+#
+# The following functions are used to obtain original, non-normalized data
+#
 
 function original_matrix(
     instance :: IPInstance
@@ -109,6 +136,19 @@ function original_objective(
     instance :: IPInstance
 ) :: Array{Float64, 2}
     return instance.C[:, 1:instance.orig_vars]
+end
+
+#
+# Functions to deal with boundedness of components / variables
+# A variable is x_i is bounded iff max {x_i \mid x feasible} is bounded.
+# This is equivalent to the linear relaxation of this problem being bounded
+#
+
+function is_bounded(
+    i :: Int,
+    instance :: IPInstance
+) :: Bool
+    return is_bounded(i, instance.model, instance.model_vars)
 end
 
 end
