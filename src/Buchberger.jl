@@ -96,7 +96,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         should_truncate = truncation_type != :None
         #Initialize a feasibility model in case we want to use model truncation
         model, vars, constrs = SolverTools.feasibility_model(
-            instance.A, instance.b, instance.u, trunc_var_type
+            instance.A, instance.b, instance.u, instance.nonnegative, trunc_var_type
         )
         new{T}(
             BinomialSet{T, MonomialOrder}(T[], order, minimization), state,

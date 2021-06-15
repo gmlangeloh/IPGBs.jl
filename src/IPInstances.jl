@@ -1,15 +1,4 @@
 """
-TODO compute and store which variables are bounded and which aren't
-- to do this I need to create some LP model of the instance
-- this LP model should probably be stored along the instance itself
-- I can store variables saying whether something is bounded or not, do memoization
-
-TODO store the unrestricted variables (useful for Markov basis stuff)
-- this has to come from the instance itself, so I'll need some way to specify which
-variables are unrestricted
-- 4ti2 implements this as a bitset. I should probably use a Vector{Bool} or something
-for now, and then change it for something more efficient later
-
 TODO implement 'projections'
 - 4ti2 implements projections where some variables are set to unrestricted
 - I should do this as well, as soon as I finish implementing the above point on
@@ -23,7 +12,7 @@ export IPInstance, original_matrix, original_rhs, original_upper_bounds,
 import LinearAlgebra: I
 import JuMP
 
-using SolverTools
+using IPGBs.SolverTools
 
 """
 Transforms a problem in the form:
@@ -42,10 +31,11 @@ function normalize(
     A :: Array{Int, 2},
     b :: Vector{Int},
     C :: Array{T, 2},
-    u :: Vector{Int};
+    u :: Vector{Int},
+    nonnegative :: Vector{Bool};
     apply_normalization :: Bool = true,
     invert_objective :: Bool = true
-) :: Tuple{Array{Int, 2}, Vector{Int}, Array{Float64, 2}, Vector{Int}} where {T <: Real}
+) :: Tuple{Array{Int, 2}, Vector{Int}, Array{Float64, 2}, Vector{Int}, Vector{Bool}} where {T <: Real}
     if !apply_normalization
         return A, b, C, u
     end
@@ -63,7 +53,8 @@ function normalize(
     sign = invert_objective ? -1 : 1
     new_C = [sign * C zeros(Int, size(C, 1), n + m)]
     new_u = [u; [typemax(Int) for i in 1:(n+m)]]
-    return new_A, new_b, new_C, new_u
+    new_nonnegative = [nonnegative; [true for i in 1:(n+m)]] #slacks are non-negative
+    return new_A, new_b, new_C, new_u, new_nonnegative
 end
 
 """
@@ -79,6 +70,7 @@ struct IPInstance
     b :: Vector{Int}
     C :: Array{Float64, 2}
     u :: Vector{Int}
+    nonnegative :: Vector{Bool} #true iff the i-th var has a non-negativity constr
     orig_cons :: Int
     orig_vars :: Int
     m :: Int
@@ -92,19 +84,34 @@ struct IPInstance
     model_cons :: Vector{JuMP.ConstraintRef} #TODO not a concrete type, fix this
 
     #TODO put a parameter to determine whether it is minimization or not
-    function IPInstance(A, b, C, u)
+    function IPInstance(
+        A :: Array{Int, 2},
+        b :: Vector{Int},
+        C :: Array{Int, 2},
+        u :: Vector{Int},
+        nonnegative :: Union{Nothing, Vector{Bool}} = nothing
+    )
         m, n = size(A)
         @assert m == length(b)
         @assert n == size(C, 2)
         @assert n == length(u)
-        model, model_vars, model_cons = relaxation_model(A, b, C, u)
-        @assert is_feasible(model) #Checks feasibility of the linear relaxation
-        A, b, C, u = normalize(
-            A, b, C, u, apply_normalization=true, invert_objective=true
+        @assert isnothing(nonnegative) || n == length(nonnegative)
+        #If no non-negativity constraints are specified, assume all variables
+        #are non-negative
+        if isnothing(nonnegative)
+            nonnegative = [ true for i in 1:n ]
+        end
+        #Normalization of the data to the form Ax = b, minimization...
+        A, b, C, u, nonnegative = normalize(
+            A, b, C, u, nonnegative, apply_normalization=true, invert_objective=true
         )
         new_m, new_n = size(A)
         C = Float64.(C)
-        new(A, b, C, u, m, n, new_m, new_n, true, model, model_vars, model_cons)
+        #Setting up linear relaxation model
+        model, model_vars, model_cons = SolverTools.relaxation_model(A, b, C, u, nonnegative)
+        #Checks feasibility of the linear relaxation
+        @assert SolverTools.is_feasible(model)
+        new(A, b, C, u, nonnegative, m, n, new_m, new_n, true, model, model_vars, model_cons)
     end
 end
 
@@ -148,7 +155,7 @@ function is_bounded(
     i :: Int,
     instance :: IPInstance
 ) :: Bool
-    return is_bounded(i, instance.model, instance.model_vars)
+    return SolverTools.is_bounded(i, instance.model, instance.model_vars)
 end
 
 end

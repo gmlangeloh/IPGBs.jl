@@ -161,11 +161,5 @@ function run_algorithm(
         println("My results")
         @show length(gb) time
     end
-
-    #Always apply normalization here, since we return GB in 4ti2 standard form.
-    A, b, C, u = IPInstances.normalize(
-        instance.A, instance.b, instance.C, instance.u,
-        apply_normalization=true
-    )
-    return gb, A, b, C, u
+    return gb
 end

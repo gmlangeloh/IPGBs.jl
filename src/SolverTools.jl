@@ -23,7 +23,7 @@ constraints of the above LP give a positive row span vector.
 function positive_row_span(
     A :: Array{Int, 2},
     b :: Vector{Int}
-    ) :: Vector{Float64}
+) :: Vector{Float64}
     m, n = size(A)
     model = Model(GENERAL_SOLVER.Optimizer)
     set_silent(model)
@@ -41,6 +41,86 @@ function positive_row_span(
 end
 
 """
+Returns a JuMP model (alongside references to its variables and constraints)
+for the problem
+
+min c[1, :] * x
+s.t. Ax = b
+x_i >= 0 for all i s.t. nonnegative[i] == true
+
+TODO Should I do anything special for the binary case?
+"""
+function jump_model(
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    C :: Array{Float64},
+    u :: Vector{Int},
+    nonnegative :: Vector{Bool},
+    var_type :: DataType
+) :: Tuple{JuMP.Model, Vector{VariableRef}, Vector{ConstraintRef}}
+    m, n = size(A)
+    model = Model(GENERAL_SOLVER.Optimizer)
+    set_silent(model)
+    if var_type == Int #use the original IP, not the linear relaxation
+        @variable(model, x[1:n], Int)
+    else #var_type is Real / linear relaxation is used
+        @variable(model, x[1:n])
+    end
+    set_upper_bound.(x, u)
+    #Set non-negativity constraints for the relevant variables
+    for i in 1:n
+        if nonnegative[i]
+            set_lower_bound(x[i], 0)
+        end
+    end
+    #Set constraints, keeping references in a vector for later changes
+    constraints = []
+    for i in 1:m
+        ai = A[i, :]
+        con = @constraint(model, ai' * x == b[i])
+        push!(constraints, con)
+    end
+    @objective(model, Min, C[1, :]' * x)
+    return model, x, constraints
+end
+
+"""
+Returns a linear relaxation model of the problem
+min C[1, :]' * x
+s.t. Ax = b
+x >= 0
+"""
+function relaxation_model(
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    C :: Array{Float64},
+    u :: Vector{Int},
+    nonnegative :: Vector{Bool}
+) :: Tuple{JuMP.Model, Vector{VariableRef}, Vector{ConstraintRef}}
+    return jump_model(A, b, C, u, nonnegative, Real)
+end
+
+"""
+Returns true iff maximizing x_i in model is bounded.
+
+It is assumed that the given model is (primal) feasible.
+"""
+function is_bounded(
+    i :: Int,
+    model :: JuMP.Model,
+    x :: Vector{VariableRef}
+) :: Bool
+    @objective(model, Max, x[i])
+    optimize!(model)
+    #Note that this only guarantees unboundedness if the model
+    #is feasible.
+    if termination_status(model) != MOI.DUAL_INFEASIBLE
+        return true
+    end
+    return false
+end
+
+"""
 Generates a feasibility checking model for
 
 Ax = b
@@ -51,33 +131,16 @@ or a real variable vector otherwise.
 
 Returns the JuMP model along with vectors with references to its variables
 and constraints.
-
-TODO should I do something special for the binary case?
 """
 function feasibility_model(
     A :: Array{Int, 2},
     b :: Vector{Int},
     u :: Vector{Int},
+    nonnegative :: Vector{Bool},
     var_type :: DataType
 ) :: Tuple{JuMP.Model, Vector{VariableRef}, Vector{ConstraintRef}}
-    m, n = size(A)
-    model = Model(GENERAL_SOLVER.Optimizer)
-    set_silent(model)
-    if var_type == Int #use the original IP, not the linear relaxation
-        @variable(model, x[1:n] >= 0, Int)
-    else #var_type is Real / linear relaxation is used
-        @variable(model, x[1:n] >= 0)
-    end
-    set_upper_bound.(x, u)
-    #Set constraints, keeping references in a vector for later changes
-    constraints = []
-    for i in 1:m
-        ai = A[i, :]
-        con = @constraint(model, ai' * x == b[i])
-        push!(constraints, con)
-    end
-    @objective(model, Max, 0)
-    return model, x, constraints
+    feasibility_obj = zeros(Float64, 1, size(A, 2))
+    return jump_model(A, b, feasibility_obj, u, nonnegative, var_type)
 end
 
 """
@@ -105,76 +168,6 @@ function is_feasible(
         return false
     end
     return true
-end
-
-"""
-Returns a JuMP model for the problem
-min c[1, :] * x
-s.t. Ax = b
-x >= 0
-
-TODO deal with variables that do not have non-negativity constraints
-"""
-function jump_model(
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{Float64},
-    u :: Vector{Int},
-    var_type :: DataType
-) :: Tuple{JuMP.Model, Vector{VariableRef}, Vector{ConstraintRef}}
-    m, n = size(A)
-    model = Model(GENERAL_SOLVER.Optimizer)
-    set_silent(model)
-    if var_type == Int #use the original IP, not the linear relaxation
-        @variable(model, x[1:n] >= 0, Int)
-    else #var_type is Real / linear relaxation is used
-        @variable(model, x[1:n] >= 0)
-    end
-    set_upper_bound.(x, u)
-    #Set constraints, keeping references in a vector for later changes
-    constraints = []
-    for i in 1:m
-        ai = A[i, :]
-        con = @constraint(model, ai' * x == b[i])
-        push!(constraints, con)
-    end
-    @objective(model, Min, C[1, :]' * x)
-    return model, x, constraints
-end
-
-"""
-Returns a linear relaxation model of the problem
-min C[1, :]' * x
-s.t. Ax = b
-x >= 0
-"""
-function relaxation_model(
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{Float64},
-    u :: Vector{Int}
-) :: Tuple{JuMP.Model, Vector{VariableRef}, Vector{ConstraintRef}}
-    return jump_model(A, b, C, u, Real)
-end
-
-"""
-Returns true iff maximizing x_i in model is bounded.
-
-It is assumed that the given model is (primal) feasible.
-"""
-function is_bounded(
-    i :: Int,
-    model :: JuMP.Model
-    x :: Vector{VariableRef}
-) :: Bool
-    @objective(model, Max, x[i])
-    optimize!(model)
-    #Note that this only guarantees unboundedness if the model
-    #is feasible.
-    if termination_status(model) != MOI.DUAL_INFEASIBLE
-        return true
-    end
-    return false
 end
 
 end
