@@ -6,6 +6,7 @@ export BinomialSet, order, binomials, reduction_tree,
     is_truncated_groebner_basis
 
 using IPGBs.FastBitSets
+using IPGBs.IPInstances
 using IPGBs.Orders
 using IPGBs.GBElements
 using IPGBs.SupportTrees
@@ -43,29 +44,6 @@ function BinomialSet(
     order :: S
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     return BinomialSet{T, S}(basis, order, !is_implicit(T))
-end
-
-"""
-Creates a BinomialSet from `basis` with respect to `C`.
-
-`module_order` is only relevant when `T` is a type of binomial with signature.
-
-TODO I think this isn't used anywhere. In this case, it could be deleted.
-"""
-function BinomialSet(
-    basis :: Vector{T},
-    C :: Array{Int, 2};
-    module_order :: Symbol = :pot
-) where {T <: AbstractVector{Int}}
-    if has_signature(T)
-        #TODO this doesn't work yet, due to cyclic dependencies between
-        #this module and SignaturePolynomials. I need to find a way to
-        #break some of these dependencies.
-        #order = ModuleMonomialOrdering(C, module_order, basis)
-    else
-        order = MonomialOrder(C, !is_implicit(T))
-    end
-    return BinomialSet{T, MonomialOrder}(basis, order)
 end
 
 """
@@ -255,6 +233,50 @@ function sbinomial(
 end
 
 """
+Returns true iff the i-th and j-th vectors of `bs` have disjoint negative
+bounded components.
+
+This is essentially 4ti2's cancellation criterion.
+"""
+function is_negative_disjoint(
+    i :: Int,
+    j :: Int,
+    bs :: BinomialSet{T, S},
+    instance :: IPInstance
+) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+    u = bs[i]
+    v = bs[j]
+    for k in 1:instance.bounded_end
+        if u[k] < 0 && v[k] < 0
+            return false
+        end
+    end
+    return true
+end
+
+"""
+Returns true iff the i-th and j-th vectors of `bs` have disjoint positive
+non-negative components.
+
+This is essentially the GCD criterion.
+"""
+function is_positive_disjoint(
+    i :: Int,
+    j :: Int,
+    bs :: BinomialSet{T, S},
+    instance :: IPInstance
+) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+    u = bs[i]
+    v = bs[j]
+    for k in 1:instance.nonnegative_end
+        if u[k] > 0 && v[k] > 0
+            return false
+        end
+    end
+    return true
+end
+
+"""
 Returns true if (i, j) should be discarded.
 
 This is an implementation of Criteria 1 and 2 from Malkin's thesis.
@@ -266,24 +288,33 @@ pair may be discarded.
 Criterion 2 is specific to homogeneous ideals (or just ideals coming from
 lattices?) Either way, if the negative supports are not disjoint (= GCD of
 trailing terms is not 1) then the pair may be discarded. This applies
-specifically to the bounded components (= variables) of the problem, but
-we currently do no such boundedness check here.
-
-TODO implement the boundedness check and run it early on. The boundedness
-check may be implemented as a single LP per variable.
+specifically to the bounded components (= variables) of the problem.
 """
 function is_support_reducible(
     i :: Int,
     j :: Int,
-    bs :: BinomialSet{T, S}
+    bs :: BinomialSet{T, S},
+    instance :: IPInstance
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+    neg_sup = bs.negative_supports
+    pos_sup = bs.positive_supports
+    #If there are unbounded components, do not use support bitsets
+    if instance.bounded_end < instance.n
+        if is_minimization(bs)
+            return !is_negative_disjoint(i, j, bs, instance) ||
+                is_positive_disjoint(i, j, bs, instance)
+        end
+        return is_negative_disjoint(i, j, bs, instance) ||
+            !is_positive_disjoint(i, j, bs, instance)
+    end
+    #Use support bitsets for a little more efficiency
     if is_minimization(bs)
-        return !disjoint(bs.negative_supports[i], bs.negative_supports[j]) ||
-            disjoint(bs.positive_supports[i], bs.positive_supports[j])
+        return !disjoint(neg_sup[i], neg_sup[j]) ||
+            disjoint(pos_sup[i], pos_sup[j])
     end
     #Maximization problem
-    return disjoint(bs.negative_supports[i], bs.negative_supports[j]) ||
-        !disjoint(bs.positive_supports[i], bs.positive_supports[j])
+    return disjoint(neg_sup[i], neg_sup[j]) ||
+        !disjoint(pos_sup[i], pos_sup[j])
 end
 
 """

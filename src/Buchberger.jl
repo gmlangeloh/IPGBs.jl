@@ -96,7 +96,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         should_truncate = truncation_type != :None
         #Initialize a feasibility model in case we want to use model truncation
         model, vars, constrs = SolverTools.feasibility_model(
-            instance.A, instance.b, instance.u, instance.nonnegative, trunc_var_type
+            instance.A, instance.b, instance.u, nonnegative_vars(instance),
+            trunc_var_type
         )
         new{T}(
             BinomialSet{T, MonomialOrder}(T[], order, minimization), state,
@@ -159,7 +160,7 @@ function GBAlgorithms.late_pair_elimination(
     pair :: CriticalPair
 ) :: Bool where {T <: GBElement}
     if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
-                            current_basis(algorithm))
+                            current_basis(algorithm), algorithm.instance)
         increment(algorithm, :eliminated_by_gcd)
         return true
     end

@@ -137,6 +137,7 @@ function run(
     end
     reduced_basis!(current_basis(algorithm))
     output = fourti2_form(current_basis(algorithm))
+    output = invert_permutation(output, instance)
     sort!(output)
     #TODO We need to reintroduce generators which were truncated!
     #To do this, I need to change some stuff in initialize / lattice_generator

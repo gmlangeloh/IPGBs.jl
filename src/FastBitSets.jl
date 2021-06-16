@@ -109,9 +109,14 @@ end
 
 function disjoint(
     bitset1 :: FastBitSet,
-    bitset2 :: FastBitSet
+    bitset2 :: FastBitSet,
+    max_index :: Union{Int, Nothing} = nothing
 ) :: Bool
-    for i in 1:length(bitset1)
+    @assert length(bitset1) == length(bitset2)
+    if isnothing(max_index)
+        max_index = length(bitset1)
+    end
+    for i in 1:max_index
         if bitset1.data[i] & bitset2.data[i] != 0
             return false
         end
