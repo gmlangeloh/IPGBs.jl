@@ -23,6 +23,7 @@ include("./GBAlgorithms.jl")
 include("./Buchberger.jl")
 include("./SignatureAlgorithms.jl")
 include("./FourTi2.jl")
+include("./Markov.jl")
 
 using .GBAlgorithms
 using .IPInstances
