@@ -7,7 +7,7 @@ unrestricted variables
 module IPInstances
 
 export IPInstance, original_matrix, original_rhs, original_upper_bounds,
-    original_objective, nonnegative_vars, invert_permutation
+    original_objective, nonnegative_vars, invert_permutation, is_nonnegative
 
 import LinearAlgebra: I
 import JuMP
@@ -139,6 +139,19 @@ struct IPInstance
             model, model_vars, model_cons
             )
     end
+end
+
+"""
+Returns true iff all data in instance.A and instance.b is non-negative and
+all variables are non-negative.
+"""
+function is_nonnegative(
+    instance :: IPInstance
+) :: Bool
+    vars_nonneg = instance.nonnegative_end == instance.n
+    a_nonneg = all(ai >= 0 for ai in instance.A)
+    b_nonneg = all(bi >= 0 for bi in instance.b)
+    return vars_nonneg && a_nonneg && b_nonneg
 end
 
 #

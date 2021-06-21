@@ -114,14 +114,50 @@ function project_and_lift(
 end
 
 """
+Computes a Markov basis with the simplified algorithm. Assumes all data in
+instance.A and instance.b is non-negative.
+"""
+function simple_markov(
+    instance :: IPInstance
+) :: Vector{Vector{Int}}
+    @assert is_nonnegative(instance) #Check whether the hypotheses hold
+    n = size(instance.A, 2) - size(instance.A, 1)
+    m = size(instance.A, 1) - n
+    basis = Vector{Int}[]
+    for i in 1:n
+        v = zeros(Int, n)
+        v[i] = 1
+        r = zeros(Int, n)
+        r[i] = -1
+        s = -copy(instance.A[1:m, i])
+        g = vcat(v, s, r)
+        push!(basis, g)
+    end
+    return basis
+end
+
+"""
 Computes a Markov basis of `instance`.
 """
 function markov_basis(
     instance :: IPInstance,
     algorithm = :Any
-)
-    #Do preprocessing, select algorithm, etc...
-    project_and_lift(instance)
+) :: Vector{Vector{Int}}
+    if algorithm == :Any
+        if is_nonnegative(instance)
+            #The Simple algorithm may be used, so use it.
+            algorithm = :Simple
+        else
+            #The Simple algorithm can't be used, so fall back to project-and-lift
+            algorithm = :ProjectAndLift
+        end
+    end
+    if algorithm == :Simple
+        basis = simple_markov(instance)
+    else
+        basis = project_and_lift(instance)
+    end
+    return basis
 end
 
 end

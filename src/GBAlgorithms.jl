@@ -3,6 +3,8 @@ module GBAlgorithms
 export GBAlgorithm, run, current_basis, update!, stats, order, increment,
     truncate_basis
 
+using JuMP
+
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.GBTools
@@ -76,24 +78,30 @@ function truncate(
     algorithm :: GBAlgorithm,
     binomial :: GBElement
 ) :: Bool
-    A = algorithm.instance.A
-    b = algorithm.instance.b
-    u = algorithm.instance.u
-    if !truncate_basis(algorithm)
-        return false
-    end
-    if algorithm.truncation_type == :Simple
-        should_truncate = !simple_truncation(binomial, A, b, u)
-    else #algorithm.truncation_type == :Model
-        should_truncate = !model_truncation(
-            binomial, A, b, algorithm.model, algorithm.model_constraints
-        )
-    end
-    if should_truncate
+    instance = algorithm.instance
+    truncated = GBElements.truncate(
+        binomial, instance.A, instance.b, instance.u, algorithm.model,
+        algorithm.model_constraints, algorithm.should_truncate,
+        algorithm.truncation_type
+    )
+    if truncated
         increment(algorithm, :eliminated_by_truncation)
         return true
     end
     return false
+end
+
+"""
+Adds truncated elements of the given Markov basis back into the GB.
+This is used at the end of the computation to keep the GB as a basis of
+the given ideal, regardless of truncation.
+"""
+function reintroduce_truncated!(
+    algorithm :: GBAlgorithm
+)
+    for gen in algorithm.truncated_gens
+        update!(algorithm, gen, nothing)
+    end
 end
 
 """
@@ -112,7 +120,7 @@ function run(
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #TODO move the computation of the initial basis somewhere else
-    initialize!(algorithm)
+    #initialize!(algorithm)
     #Main loop: process all relevant S-pairs
     while true
         pair = next_pair!(algorithm)
@@ -135,12 +143,12 @@ function run(
         #This is kind of a hack but works
         println(current_basis(algorithm).reduction_tree.stats)
     end
+    #Organize output
+    reintroduce_truncated!(algorithm)
     reduced_basis!(current_basis(algorithm))
     output = fourti2_form(current_basis(algorithm))
     output = invert_permutation(output, instance)
     sort!(output)
-    #TODO We need to reintroduce generators which were truncated!
-    #To do this, I need to change some stuff in initialize / lattice_generator
     return output
 end
 

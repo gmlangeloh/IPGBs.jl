@@ -5,7 +5,7 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, to_gbelements, truncate
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -34,6 +34,26 @@ minus(:: Vector{Int}, :: GBElement, :: GBElement) = error("Not implemented.")
 
 has_signature(:: Type{<: AbstractVector{Int}}) = false
 is_implicit(:: Type{<: AbstractVector{Int}}) = false
+
+"""
+Creates a set of `GBElements` of type `S` from `v_set`.
+"""
+function to_gbelements(
+    v_set :: Vector{Vector{Int}},
+    order :: MonomialOrder,
+    C :: Array{T, 2},
+    S :: DataType
+) where {T <: Real}
+    binomials = S[]
+    cost_function = C[1, :]'
+    for v in v_set
+        cost = cost_function * v
+        b = S(v, cost)
+        orientate!(b, order)
+        push!(binomials, b)
+    end
+    return binomials
+end
 
 """
 Computes the leading term of this GBElement as a vector.
@@ -172,6 +192,33 @@ singular_top_reducible(g :: GBElement, reducer_sig) = false
 #
 # Additional GBElement logic
 #
+
+"""
+Returns true iff `binomial` should be truncated according to the given
+`truncation_type`.
+"""
+function truncate(
+    binomial :: GBElement,
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    u :: Vector{Int},
+    model :: JuMP.Model,
+    model_constraints :: Vector{JuMP.ConstraintRef},
+    should_truncate :: Bool,
+    truncation_type :: Symbol
+) :: Bool
+    if !should_truncate
+        return false
+    end
+    if truncation_type == :Simple
+        truncated = !simple_truncation(binomial, A, b, u)
+    else #algorithm.truncation_type == :Model
+        truncated = !model_truncation(
+            binomial, A, b, model, model_constraints
+        )
+    end
+    return truncated
+end
 
 """
 Checks whether the trailing terms of `g` and `h` are disjoint. In case

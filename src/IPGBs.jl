@@ -27,6 +27,7 @@ include("./Markov.jl")
 
 using .GBAlgorithms
 using .IPInstances
+using .Markov
 import .Buchberger: BuchbergerAlgorithm
 import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial
@@ -80,14 +81,8 @@ function parse_truncation(
 end
 
 """
-TODO write full documentation for this top-level function...
-
-TODO as the number of arguments and complexity of preprocessing goes up, that
-should probably be done in another module
-
-- module_order is one of :ltpot, :pot and :top. Only relevant for signature
-algorithms
-- truncation type is one of :None, :Heuristic, :LP, :IP, :Simple
+Computes a Markov basis for `instance` and then uses it to compute a Gröbner
+basis.
 """
 function groebner_basis(
     A :: Array{Int, 2},
@@ -101,24 +96,110 @@ function groebner_basis(
     quiet :: Bool = false,
     minimization :: Bool = true
 ) :: Vector{Vector{Int}} where {T <: Real}
+    instance = IPInstance(A, b, C, u)
+    markov = markov_basis(instance)
+    return groebner_basis(
+        markov, instance,
+        use_signatures=use_signatures,
+        implicit_representation=implicit_representation,
+        module_order=module_order,
+        truncation_type=truncation_type,
+        quiet=quiet,
+        minimization=minimization
+    )
+end
+
+"""
+Computes a Markov basis for `instance` and then uses it to compute a Gröbner
+basis.
+"""
+function groebner_basis(
+    instance :: IPInstance;
+    use_signatures :: Bool = false,
+    implicit_representation :: Bool = false,
+    module_order :: Symbol = :ltpot,
+    truncation_type :: Symbol = :Heuristic,
+    quiet :: Bool = false,
+    minimization :: Bool = true
+) :: Vector{Vector{Int}}
+    markov = markov_basis(instance)
+    return groebner_basis(
+        markov, instance,
+        use_signatures=use_signatures,
+        implicit_representation=implicit_representation,
+        module_order=module_order,
+        truncation_type=truncation_type,
+        quiet=quiet,
+        minimization=minimization
+    )
+end
+
+function groebner_basis(
+    markov_basis :: Vector{Vector{Int}},
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    C :: Array{T, 2},
+    u :: Vector{Int};
+    use_signatures :: Bool = false,
+    implicit_representation :: Bool = false,
+    module_order :: Symbol = :ltpot,
+    truncation_type :: Symbol = :Heuristic,
+    quiet :: Bool = false,
+    minimization :: Bool = true
+) :: Vector{Vector{Int}} where {T <: Real}
+    instance = IPInstance(A, b, C, u)
+    return groebner_basis(
+        markov_basis, instance,
+        use_signatures=use_signatures,
+        implicit_representation=implicit_representation,
+        module_order=module_order,
+        truncation_type=truncation_type,
+        quiet=quiet,
+        minimization=minimization
+    )
+end
+
+"""
+TODO write full documentation for this top-level function...
+
+TODO as the number of arguments and complexity of preprocessing goes up, that
+should probably be done in another module
+
+- module_order is one of :ltpot, :pot and :top. Only relevant for signature
+algorithms
+- truncation type is one of :None, :Heuristic, :LP, :IP, :Simple
+"""
+function groebner_basis(
+    markov_basis :: Vector{Vector{Int}},
+    instance :: IPInstance;
+    use_signatures :: Bool = false,
+    implicit_representation :: Bool = false,
+    module_order :: Symbol = :ltpot,
+    truncation_type :: Symbol = :Heuristic,
+    quiet :: Bool = false,
+    minimization :: Bool = true
+) :: Vector{Vector{Int}}
     #Setting parameters
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
     representation = implicit_representation ? GradedBinomial : Binomial
     use_minimization = implicit_representation ? false : minimization
-    trunc_type, trunc_var = parse_truncation(truncation_type, A, b)
-    instance = IPInstance(A, b, C, u)
+    trunc_type, trunc_var = parse_truncation(truncation_type, instance.A, instance.b)
 
     #Signatures aren't currently supported with implicit representation
     @assert !(use_signatures && implicit_representation)
 
     #Run GB algorithm over the given instance
     if use_signatures
+        #TODO Change the SignatureAlgorithm constructor, then send the whole
+        #instance
         algorithm = algorithm_type(
-            representation, obj, A, b, module_order, truncate, use_minimization
+            representation, instance.C, instance.A, instance.b, module_order,
+            truncate, use_minimization
         )
     else
         algorithm = algorithm_type(
-            representation, instance, trunc_type, trunc_var, use_minimization
+            markov_basis, representation, instance, trunc_type, trunc_var,
+            use_minimization
         )
     end
     results = GBAlgorithms.run(algorithm, instance, quiet=quiet)

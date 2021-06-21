@@ -82,27 +82,48 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     model_vars :: Vector{VariableRef}
     model_constraints :: Vector{ConstraintRef}
     instance :: IPInstance
+    truncated_gens :: Vector{T}
 
     function BuchbergerAlgorithm(
+        markov :: Vector{Vector{Int}},
         T :: Type,
         instance :: IPInstance,
         truncation_type :: Symbol,
         trunc_var_type :: DataType,
         minimization :: Bool
     )
+        @assert !isempty(markov)
+        #Build order and generating set
         order = MonomialOrder(instance.C, instance.A, instance.b, minimization)
-        state = BuchbergerState(0)
-        stats = BuchbergerStats()
+        generating_set = to_gbelements(markov, order, instance.C, T)
+        preallocated = Vector{Int}(undef, length(generating_set[1]))
         should_truncate = truncation_type != :None
         #Initialize a feasibility model in case we want to use model truncation
         model, vars, constrs = SolverTools.feasibility_model(
             instance.A, instance.b, instance.u, nonnegative_vars(instance),
             trunc_var_type
         )
+        #Truncate elements in the generating set
+        nontruncated_gens = T[]
+        truncated_gens = T[]
+        for gen in generating_set
+            truncated = GBElements.truncate(
+                gen, instance.A, instance.b, instance.u, model, constrs,
+                should_truncate, truncation_type
+            )
+            if truncated
+                push!(truncated_gens, gen)
+            else
+                push!(nontruncated_gens, gen)
+            end
+        end
+        #Initialize the state of the algorithm (no pairs processed yet)
+        state = BuchbergerState(length(nontruncated_gens))
+        stats = BuchbergerStats()
         new{T}(
-            BinomialSet{T, MonomialOrder}(T[], order, minimization), state,
-            should_truncate, truncation_type, stats, Int[], 0, model, vars,
-            constrs, instance
+            BinomialSet{T, MonomialOrder}(nontruncated_gens, order, minimization),
+            state, should_truncate, truncation_type, stats, preallocated, 0,
+            model, vars, constrs, instance, truncated_gens
         )
     end
 end
