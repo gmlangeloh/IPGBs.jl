@@ -191,10 +191,7 @@ function reduce!(
                     end
                 end
             end
-            #TODO prove this makes sense!
-            #The idea is that if this holds, we know g will reduce to zero
-            #This looks like an extension of the GCD criterion
-            if !is_negative_disjoint(g, reducer, negative=negative)
+            if !GBElements.is_negative_disjoint(g, reducer, negative=negative)
                 return true, changed
             end
             #Now apply the reduction and check if it is a zero reduction
