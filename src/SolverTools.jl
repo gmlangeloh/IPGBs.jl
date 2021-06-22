@@ -103,7 +103,7 @@ end
 """
 Searches for integer u such that
 Au = 0
-u_{\not \sigma} >= 0
+u_{not sigma} >= 0
 u_i > 0
 
 TODO this could also be done with LP as follows:

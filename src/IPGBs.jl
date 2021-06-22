@@ -198,8 +198,8 @@ function groebner_basis(
         )
     else
         algorithm = algorithm_type(
-            markov_basis, representation, instance, trunc_type, trunc_var,
-            use_minimization
+            markov_basis, instance, T=representation, truncation_type=trunc_type,
+            trunc_var_type=trunc_var, minimization=use_minimization
         )
     end
     results = GBAlgorithms.run(algorithm, quiet=quiet)

@@ -86,11 +86,11 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
 
     function BuchbergerAlgorithm(
         markov :: Vector{Vector{Int}},
-        T :: Type,
-        instance :: IPInstance,
-        truncation_type :: Symbol,
-        trunc_var_type :: DataType,
-        minimization :: Bool
+        instance :: IPInstance;
+        T :: Type = Binomial,
+        minimization :: Bool = true,
+        truncation_type :: Symbol = :Model,
+        trunc_var_type :: DataType = Real
     )
         @assert !isempty(markov)
         #Build order and generating set

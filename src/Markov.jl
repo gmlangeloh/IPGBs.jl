@@ -121,8 +121,7 @@ function project_and_lift(
         v = Vector{Int}(row)
         push!(markov, v)
     end
-    projection = IPInstance(instance.A, instance.b, instance.C, instance.u,
-                            nonnegative)
+    projection = nonnegativity_relaxation(instance, nonnegative)
     #Main loop: lift each variable in sigma
     while !isempty(sigma)
         i = minimum_lifting(sigma) #Pick some variable to lift
@@ -131,9 +130,8 @@ function project_and_lift(
             #A GB wrt the adequate order is a Markov basis of the lifted problem
             #Set up the right order in projection. minimize -i = maximize i
             update_objective!(projection, perm_i)
-            #TODO change Buchberger interface to make this call more intuitive
             alg = BuchbergerAlgorithm(
-                markov, Binomial, projection, truncation_type, Real, true
+                markov, projection, truncation_type=truncation_type
             )
             markov = run(alg, quiet=true)
         else
@@ -145,8 +143,7 @@ function project_and_lift(
         i_index = findfirst(isequal(i), sigma)
         deleteat!(sigma, i_index)
         nonnegative[i] = true
-        projection = IPInstance(instance.A, instance.b, instance.C, instance.u,
-                                nonnegative)
+        projection = nonnegativity_relaxation(instance, nonnegative)
         #TODO truncate elements
     end
     return markov

@@ -8,7 +8,7 @@ module IPInstances
 
 export IPInstance, original_matrix, original_rhs, original_upper_bounds,
     original_objective, nonnegative_vars, invert_permutation, is_nonnegative,
-    is_bounded, unboundedness_proof, update_objective!
+    is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation
 
 import LinearAlgebra: I
 import JuMP
@@ -38,7 +38,7 @@ function normalize(
     invert_objective :: Bool = true
 ) :: Tuple{Array{Int, 2}, Vector{Int}, Array{Float64, 2}, Vector{Int}, Vector{Bool}} where {T <: Real}
     if !apply_normalization
-        return A, b, C, u
+        return A, b, C, u, nonnegative
     end
     m, n = size(A)
     In = Matrix{Int}(I, n, n)
@@ -100,7 +100,9 @@ struct IPInstance
         b :: Vector{Int},
         C :: Array{Int, 2},
         u :: Vector{Int},
-        nonnegative :: Union{Nothing, Vector{Bool}} = nothing
+        nonnegative :: Union{Nothing, Vector{Bool}} = nothing;
+        apply_normalization :: Bool = true,
+        invert_objective :: Bool = true
     )
         m, n = size(A)
         @assert m == length(b)
@@ -114,7 +116,9 @@ struct IPInstance
         end
         #Normalization of the data to the form Ax = b, minimization...
         A, b, C, u, nonnegative = normalize(
-            A, b, C, u, nonnegative, apply_normalization=true, invert_objective=true
+            A, b, C, u, nonnegative,
+            apply_normalization=apply_normalization,
+            invert_objective=invert_objective
         )
         new_m, new_n = size(A)
         C = Float64.(C)
@@ -139,6 +143,21 @@ struct IPInstance
             model, model_vars, model_cons
         )
     end
+end
+
+"""
+Returns a new IPInstance corresponding to the relaxation of non-negative
+constraints given by `nonnegative` in `instance`.
+"""
+function nonnegativity_relaxation(
+    instance :: IPInstance,
+    nonnegative :: Vector{Bool}
+) :: IPInstance
+    return IPInstance(
+        instance.A, instance.b, instance.C, instance.u, nonnegative,
+        apply_normalization=false,
+        invert_objective=false
+    )
 end
 
 """
