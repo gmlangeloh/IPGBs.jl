@@ -5,6 +5,10 @@ as sets of generators of an ideal for computing Gröbner bases.
 Two methods are implemented:
 - a simplified method that only works when all data defining an IP is negative
 - the project-and-lift algorithm of 4ti2 / Malkin's thesis
+
+TODO implement a Project-and-Lift state structure. This will facilitate the
+implementation of group relaxations and early termination, as well as
+iteratively computing parts of the GB and continuing later
 """
 module Markov
 
@@ -86,12 +90,13 @@ random_lifting(sigma) = rand(sigma)
 minimum_lifting(sigma) = minimum(sigma)
 
 """
-TODO understand what exactly will be the inputs of this function
-Is it the original problem formulation or the lattice basis or...?
+TODO I probably could make projections more efficient. But at least
+this way they are very simple to implement...
 """
 function project_and_lift(
-    instance :: IPInstance
-) :: Vector{Vector{BigInt}}
+    instance :: IPInstance;
+    truncate :: Bool = true
+) :: Vector{Vector{Int}}
     #Compute lattice basis, TODO refactor
     m, n = size(instance.A)
     Mmn = MatrixSpace(ZZ, m, n)
@@ -99,18 +104,38 @@ function project_and_lift(
     basis = basis' #Put the basis in row form
     hnf_basis = hnf(basis)
     normalize_hnf!(hnf_basis)
+    @show hnf_basis
     #Now, the first `rank` columns of hnf_basis should be LI
     #and thus a Markov basis of the corresponding projection
-    #TODO use that to compute sigma below
-    sigma = []
+    sigma = Vector(rank+1:n)
+    nonnegative = nonnegative_vars(instance)
+    for s in sigma
+        nonnegative[s] = false
+    end
+    #This is a Markov basis of the projected problem
+    markov = Vector{Int}[]
+    for row in eachrow(Array(hnf_basis))
+        v = Vector{Int}(row)
+        push!(markov, v)
+    end
+    projection = IPInstance(instance.A, instance.b, instance.C, instance.u,
+                            nonnegative)
     while !isempty(sigma)
         i = random_lifting(sigma) #Pick some variable to lift
-        if unbounded(i)
-            #Easy case
-        else
+        perm_i = projection.permutation[i] #This is the index of i in projection
+        if is_bounded(perm_i, projection)
             #Hard case, compute GB
+        else
+            #Easy case
         end
+        #Finished lifting i, remove it from sigma
+        i_index = findfirst(isequal(i), sigma)
+        deleteat!(sigma, i_index)
+        nonnegative[i] = true
+        projection = IPInstance(instance.A, instance.b, instance.C, instance.u,
+                                nonnegative)
     end
+    return markov
 end
 
 """
@@ -140,8 +165,8 @@ end
 Computes a Markov basis of `instance`.
 """
 function markov_basis(
-    instance :: IPInstance,
-    algorithm = :Any
+    instance :: IPInstance;
+    algorithm :: Symbol = :Any
 ) :: Vector{Vector{Int}}
     if algorithm == :Any
         if is_nonnegative(instance)
@@ -158,6 +183,24 @@ function markov_basis(
         basis = project_and_lift(instance)
     end
     return basis
+end
+
+"""
+Computes a Markov basis for the IP instance
+
+min C * x
+s.t. A * x = b
+0 <= x <= u
+"""
+function markov_basis(
+    A :: Array{Int, 2},
+    b :: Vector{Int},
+    C :: Array{Int, 2},
+    u :: Vector{Int};
+    algorithm :: Symbol = :Any
+) :: Vector{Vector{Int}}
+    instance = IPInstance(A, b, C, u)
+    return markov_basis(instance, algorithm=algorithm)
 end
 
 end

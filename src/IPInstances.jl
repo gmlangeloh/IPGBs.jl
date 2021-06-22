@@ -7,7 +7,8 @@ unrestricted variables
 module IPInstances
 
 export IPInstance, original_matrix, original_rhs, original_upper_bounds,
-    original_objective, nonnegative_vars, invert_permutation, is_nonnegative
+    original_objective, nonnegative_vars, invert_permutation, is_nonnegative,
+    is_bounded
 
 import LinearAlgebra: I
 import JuMP
@@ -41,7 +42,6 @@ function normalize(
     end
     m, n = size(A)
     In = Matrix{Int}(I, n, n)
-    Zn = zeros(Int, n, n)
     Im = Matrix{Int}(I, m, m)
     Znm = zeros(Int, n, m)
     Zmn = zeros(Int, m, n)
@@ -52,8 +52,8 @@ function normalize(
     #this is easier than changing everything else
     sign = invert_objective ? -1 : 1
     new_C = [sign * C zeros(Int, size(C, 1), n + m)]
-    new_u = [u; [typemax(Int) for i in 1:(n+m)]]
-    new_nonnegative = [nonnegative; [true for i in 1:(n+m)]] #slacks are non-negative
+    new_u = [u; [typemax(Int) for _ in 1:(n+m)]]
+    new_nonnegative = [nonnegative; [true for _ in 1:(n+m)]] #slacks are non-negative
     return new_A, new_b, new_C, new_u, new_nonnegative
 end
 
@@ -110,7 +110,7 @@ struct IPInstance
         #If no non-negativity constraints are specified, assume all variables
         #are non-negative
         if isnothing(nonnegative)
-            nonnegative = [ true for i in 1:n ]
+            nonnegative = [ true for _ in 1:n ]
         end
         #Normalization of the data to the form Ax = b, minimization...
         A, b, C, u, nonnegative = normalize(
@@ -137,7 +137,7 @@ struct IPInstance
             bounded_end, nonnegative_end, permutation, inverse_perm,
             m, n, new_m, new_n, true,
             model, model_vars, model_cons
-            )
+        )
     end
 end
 

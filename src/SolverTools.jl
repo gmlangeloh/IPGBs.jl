@@ -101,6 +101,28 @@ function relaxation_model(
 end
 
 """
+Searches for u such that
+Au = 0
+u_{\not \sigma} >= 0
+u_i > 0
+
+TODO how do I guarantee integrality?
+This one is a bit of a mess. "Assume all data is rational. Then,
+the polyhedron is rational, so the optimum must be rational.
+Multiply by a large enough integer..."
+
+I think I'll just implement an IP model instead, finish everything
+and then come back to this.
+"""
+function boundedness_model(
+    A :: Array{Int, 2},
+    nonnegative :: Vector{Bool},
+    i :: Int
+) :: Tuple{JuMP.Model, Vector{VariableRef}, Vector{ConstraintRef}}
+
+end
+
+"""
 Returns true iff maximizing x_i in model is bounded.
 
 It is assumed that the given model is (primal) feasible.

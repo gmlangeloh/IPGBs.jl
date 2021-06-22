@@ -8,6 +8,7 @@ using IPGBs.FourTi2
 using IPGBs.SignatureAlgorithms
 using IPGBs.BinomialSets
 using IPGBs.IPInstances
+using IPGBs.Markov
 
 using MultiObjectiveInstances
 import Random
@@ -28,6 +29,7 @@ function test_buchberger(
         Random.seed!(seed)
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
+    #TODO change this variable name, it's confusing
     lattice_basis = [
         lattice_generator_graded(
             i, instance.A, instance.b, Float64.(instance.C), instance.u,
@@ -143,11 +145,6 @@ function run_algorithm(
         Random.seed!(seed)
     end
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
-    lattice_basis = [
-        lattice_generator_graded(
-            i, instance.A, instance.b, Float64.(instance.C), instance.u,
-            check_truncation=false)
-        for i in 1:size(instance.A, 2)]
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, instance.u,
@@ -162,4 +159,26 @@ function run_algorithm(
         @show length(gb) time
     end
     return gb
+end
+
+function test_markov(
+    n :: Int;
+    seed = 0,
+    setseed = true
+) :: Vector{Vector{Int}}
+    if setseed
+        Random.seed!(seed)
+    end
+    #TODO should probably generate harder instances for Markov bases, as these
+    #knapsacks lead to very small bases...
+    instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary=true)
+    #Compute Markov basis with my implementation of project-and-lift
+    mb = markov_basis(instance.A, instance.b, instance.C, instance.u,
+                      algorithm=:ProjectAndLift)
+    #Compute (truncated) Markov basis with 4ti2's implementation
+    instance_4ti2 = MultiObjectiveInstances.fourti2_stdform(instance)
+    initsol = MultiObjectiveInstances.Knapsack.knapsack_initial(instance_4ti2)
+    correct_mb = markov(instance_4ti2.A, instance_4ti2.C, truncation_sol=initsol)
+    @show mb correct_mb
+    return mb
 end
