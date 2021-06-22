@@ -8,7 +8,7 @@ module IPInstances
 
 export IPInstance, original_matrix, original_rhs, original_upper_bounds,
     original_objective, nonnegative_vars, invert_permutation, is_nonnegative,
-    is_bounded, unboundedness_proof
+    is_bounded, unboundedness_proof, update_objective!
 
 import LinearAlgebra: I
 import JuMP
@@ -152,6 +152,23 @@ function is_nonnegative(
     a_nonneg = all(ai >= 0 for ai in instance.A)
     b_nonneg = all(bi >= 0 for bi in instance.b)
     return vars_nonneg && a_nonneg && b_nonneg
+end
+
+"""
+Updates the objective function of `instance` to maximizing its i-th
+variable (= minimizing -x_i)
+"""
+function update_objective!(
+    instance :: IPInstance,
+    i :: Int
+)
+    for j in 1:instance.n
+        if j == i
+            instance.C[1, j] = -1
+        else
+            instance.C[1, j] = 0
+        end
+    end
 end
 
 #

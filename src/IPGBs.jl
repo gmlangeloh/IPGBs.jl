@@ -202,7 +202,7 @@ function groebner_basis(
             use_minimization
         )
     end
-    results = GBAlgorithms.run(algorithm, instance, quiet=quiet)
+    results = GBAlgorithms.run(algorithm, quiet=quiet)
     return results
 end
 

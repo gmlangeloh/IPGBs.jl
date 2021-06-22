@@ -115,12 +115,9 @@ end
 
 # Main GB algorithm logic. Does not depend on the specific algorithm.
 function run(
-    algorithm :: GBAlgorithm,
-    instance :: IPInstance;
+    algorithm :: GBAlgorithm;
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
-    #TODO move the computation of the initial basis somewhere else
-    #initialize!(algorithm)
     #Main loop: process all relevant S-pairs
     while true
         pair = next_pair!(algorithm)
@@ -147,7 +144,7 @@ function run(
     reintroduce_truncated!(algorithm)
     reduced_basis!(current_basis(algorithm))
     output = fourti2_form(current_basis(algorithm))
-    output = invert_permutation(output, instance)
+    output = invert_permutation(output, algorithm.instance)
     sort!(output)
     return output
 end

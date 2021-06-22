@@ -16,6 +16,9 @@ export markov_basis
 
 using AbstractAlgebra
 
+using IPGBs.Binomials
+using IPGBs.Buchberger
+using IPGBs.GBAlgorithms
 using IPGBs.IPInstances
 
 """
@@ -95,7 +98,7 @@ this way they are very simple to implement...
 """
 function project_and_lift(
     instance :: IPInstance;
-    truncate :: Bool = true
+    truncation_type :: Symbol = :None
 ) :: Vector{Vector{Int}}
     #Compute lattice basis, TODO refactor
     m, n = size(instance.A)
@@ -120,14 +123,22 @@ function project_and_lift(
     end
     projection = IPInstance(instance.A, instance.b, instance.C, instance.u,
                             nonnegative)
+    #Main loop: lift each variable in sigma
     while !isempty(sigma)
-        i = random_lifting(sigma) #Pick some variable to lift
+        i = minimum_lifting(sigma) #Pick some variable to lift
         perm_i = projection.permutation[i] #This is the index of i in projection
         if is_bounded(perm_i, projection)
             #A GB wrt the adequate order is a Markov basis of the lifted problem
+            #Set up the right order in projection. minimize -i = maximize i
+            update_objective!(projection, perm_i)
+            #TODO change Buchberger interface to make this call more intuitive
+            alg = BuchbergerAlgorithm(
+                markov, Binomial, projection, truncation_type, Real, true
+            )
+            markov = run(alg, quiet=true)
         else
             #Find some vector u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
-            u = unboundedness_proof(projection, nonnegative, i)
+            u = unboundedness_proof(projection, nonnegative, perm_i)
             push!(markov, u)
         end
         #Finished lifting i, remove it from sigma
@@ -136,6 +147,7 @@ function project_and_lift(
         nonnegative[i] = true
         projection = IPInstance(instance.A, instance.b, instance.C, instance.u,
                                 nonnegative)
+        #TODO truncate elements
     end
     return markov
 end
@@ -168,7 +180,8 @@ Computes a Markov basis of `instance`.
 """
 function markov_basis(
     instance :: IPInstance;
-    algorithm :: Symbol = :Any
+    algorithm :: Symbol = :Any,
+    truncation_type :: Symbol = :None
 ) :: Vector{Vector{Int}}
     if algorithm == :Any
         if is_nonnegative(instance)
@@ -182,7 +195,7 @@ function markov_basis(
     if algorithm == :Simple
         basis = simple_markov(instance)
     else
-        basis = project_and_lift(instance)
+        basis = project_and_lift(instance, truncation_type=truncation_type)
     end
     return basis
 end
@@ -199,10 +212,13 @@ function markov_basis(
     b :: Vector{Int},
     C :: Array{Int, 2},
     u :: Vector{Int};
-    algorithm :: Symbol = :Any
+    algorithm :: Symbol = :Any,
+    truncation_type :: Symbol = :None
 ) :: Vector{Vector{Int}}
     instance = IPInstance(A, b, C, u)
-    return markov_basis(instance, algorithm=algorithm)
+    return markov_basis(
+        instance, algorithm=algorithm, truncation_type=truncation_type
+    )
 end
 
 end
