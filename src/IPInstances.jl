@@ -8,7 +8,7 @@ module IPInstances
 
 export IPInstance, original_matrix, original_rhs, original_upper_bounds,
     original_objective, nonnegative_vars, invert_permutation, is_nonnegative,
-    is_bounded
+    is_bounded, unboundedness_proof
 
 import LinearAlgebra: I
 import JuMP
@@ -234,6 +234,24 @@ function nonnegative_vars(
     instance :: IPInstance
 ) :: Vector{Bool}
     return [ is_nonnegative(i, instance) for i in 1:instance.n ]
+end
+
+"""
+Returns a vector u in kernel(instance.A) proving that x_i is unbounded.
+"""
+function unboundedness_proof(
+    instance :: IPInstance,
+    nonnegative :: Vector{Bool},
+    i :: Int
+) :: Vector{Int}
+    @assert !is_bounded(i, instance)
+    model, vars, _ = SolverTools.unboundedness_ip_model(instance.A, nonnegative, i)
+    JuMP.optimize!(model)
+    if JuMP.termination_status(model) != JuMP.MOI.OPTIMAL
+        error("Unboundedness model should be feasible.")
+    end
+    u = Int.(round.(JuMP.value.(vars)))
+    return u
 end
 
 #

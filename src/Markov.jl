@@ -124,9 +124,11 @@ function project_and_lift(
         i = random_lifting(sigma) #Pick some variable to lift
         perm_i = projection.permutation[i] #This is the index of i in projection
         if is_bounded(perm_i, projection)
-            #Hard case, compute GB
+            #A GB wrt the adequate order is a Markov basis of the lifted problem
         else
-            #Easy case
+            #Find some vector u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
+            u = unboundedness_proof(projection, nonnegative, i)
+            push!(markov, u)
         end
         #Finished lifting i, remove it from sigma
         i_index = findfirst(isequal(i), sigma)
