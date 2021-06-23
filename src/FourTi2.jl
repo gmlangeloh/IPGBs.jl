@@ -15,9 +15,9 @@ Internal use.
 Writes a Julia array to a file in a format that can be read by 4ti2.
 """
 function _4ti2_write(
-    v :: Array{Int},
+    v :: Array{T},
     filename :: String
-)
+) where {T <: Real}
     open(filename, "w") do io
         if ndims(v) == 1
             writedlm(io, collect(size(v'))')
@@ -65,11 +65,11 @@ Writes an integer programming problem in 4ti2-readable format.
 """
 function write_4ti2_input(
     A :: Array{Int, 2},
-    c :: Array{Int},
+    c :: Array{T},
     xinit :: Vector{Int},
     project_name = "tmp" :: String,
     nonnegative = true :: String
-)
+) where {T <: Real}
     matrix_file = project_name * ".mat"
     _4ti2_write(A, matrix_file)
     obj_file = project_name * ".cost"
@@ -111,12 +111,12 @@ I found that --precision=arb is often necessary here to avoid errors.
 """
 function minimize(
     A :: Array{Int, 2},
-    c :: Array{Int},
+    c :: Array{T},
     xinit :: Vector{Int},
     project_name = "tmp" :: String,
     nonnegative = true :: Bool;
     timeout :: Union{Int, Nothing} = nothing
-) :: Tuple{Vector{Int}, Int}
+) :: Tuple{Vector{Int}, Int} where {T <: Real}
     _4ti2_clear(project_name)
     #Write the project files
     matrix_file = project_name * ".mat"
@@ -169,13 +169,13 @@ binomial in it.
 """
 function groebner(
     A :: Array{Int, 2},
-    c :: Union{Array{Int}, Nothing} = nothing,
+    c :: Union{Array{T}, Nothing} = nothing,
     project_name :: String = "tmp",
     nonnegative :: Bool = true;
     truncation_sol = [],
     lattice :: Bool = false,
     quiet :: Bool = true
-) :: Array{Int, 2}
+) :: Array{Int, 2} where {T <: Real}
     _4ti2_clear(project_name)
     #Write the project files
     if !lattice
@@ -220,11 +220,11 @@ Returns the normal form and its value using `c` as objective function.
 """
 function normalform(
     A :: Array{Int, 2},
-    c :: Array{Int},
+    c :: Array{T},
     xinit :: Vector{Int},
     project_name = "tmp" :: String,
     nonnegative = true :: Bool
-) :: Tuple{Vector{Int}, Int}
+) :: Tuple{Vector{Int}, Int} where {T <: Real}
     #Write the project files
     matrix_file = project_name * ".mat"
     _4ti2_write(A, matrix_file)
@@ -261,11 +261,11 @@ Returns the optimal solution to the given IP along with its objective value.
 """
 function groebnernf(
     A :: Array{Int, 2},
-    c :: Array{Int},
+    c :: Array{T},
     xinit :: Vector{Int},
     project_name = "tmp" :: String,
     nonnegative = true :: Bool
-) :: Tuple{Vector{Int}, Int}
+) :: Tuple{Vector{Int}, Int} where {T <: Real}
     _ = groebner(A, c, project_name, nonnegative, truncation_sol=xinit)
     return normalform(A, c, xinit, project_name, nonnegative)
 end
@@ -276,11 +276,11 @@ where the rows are the elements of the basis.
 """
 function markov(
     A :: Array{Int, 2},
-    c :: Array{Int},
+    c :: Array{T},
     project_name = "tmp" :: String,
     nonnegative = true :: Bool;
     truncation_sol = []
-) :: Array{Int, 2}
+) :: Array{Int, 2} where {T <: Real}
     _4ti2_clear(project_name)
     #Write the project files
     matrix_file = project_name * ".mat"

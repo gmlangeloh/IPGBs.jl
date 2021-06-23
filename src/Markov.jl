@@ -19,6 +19,7 @@ using AbstractAlgebra
 using IPGBs.Binomials
 using IPGBs.Buchberger
 using IPGBs.GBAlgorithms
+using IPGBs.GBElements
 using IPGBs.IPInstances
 
 """
@@ -89,6 +90,30 @@ function lattice_basis(
     return [ julia_form[:, j] for j in 1:size(julia_form, 2)]
 end
 
+"""
+Computes a subset of `markov` including only vectors which shouldn't be
+truncated according to the rule given by `truncation_type`.
+"""
+function truncate_markov(
+    markov :: Vector{Vector{Int}},
+    instance :: IPInstance,
+    truncation_type :: Symbol
+) :: Vector{Vector{Int}}
+    truncated_basis = Vector{Int}[]
+    should_truncate = truncation_type != :None
+    for v in markov
+        truncated = GBElements.truncate(
+            v, instance.A, instance.b, instance.u,
+            instance.model, instance.model_cons,
+            should_truncate, truncation_type
+        )
+        if !truncated
+            push!(truncated_basis, v)
+        end
+    end
+    return truncated_basis
+end
+
 random_lifting(sigma) = rand(sigma)
 minimum_lifting(sigma) = minimum(sigma)
 
@@ -133,7 +158,7 @@ function project_and_lift(
             alg = BuchbergerAlgorithm(
                 markov, projection, truncation_type=truncation_type
             )
-            markov = run(alg, quiet=true)
+            markov = GBAlgorithms.run(alg, quiet=true)
         else
             #Find some vector u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
             u = unboundedness_proof(projection, nonnegative, perm_i)
@@ -144,7 +169,8 @@ function project_and_lift(
         deleteat!(sigma, i_index)
         nonnegative[i] = true
         projection = nonnegativity_relaxation(instance, nonnegative)
-        #TODO truncate elements
+        #Truncate the Markov basis
+        markov = truncate_markov(markov, instance, truncation_type)
     end
     return markov
 end

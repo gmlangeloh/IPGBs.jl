@@ -198,7 +198,7 @@ Returns true iff `binomial` should be truncated according to the given
 `truncation_type`.
 """
 function truncate(
-    binomial :: GBElement,
+    binomial :: T,
     A :: Array{Int, 2},
     b :: Vector{Int},
     u :: Vector{Int},
@@ -206,7 +206,7 @@ function truncate(
     model_constraints :: Vector{JuMP.ConstraintRef},
     should_truncate :: Bool,
     truncation_type :: Symbol
-) :: Bool
+) :: Bool where {T <: AbstractVector{Int}}
     if !should_truncate
         return false
     end

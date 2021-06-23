@@ -8,7 +8,8 @@ module IPInstances
 
 export IPInstance, original_matrix, original_rhs, original_upper_bounds,
     original_objective, nonnegative_vars, invert_permutation, is_nonnegative,
-    is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation
+    is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation,
+    random_instance
 
 import LinearAlgebra: I
 import JuMP
@@ -98,12 +99,12 @@ struct IPInstance
     function IPInstance(
         A :: Array{Int, 2},
         b :: Vector{Int},
-        C :: Array{Int, 2},
+        C :: Array{T, 2},
         u :: Vector{Int},
         nonnegative :: Union{Nothing, Vector{Bool}} = nothing;
         apply_normalization :: Bool = true,
         invert_objective :: Bool = true
-    )
+    ) where {T <: Real}
         m, n = size(A)
         @assert m == length(b)
         @assert n == size(C, 2)
@@ -371,6 +372,35 @@ function invert_permutation(
     instance :: IPInstance
 ) :: Vector{Vector{Int}}
     return apply_permutation(vector_set, instance.inverse_permutation)
+end
+
+#
+# Generating some IPInstances
+#
+
+"""
+Returns a random feasible IPInstance with `m` constraints and `n` variables.
+"""
+function random_instance(
+    m :: Int,
+    n :: Int
+) :: IPInstance
+    instance = nothing
+    feasible = false
+    while !feasible
+        #Build random instance in these parameters
+        A = rand(-5:5, m, n)
+        b = rand(5:20, m)
+        C = rand(-10:-1, 1, n)
+        u = [ typemax(Int) for _ in 1:n ]
+        instance = IPInstance(A, b, C, u)
+        #Check feasibility
+        model, _, _ = SolverTools.feasibility_model(
+            instance.A, instance.b, instance.u, nonnegative_vars(instance), Int
+        )
+        feasible = SolverTools.is_feasible(model)
+    end
+    return instance
 end
 
 end
