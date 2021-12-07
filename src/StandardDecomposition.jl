@@ -2,16 +2,6 @@ module StandardDecomposition
 export standard_decomposition
 
 """
-This corresponds to Example 2.4 in Hosten and Thomas (1998).
-TODO move this to some test file instead, it shouldn't be here!!!
-"""
-function decomposition_test()
-    M = [[0,0,11],[1,0,1],[4,7,0],[5,5,0],[6,3,0],[7,1,0],[8,0,0]]
-    std = standard_decomposition(M)
-    return std
-end
-
-"""
 Represents an admissible pair, i.e., (x^m, σ) where x^m is a standard
 monomial and σ is a set of indices disjoint from the support of m.
 
@@ -28,6 +18,12 @@ struct AdmissiblePair
     sigma :: Vector{Bool} #A set of variable indices with disjoint support
     #with `monomial`
 end
+
+function AdmissiblePair(t :: Tuple{Vector{Int}, Vector{Bool}})
+    return AdmissiblePair(t[1], t[2])
+end
+
+to_tuple(pair :: AdmissiblePair) = (pair.monomial, pair.sigma)
 
 function Base.show(io :: IO, pair :: AdmissiblePair)
     print(io, "(", pair.monomial, ", ", pair.sigma, ")")
@@ -187,7 +183,7 @@ and Thomas (1998).
 """
 function standard_decomposition(
     monomial_ideal :: Vector{Vector{Int}}
-) :: Vector{AdmissiblePair}
+) :: Vector{Tuple{Vector{Int}, Vector{Bool}}}
     @assert !isempty(monomial_ideal)
     standard_pairs = AdmissiblePair[] #List of standard pairs that will be computed
     n = length(monomial_ideal[1]) #Number of variables of the base ring
@@ -221,7 +217,7 @@ function standard_decomposition(
         end
         update_ideal!(M, w)
     end
-    return standard_pairs
+    return map(pair -> to_tuple(pair), standard_pairs)
 end
 
 end

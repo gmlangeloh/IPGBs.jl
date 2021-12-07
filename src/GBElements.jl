@@ -5,7 +5,7 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, to_gbelements, truncate
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, to_gbelements, truncate, ipgbs_form
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -56,11 +56,26 @@ function to_gbelements(
 end
 
 """
+Turns a 4ti2 GB into my GB format as a vector of integer vectors.
+"""
+function ipgbs_form(
+    fourti2_gb :: Matrix{Int}
+) :: Vector{Vector{Int}}
+    m = size(fourti2_gb, 1)
+    gb = Vector{Int}[]
+    for i in 1:m
+        gb_elem = fourti2_gb[i,:]
+        push!(gb, gb_elem)
+    end
+    return gb
+end
+
+"""
 Computes the leading term of this GBElement as a vector.
 """
 function leading_term(
-    g :: GBElement
-) :: Vector{Int}
+    g :: T
+) :: Vector{Int} where {T <: AbstractVector{Int}}
     lt = zeros(Int, length(g))
     for i in 1:length(g)
         if g[i] > 0
