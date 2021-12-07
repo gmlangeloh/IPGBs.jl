@@ -24,6 +24,7 @@ include("./Buchberger.jl")
 include("./SignatureAlgorithms.jl")
 include("./FourTi2.jl")
 include("./Markov.jl")
+include("./StandardDecomposition.jl")
 
 using .GBAlgorithms
 using .IPInstances

@@ -8,6 +8,9 @@ Initial results:
 - the running time also gets a lot larger... probably due to the GB sizes
 - my main hypothesis for this is that the cover inequalities make the < b fibers
 more complicated, leading to more stuff in the GB
+- adding a single cover inequality may or may not change the GB size
+- I have no idea why some cover inequalities make the basis larger and others
+don't. I can't see a pattern, either, checking test_valid(5)
 
 TODO move these cover inequality generating functions to
 MultiObjectiveInstances.Knapsacks
@@ -57,7 +60,7 @@ function add_cover_inequalities(instance, n; max_inequalities=nothing)
     total_vars = size(instance.A, 2) + new_vars
     new_C = [instance.C zeros(Int, size(instance.C, 1), new_vars)]
     #Update A, b
-    new_b = instance.b
+    new_b = copy(instance.b)
     new_A = [instance.A zeros(Int, size(instance.A, 1), new_vars)]
     j = 1
     for ineq in ineqs
@@ -72,6 +75,34 @@ function add_cover_inequalities(instance, n; max_inequalities=nothing)
     end
     initial_sol = [zeros(Int, n); new_b ]
     return new_A, new_b, new_C, initial_sol
+end
+
+function test_cover_one_by_one(instance, n; max_inequalities=nothing)
+    @show instance
+    println("Trying cover inequalities one by one")
+    ineqs = cover_inequalities(instance, n, max_inequalities=max_inequalities)
+    new_vars = 1
+    total_vars = size(instance.A, 2) + new_vars
+    new_C = [instance.C zeros(Int, size(instance.C, 1), new_vars)]
+    new_b = [instance.b; 0]
+    new_A = [instance.A zeros(Int, size(instance.A, 1), new_vars); zeros(Int, 1, total_vars)]
+    for ineq in ineqs
+        #Compute new matrix and RHS including the cover ineq
+        new_b[length(new_b)] = length(ineq) - 1
+        for index in 1:size(new_A, 2)
+            new_A[size(new_A, 1), index] = 0
+        end
+        for index in ineq
+            new_A[size(new_A, 1), index] = 1
+        end
+        new_A[size(new_A, 1), size(new_A, 2)] = 1
+        initial_sol = [ zeros(Int, n); new_b ]
+
+        #Compute the GB with the new cover ineq
+        @show ineq new_b[length(new_b)]
+        gb, t, _, _, _ = @timed groebner(new_A, new_C, truncation_sol=initial_sol)
+        @show size(gb, 1) t
+    end
 end
 
 function test_valid(
@@ -93,4 +124,6 @@ function test_valid(
     A, b, C, initial_sol2 = add_cover_inequalities(instance, n, max_inequalities=max_inequalities)
     gb2, t2, _, _, _ = @timed groebner(A, C, truncation_sol=initial_sol2)
     @show size(gb2, 1) t2
+
+    test_cover_one_by_one(instance, n, max_inequalities=max_inequalities)
 end
