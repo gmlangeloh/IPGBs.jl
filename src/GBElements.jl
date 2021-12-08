@@ -5,7 +5,7 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, to_gbelements, truncate, ipgbs_form
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, to_gbelements, truncate, ipgbs_form, to_gbelement
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -35,8 +35,21 @@ minus(:: Vector{Int}, :: GBElement, :: GBElement) = error("Not implemented.")
 has_signature(:: Type{<: AbstractVector{Int}}) = false
 is_implicit(:: Type{<: AbstractVector{Int}}) = false
 
+function to_gbelement(
+    S :: DataType,
+    v :: Vector{Int},
+    order :: T
+) where {T <: GBOrder}
+    c = Orders.cost(order, v)
+    orientate!(v, order)
+    return S(v, c)
+end
+
 """
 Creates a set of `GBElements` of type `S` from `v_set`.
+
+TODO this is fairly redundant compared to the previous function.
+I should refactor it.
 """
 function to_gbelements(
     v_set :: Vector{Vector{Int}},

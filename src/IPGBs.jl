@@ -20,6 +20,7 @@ include("./SignaturePolynomials.jl")
 include("./TriangleHeaps.jl")
 include("./GBAlgorithms.jl")
 
+include("./FGLM.jl")
 include("./Buchberger.jl")
 include("./SignatureAlgorithms.jl")
 include("./FourTi2.jl")
