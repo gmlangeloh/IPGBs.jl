@@ -1,6 +1,6 @@
 module Orders
 
-export GBOrder, MonomialOrder, is_inverted, cost
+export GBOrder, MonomialOrder, is_inverted, order_cost
 
 using IPGBs.GBTools
 using IPGBs.SolverTools
@@ -12,7 +12,7 @@ ModuleMonomialOrder in case of Signature-based algorithms.
 abstract type GBOrder <: Base.Ordering end
 
 is_inverted(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
-cost(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
+order_cost(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
 
 """
 Returns a new matrix with the rows of C plus new rows consisting of
@@ -62,10 +62,10 @@ end
 The cost of some vector according to the cost matrix of `order`. This is
 the vector weighted by the first column of the cost matrix.
 """
-function cost(
+function order_cost(
     order :: MonomialOrder,
-    v :: T
-) where {T <: AbstractVector{Int}}
+    v :: AbstractVector{Int}
+)
     return order.cost_matrix[:, 1]' * v
 end
 

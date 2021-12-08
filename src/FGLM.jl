@@ -64,7 +64,7 @@ function fglm(
                 update_next_monomials!(next_monomials, m, target_order)
             else #Linearly dependent case, new gb2 binomial
                 new_binomial = m - std_basis[ld].monomial
-                new_elem = to_gbelement(T, new_binomial, target_order)
+                new_elem = to_gbelement(new_binomial, target_order, T)
                 push!(gb2, new_elem)
             end
         end

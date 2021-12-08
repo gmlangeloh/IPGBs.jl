@@ -35,37 +35,19 @@ minus(:: Vector{Int}, :: GBElement, :: GBElement) = error("Not implemented.")
 has_signature(:: Type{<: AbstractVector{Int}}) = false
 is_implicit(:: Type{<: AbstractVector{Int}}) = false
 
+"""
+Turns a vector `v` into a GBElement of type `S`. Currently, Binomials are the
+only subtype supported.
+"""
 function to_gbelement(
-    S :: DataType,
     v :: Vector{Int},
-    order :: T
-) where {T <: GBOrder}
-    c = Orders.cost(order, v)
-    orientate!(v, order)
-    return S(v, c)
-end
-
-"""
-Creates a set of `GBElements` of type `S` from `v_set`.
-
-TODO this is fairly redundant compared to the previous function.
-I should refactor it.
-"""
-function to_gbelements(
-    v_set :: Vector{Vector{Int}},
-    order :: MonomialOrder,
-    C :: Array{T, 2},
+    order :: T,
     S :: DataType
-) where {T <: Real}
-    binomials = S[]
-    cost_function = C[1, :]'
-    for v in v_set
-        cost = cost_function * v
-        b = S(v, cost)
-        orientate!(b, order)
-        push!(binomials, b)
-    end
-    return binomials
+) where {T <: GBOrder}
+    c = Int(round(order_cost(order, v)))
+    b = S(v, c)
+    orientate!(b, order)
+    return b
 end
 
 """
