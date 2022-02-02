@@ -207,7 +207,6 @@ function extract_bound(model :: JuMP.Model, c :: JuMP.ConstraintRef, x :: Vector
 end
 
 function extract_objective(obj :: JuMP.AffExpr, x :: Vector{JuMP.VariableRef})
-    @assert(typeof(obj.terms) <: OrderedCollections.OrderedDict)
     c = zeros(Int, length(x))
     for j in 1:length(x)
         coef = obj.terms[x[j]]
@@ -227,13 +226,21 @@ function extract_objective(obj::JuMP.VariableRef, x::Vector{JuMP.VariableRef})
     return c
 end
 
+function extract_objective(
+    model :: JuMP.Model,
+    x :: Vector{JuMP.VariableRef}
+) :: Vector{Int}
+    c = extract_objective(objective_function(model), x)
+    if objective_sense(model) == MOI.MAX_SENSE
+        c = -c
+    end
+    #If the objective sense is minimization, no normalization of the
+    #objective function coefficients is needed.
+    return c
+end
+
 """
 Build an IPInstance (IPGBs instance format) from any JuMP IP model.
-
-TODO Implement something to deal with binary variables directly
-Currently, the binary upper bounds are added, but they don't end up in
-the constraint matrix because I don't allow normalization in IPInstances
-constructor. So I either have to add them here or change them somehow...
 """
 function IPInstance(model::JuMP.Model)
     #Extract A, b, c from the model.
@@ -271,9 +278,8 @@ function IPInstance(model::JuMP.Model)
             end
         end
     end
-    #Build matrices
-    #TODO Deal with objective sense somehow when extracting the objective
-    c = extract_objective(objective_function(model), x)
+    #Build matrix representation of the IP min{cx | Ax == b, x >= 0}
+    c = extract_objective(model, x)
     #Add upper and lower bounds to A, whenever necessary
     for (var, lb) in lower_bounds
         if !IPGBs.is_approx_zero(lb) #Zero lower bounds may be ignored
@@ -285,6 +291,13 @@ function IPInstance(model::JuMP.Model)
             push!(rhs, lb)
             push!(ineq_directions, MOI.GreaterThan{Float64})
         end
+    end
+    for (var, ub) in upper_bounds
+        new_row = zeros(Int, n)
+        new_row[var] = 1
+        push!(rows, new_row)
+        push!(rhs, ub)
+        push!(ineq_directions, MOI.LessThan{Float64})
     end
     A = Int.(foldl(vcat, map(row -> row', rows)))
     #Add slack variables for all inequalities to A
