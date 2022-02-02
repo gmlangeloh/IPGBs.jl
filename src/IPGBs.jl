@@ -3,6 +3,7 @@
 module IPGBs
 export groebner_basis
 
+include("./Globals.jl")
 include("./SolverTools.jl")
 include("./FastBitSets.jl")
 include("./IPInstances.jl")

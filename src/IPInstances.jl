@@ -12,8 +12,10 @@ export IPInstance, original_matrix, original_rhs, original_upper_bounds,
     random_instance
 
 import LinearAlgebra: I
-import JuMP
+using JuMP
+using OrderedCollections
 
+using IPGBs
 using IPGBs.SolverTools
 
 """
@@ -144,6 +146,188 @@ struct IPInstance
             model, model_vars, model_cons
         )
     end
+end
+
+"""
+Extracts numerical coefficients from a JuMP constraint. Assumes
+this is a scalar constraint (= a single constraint)
+"""
+function extract_constraint(model::JuMP.Model, c::JuMP.ConstraintRef, x::Vector{JuMP.VariableRef})
+    lhs_data = MOI.get(model, MOI.ConstraintFunction(), c)
+    #List of pairs (coef, variable) where variable is a MOI.VariableIndex
+    #this index can be compared to index(:: VariableRef)
+    coef_vars = [(term.coefficient, term.variable) for term in lhs_data.terms]
+    #Extract row of the constraint matrix, write to a
+    a = zeros(Int, length(x))
+    for (coef, var_index) in coef_vars
+        for j in 1:length(x)
+            if index(x[j]) == var_index
+                a[j] = coef
+                break
+            end
+        end
+    end
+    rhs_data = MOI.get(model, MOI.ConstraintSet(), c)
+    if hasfield(typeof(rhs_data), :value)
+        b = rhs_data.value
+    elseif hasfield(typeof(rhs_data), :lower)
+        b = rhs_data.lower
+    elseif hasfield(typeof(rhs_data), :upper)
+        b = rhs_data.upper
+    else
+        error("Unknown JuMP RHS type: ", typeof(rhs_data))
+    end
+    return a, b
+end
+
+"""
+Extracts lower / upper bound value from a VariableRef type constraint.
+"""
+function extract_bound(model :: JuMP.Model, c :: JuMP.ConstraintRef, x :: Vector{JuMP.VariableRef})
+    #Upper and lower bounds have to be turned into explicit constraints,
+    #except for 0 lower bounds.
+    var_index = MOI.get(model, MOI.ConstraintFunction(), c)
+    x_index = 0
+    for j in 1:length(x)
+        if index(x[j]) == var_index
+            x_index = j
+            break
+        end
+    end
+    wrapped_bound = MOI.get(model, MOI.ConstraintSet(), c)
+    bound_value = 0
+    if typeof(wrapped_bound) <: MOI.GreaterThan #Lower bound
+        bound_value = wrapped_bound.lower
+    elseif typeof(wrapped_bound) <: MOI.LessThan #Upper bound
+        bound_value = wrapped_bound.upper
+    else
+        error("Unknown variable bound type, " * string(typeof(wrapped_bound)))
+    end
+    return x_index, bound_value
+end
+
+function extract_objective(obj :: JuMP.AffExpr, x :: Vector{JuMP.VariableRef})
+    @assert(typeof(obj.terms) <: OrderedCollections.OrderedDict)
+    c = zeros(Int, length(x))
+    for j in 1:length(x)
+        coef = obj.terms[x[j]]
+        c[j] = Int(round(coef))
+    end
+    return c
+end
+
+"""
+JuMP represents the objective function as a single VariableRef when possible.
+This case needs to be treated separately here.
+"""
+function extract_objective(obj::JuMP.VariableRef, x::Vector{JuMP.VariableRef})
+    c = zeros(Int, length(x))
+    index = obj.index.value
+    c[index] = 1
+    return c
+end
+
+"""
+Build an IPInstance (IPGBs instance format) from any JuMP IP model.
+
+TODO Implement something to deal with binary variables directly
+Currently, the binary upper bounds are added, but they don't end up in
+the constraint matrix because I don't allow normalization in IPInstances
+constructor. So I either have to add them here or change them somehow...
+"""
+function IPInstance(model::JuMP.Model)
+    #Extract A, b, c from the model.
+    n = num_variables(model)
+    x = all_variables(model)
+    rows = []
+    rhs = []
+    ineq_directions = []
+    upper_bounds = []
+    lower_bounds = []
+    #Extract all data from the JuMP model
+    for (t1, t2) in list_of_constraint_types(model)
+        cs = all_constraints(model, t1, t2)
+        for constraint in cs
+            if t1 <: AffExpr #Linear constraint
+                push!(ineq_directions, t2)
+                a, b = extract_constraint(model, constraint, x)
+                push!(rows, a)
+                push!(rhs, b)
+            elseif t1 <: VariableRef #Variable upper / lower bound
+                if t2 <: MOI.Integer
+                    #Explicit integrality constraints are unnecessary
+                    continue
+                elseif t2 <: MOI.ZeroOne
+                    #Binary constraints for variables added as upper bounds
+                    push!(upper_bounds, (constraint.index.value, 1))
+                    continue
+                end
+                bound = extract_bound(model, constraint, x)
+                if t2 <: MOI.LessThan #Upper bound
+                    push!(upper_bounds, bound)
+                elseif t2 <: MOI.GreaterThan #Lower bound
+                    push!(lower_bounds, bound)
+                end
+            end
+        end
+    end
+    #Build matrices
+    #TODO Deal with objective sense somehow when extracting the objective
+    c = extract_objective(objective_function(model), x)
+    #Add upper and lower bounds to A, whenever necessary
+    for (var, lb) in lower_bounds
+        if !IPGBs.is_approx_zero(lb) #Zero lower bounds may be ignored
+            #TODO Zero lbs are important for project-and-lift, add them later
+            #separately from the rest of the data
+            new_row = zeros(Int, n)
+            new_row[var] = 1
+            push!(rows, new_row)
+            push!(rhs, lb)
+            push!(ineq_directions, MOI.GreaterThan{Float64})
+        end
+    end
+    A = Int.(foldl(vcat, map(row -> row', rows)))
+    #Add slack variables for all inequalities to A
+    m = size(A, 1)
+    for i in 1:m
+        if ineq_directions[i] <: MOI.LessThan
+            #Slack in the <= case has positive coefficients
+            new_col = zeros(Int, m, 1)
+            new_col[i] = 1
+            A = hcat(A, new_col)
+        elseif ineq_directions[i] <: MOI.GreaterThan
+            #Slack in the >= case has negative coefficients
+            new_col = zeros(Int, m, 1)
+            new_col[i] = -1
+            A = hcat(A, new_col)
+        end
+    end
+    #Build right hand side vector
+    b = zeros(Int, m)
+    for i in 1:m
+        try
+            b[i] = Int(round(rhs[i]))
+        catch e
+            if isa(e, InexactError)
+                b[i] = typemax(Int)
+            else
+                throw(e)
+            end
+        end
+    end
+    #Build upper bound vector
+    u = fill(typemax(Int), size(A, 2))
+    for (var, ub) in upper_bounds
+        u[var] = ub
+    end
+    #Extend c to the slack variables
+    for _ in 1:(size(A, 2) - length(c))
+        push!(c, 0)
+    end
+    #Build the IPInstance object. The matrices here are already normalized,
+    #so no additional normalization is necessary
+    return IPInstance(A, b, reshape(c, (1, length(c))), u,
+                      apply_normalization=false)
 end
 
 """

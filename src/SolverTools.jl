@@ -66,7 +66,11 @@ function jump_model(
     else #var_type is Real / linear relaxation is used
         @variable(model, x[1:n])
     end
-    set_upper_bound.(x, u)
+    for i in 1:n
+        if u[i] != typemax(Int) #No upper bound necessary when u[i] == max int
+            set_upper_bound(x[i], u[i])
+        end
+    end
     #Set non-negativity constraints for the relevant variables
     for i in 1:n
         if nonnegative[i]
