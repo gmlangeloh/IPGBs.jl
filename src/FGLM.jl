@@ -11,46 +11,35 @@ using IPGBs.MonomialHeaps
 Add all monomials of the form x_i * `m` for all variables x_i to the heap `h` and count repetitions.
 """
 function update_monomial_heap!(
-    h :: MonomialHeap{T},
-    m :: Vector{Int}
-) where {T <: GBOrder}
+    h :: MonomialHeap{S},
+    m :: Vector{Int},
+    nf :: T
+) where {T, S <: GBOrder}
     n = length(m)
     for i in 1:n
         new_monom = copy(m)
         new_monom[i] += 1
-        push!(h, m) #Push will deal with the repetitions, if needed
+        push!(h, new_monom, nf, i) #Push will deal with the repetitions
     end
 end
 
 """
-Auxiliary struct for FGLM. Represents a monomial in the standard basis of the
-target order in the algorithm. For efficiency, these monomials are stored
-alongside their normal forms, which are known.
-"""
-struct StdBasisMonomial
-    monomial :: Vector{Int}
-    normal_form :: Vector{Int}
-end
+    find_linear_dependency(nf :: Vector{Int}, std_basis :: Dict{Vector{Int}, Vector{Int}}
 
-"""
-    find_linear_dependency(nf :: Vector{Int}, std_basis :: Vector{StdBasisMonomial})
+Return an element of `std_basis` with normal form `nf`, if such an element
+exists, otherwise return [].
 
-Return 0 if there's no element in `std_basis` with normal form `nf`.
-Otherwise, returns the index of an element with this normal form.
-
-TODO this is terribly inefficient. This search can be done using a tree or
-in some other way.
+TODO It is likely possible to do this more efficient using some special kind
+of tree. I'll leave this for later, in case it's needed.
 """
 function find_linear_dependency(
     nf :: Vector{Int},
-    std_basis :: Vector{StdBasisMonomial}
-) :: Int
-    for i in 1:length(std_basis)
-        if std_basis[i].normal_form == nf
-            return i
-        end
+    std_basis :: Dict{Vector{Int}, Vector{Int}}
+) :: Vector{Int}
+    if haskey(std_basis, nf)
+        return std_basis[nf]
     end
-    return 0
+    return []
 end
 
 """
@@ -87,6 +76,46 @@ function is_below_staircase_fast(
 end
 
 """
+    direct_normal_form(m :: WeightedMonomial, gb :: BinomialSet{T, S}, target_order :: S) where {T, S <: GBOrder}
+
+Compute the normal form of `m` with respect to `gb` by applying the usual reduction process directly.
+"""
+function direct_normal_form(
+    m :: WeightedMonomial,
+    gb :: BinomialSet{T, S},
+    target_order :: S
+) :: T where {T, S <: GBOrder}
+    m' = to_gbelement(copy(m), target_order, T)
+    nf = BinomialSets.reduce!(m', gb)
+    return nf
+end
+
+"""
+    fast_normal_form(m :: WeightedMonomial, gb :: BinomialSet{T, S}, target_order :: S) where {T, S <: GBOrder}
+
+Compute the normal form of `m` with respect to `gb` by computing NormalForm(x_i * NormalForm(m')) where m = x_i * m'.
+
+This is the method suggested in the original FGLM paper Faugère et al (1994).
+"""
+function fast_normal_form(
+    m :: WeightedMonomial,
+    gb :: BinomialSet{T, S},
+    target_order :: S
+) :: T where {T, S <: GBOrder}
+    #Two cases: either m is 1, so there is no previously known normal form,
+    #or m isn't 1, and thus we have a divisor and var index in m.
+    if m.var_index == 0
+        #Case 1: no previous normal form
+        return direct_normal_form(m, gb, target_order)
+    end
+    #Case 2: use the divisor's normal form to speed up the computation
+    prev_nf = copy(m.divisor_nf)
+    prev_nf[m.var_index] += 1
+    nf = BinomialSets.reduce!(prev_nf, gb)
+    return nf
+end
+
+"""
     fglm(gb1 :: BinomialSet{T, S}, target_order :: S) where {T, S <: GBOrder}
 
 Convert a Gröbner basis `gb1` to `target_order` using the FGLM algorithm.
@@ -104,19 +133,22 @@ function fglm(
     n = length(gb1[1])
     one = zeros(Int, n) #The monomial 1
     next_monomials = MonomialHeap(target_order, [ one ])
-    std_basis = StdBasisMonomial[]
+    #The std_basis dict maps normal forms w.r.t the source order to standard
+    #monomials in the target order
+    std_basis = Dict{Vector{Int}, Vector{Int}}()
     gb2 = T[]
     while !isempty(next_monomials)
         m = pop!(next_monomials)
         if is_below_staircase_fast(m)
-            #TODO also note that m is a WeightedMonomial here
-            normal_form = BinomialSets.reduce!(m, gb1) #TODO the typing in reduce probably doesn't allow this, I'll have to fix it later
-            ld = find_linear_dependency(normal_form, std_basis)
-            if ld == 0 #Linearly independent case, new std_basis monomial
-                push!(std_basis, StdBasisMonomial(m.monomial, normal_form))
-                update_monomial_heap!(next_monomials, m.monomial)
-            else #Linearly dependent case, new gb2 binomial
-                new_binomial = m.monomial - std_basis[ld].monomial
+            nf = fast_normal_form(m, gb1, target_order)
+            ld = find_linear_dependency(nf, std_basis)
+            if isempty(ld)
+                #Linearly independent case, new std_basis monomial
+                std_basis[nf] = m.monomial
+                update_monomial_heap!(next_monomials, m.monomial, nf)
+            else
+                #Linearly dependent case, new gb2 binomial
+                new_binomial = m.monomial - ld
                 new_elem = to_gbelement(new_binomial, target_order, T)
                 push!(gb2, new_elem)
             end

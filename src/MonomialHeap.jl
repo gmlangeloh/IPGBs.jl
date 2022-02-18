@@ -15,9 +15,16 @@ mutable struct WeightedMonomial
     monomial :: Vector{Int}
     weight :: Float64
     count :: Int
+    divisor_nf :: Vector{Int} #The normal form of a monomial dividing `monomial` when available
+    var_index :: Int #A variable such that divisor[var_index] + 1 == monomial[var_index] and divisor[i] == monomial[i] for all other i. Set to 0 in case this isn't possible
 
-    function WeightedMonomial(m :: Vector{Int}, o :: S) where {S <: GBOrder}
-        new(m, order_cost(o, m), 1)
+    function WeightedMonomial(
+        m :: Vector{Int},
+        o :: S,
+        divisor :: Vector{Int},
+        i :: Int
+    ) where {S <: GBOrder}
+        new(m, order_cost(o, m), 1, divisor, i)
     end
 end
 
@@ -53,14 +60,21 @@ end
 
 Base.isempty(h :: MonomialHeap) = isempty(h.heap)
 
-function Base.push!(h :: MonomialHeap, m :: Vector{Int})
+function Base.push!(
+    h :: MonomialHeap,
+    m :: Vector{Int},
+    divisor :: Vector{Int},
+    var_index :: Int
+)
     if haskey(h.set, m)
         wm = h.set[m]
         wm.count += 1
     else
-        wm = WeightedMonomial(m, h.o)
+        wm = WeightedMonomial(m, h.order, divisor, var_index)
     end
 end
+
+Base.push!(h::MonomialHeap, m::Vector{Int}) = push!(h,m,zeros(Int,length(m)),0)
 
 function Base.pop!(h :: MonomialHeap)
     wm = pop!(h.heap)
