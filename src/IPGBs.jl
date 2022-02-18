@@ -10,6 +10,7 @@ include("./IPInstances.jl")
 include("./Statistics.jl")
 include("./GBTools.jl")
 include("./Orders.jl")
+include("./MonomialHeap.jl")
 include("./FastComparator.jl")
 include("./GBElements.jl")
 include("./SupportTrees.jl")
@@ -36,6 +37,8 @@ import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial
 import .GradedBinomials: GradedBinomial
 
+using JuMP
+
 """
 Simple truncation works when the data in A, b are all non-negative.
 This is more efficient than IP truncation, and is exact, contrary to LP
@@ -44,19 +47,19 @@ truncation, so it should be used whenever possible.
 This function returns whether simple truncation can be used.
 """
 function use_simple_truncation(
-    A :: Array{Int, 2},
-    b :: Vector{Int}
-) :: Bool
+    A::Array{Int,2},
+    b::Vector{Int}
+)::Bool
     m, n = size(A)
     return all(A[i, j] >= 0 for j in 1:n for i in 1:m) &&
-        all(b[i] >= 0 for i in 1:m)
+           all(b[i] >= 0 for i in 1:m)
 end
 
 function parse_truncation(
-    truncation_type :: Symbol,
-    A :: Array{Int, 2},
-    b :: Vector{Int}
-) :: Tuple{Symbol, DataType}
+    truncation_type::Symbol,
+    A::Array{Int,2},
+    b::Vector{Int}
+)::Tuple{Symbol,DataType}
     var_type = Any #Only matters when some LP/IP model will be built
     if truncation_type == :Heuristic
         #Choose either LP or simple, depending on the form of A and b
@@ -88,27 +91,27 @@ Computes a Markov basis for `instance` and then uses it to compute a Gröbner
 basis.
 """
 function groebner_basis(
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{T, 2},
-    u :: Vector{Int};
-    use_signatures :: Bool = false,
-    implicit_representation :: Bool = false,
-    module_order :: Symbol = :ltpot,
-    truncation_type :: Symbol = :Heuristic,
-    quiet :: Bool = false,
-    minimization :: Bool = true
-) :: Vector{Vector{Int}} where {T <: Real}
+    A::Array{Int,2},
+    b::Vector{Int},
+    C::Array{T,2},
+    u::Vector{Int};
+    use_signatures::Bool = false,
+    implicit_representation::Bool = false,
+    module_order::Symbol = :ltpot,
+    truncation_type::Symbol = :Heuristic,
+    quiet::Bool = false,
+    minimization::Bool = true
+)::Vector{Vector{Int}} where {T<:Real}
     instance = IPInstance(A, b, C, u)
     markov = markov_basis(instance)
     return groebner_basis(
         markov, instance,
-        use_signatures=use_signatures,
-        implicit_representation=implicit_representation,
-        module_order=module_order,
-        truncation_type=truncation_type,
-        quiet=quiet,
-        minimization=minimization
+        use_signatures = use_signatures,
+        implicit_representation = implicit_representation,
+        module_order = module_order,
+        truncation_type = truncation_type,
+        quiet = quiet,
+        minimization = minimization
     )
 end
 
@@ -117,48 +120,72 @@ Computes a Markov basis for `instance` and then uses it to compute a Gröbner
 basis.
 """
 function groebner_basis(
-    instance :: IPInstance;
-    use_signatures :: Bool = false,
-    implicit_representation :: Bool = false,
-    module_order :: Symbol = :ltpot,
-    truncation_type :: Symbol = :Heuristic,
-    quiet :: Bool = false,
-    minimization :: Bool = true
-) :: Vector{Vector{Int}}
+    instance::IPInstance;
+    use_signatures::Bool = false,
+    implicit_representation::Bool = false,
+    module_order::Symbol = :ltpot,
+    truncation_type::Symbol = :Heuristic,
+    quiet::Bool = false,
+    minimization::Bool = true
+)::Vector{Vector{Int}}
     markov = markov_basis(instance)
     return groebner_basis(
         markov, instance,
-        use_signatures=use_signatures,
-        implicit_representation=implicit_representation,
-        module_order=module_order,
-        truncation_type=truncation_type,
-        quiet=quiet,
-        minimization=minimization
+        use_signatures = use_signatures,
+        implicit_representation = implicit_representation,
+        module_order = module_order,
+        truncation_type = truncation_type,
+        quiet = quiet,
+        minimization = minimization
+    )
+end
+
+"""
+Computes a Markov basis for `instance` and then uses it to compute a Gröbner
+basis.
+"""
+function groebner_basis(
+    model::JuMP.Model;
+    use_signatures::Bool = false,
+    implicit_representation::Bool = false,
+    module_order::Symbol = :ltpot,
+    truncation_type::Symbol = :Heuristic,
+    quiet::Bool = false,
+    minimization::Bool = true
+)::Vector{Vector{Int}}
+    return groebner_basis(
+        IPInstance(model),
+        use_signatures = use_signatures,
+        implicit_representation = implicit_representation,
+        module_order = module_order,
+        truncation_type = truncation_type,
+        quiet = quiet,
+        minimization = minimization
     )
 end
 
 function groebner_basis(
-    markov_basis :: Vector{Vector{Int}},
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{T, 2},
-    u :: Vector{Int};
-    use_signatures :: Bool = false,
-    implicit_representation :: Bool = false,
-    module_order :: Symbol = :ltpot,
-    truncation_type :: Symbol = :Heuristic,
-    quiet :: Bool = false,
-    minimization :: Bool = true
-) :: Vector{Vector{Int}} where {T <: Real}
+    markov_basis::Vector{Vector{Int}},
+    A::Array{Int,2},
+    b::Vector{Int},
+    C::Array{T,2},
+    u::Vector{Int};
+    use_signatures::Bool = false,
+    implicit_representation::Bool = false,
+    module_order::Symbol = :ltpot,
+    truncation_type::Symbol = :Heuristic,
+    quiet::Bool = false,
+    minimization::Bool = true
+)::Vector{Vector{Int}} where {T<:Real}
     instance = IPInstance(A, b, C, u)
     return groebner_basis(
         markov_basis, instance,
-        use_signatures=use_signatures,
-        implicit_representation=implicit_representation,
-        module_order=module_order,
-        truncation_type=truncation_type,
-        quiet=quiet,
-        minimization=minimization
+        use_signatures = use_signatures,
+        implicit_representation = implicit_representation,
+        module_order = module_order,
+        truncation_type = truncation_type,
+        quiet = quiet,
+        minimization = minimization
     )
 end
 
@@ -173,15 +200,15 @@ algorithms
 - truncation type is one of :None, :Heuristic, :LP, :IP, :Simple
 """
 function groebner_basis(
-    markov_basis :: Vector{Vector{Int}},
-    instance :: IPInstance;
-    use_signatures :: Bool = false,
-    implicit_representation :: Bool = false,
-    module_order :: Symbol = :ltpot,
-    truncation_type :: Symbol = :Heuristic,
-    quiet :: Bool = false,
-    minimization :: Bool = true
-) :: Vector{Vector{Int}}
+    markov_basis::Vector{Vector{Int}},
+    instance::IPInstance;
+    use_signatures::Bool = false,
+    implicit_representation::Bool = false,
+    module_order::Symbol = :ltpot,
+    truncation_type::Symbol = :Heuristic,
+    quiet::Bool = false,
+    minimization::Bool = true
+)::Vector{Vector{Int}}
     #Setting parameters
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
     representation = implicit_representation ? GradedBinomial : Binomial
@@ -201,11 +228,11 @@ function groebner_basis(
         )
     else
         algorithm = algorithm_type(
-            markov_basis, instance, T=representation, truncation_type=trunc_type,
-            trunc_var_type=trunc_var, minimization=use_minimization
+            markov_basis, instance, T = representation, truncation_type = trunc_type,
+            trunc_var_type = trunc_var, minimization = use_minimization
         )
     end
-    results = GBAlgorithms.run(algorithm, quiet=quiet)
+    results = GBAlgorithms.run(algorithm, quiet = quiet)
     return results
 end
 
