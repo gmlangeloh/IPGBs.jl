@@ -133,6 +133,7 @@ struct IPInstance
         @assert SolverTools.is_feasible(model)
         #Compute boundedness of variables using the model
         bounded = bounded_variables(model, model_vars)
+        SolverTools.set_jump_objective!(model, :Min, C[1, :])
         #Compute a permutation of variables of the given instance such that
         #vars appear in order: bounded, non-negative, unrestricted
         permutation, bounded_end, nonnegative_end = compute_permutation(bounded, nonnegative)
@@ -374,6 +375,23 @@ function nonnegativity_relaxation(
 end
 
 """
+    group_relaxation(instance :: IPInstance) :: IPInstance
+
+Return a new IPInstance corresponding to the relaxation in `instance` of
+the non-negativity constraints of the basic variables in the optimal solution
+of its linear relaxation.
+"""
+function group_relaxation(
+    instance :: IPInstance
+) :: IPInstance
+    basis = SolverTools.optimal_basis!(instance.model)
+    nonbasics = [ !variable for variable in basis ]
+    @assert count(basis) == instance.m
+    #Keep only the nonnegativity constraints on the non-basic variables
+    return nonnegativity_relaxation(instance, nonbasics)
+end
+
+"""
     nonnegative_data_only(instance :: IPInstance) :: Bool
 
 Return true iff all data in `instance.A` and `instance.b` is non-negative and
@@ -532,9 +550,9 @@ A permutation is represented by a vector perm such that perm[i] = j means
 that variable i is sent to j by the permutation.
 """
 function compute_permutation(
-    bounded :: Vector{Bool},
-    nonnegative :: Vector{Bool}
-) :: Tuple{Vector{Int}, Int, Int}
+    bounded::Vector{Bool},
+    nonnegative::Vector{Bool}
+)::Tuple{Vector{Int},Int,Int}
     #This code is repetitive and inefficient, but I think it is clear
     #For clarity, I'll leave it this way. It is unlikely to become a bottleneck
     @assert length(bounded) == length(nonnegative)
@@ -543,14 +561,13 @@ function compute_permutation(
     #Set bounded variables first after permutation
     n_bounded = 0
     for i in 1:n
-        if bounded[i]
+        if bounded[i] && nonnegative[i]
             n_bounded += 1
             permutation[i] = n_bounded
         end
     end
     #Next, we need to set non-negative, unbounded variables
     n_nonnegative = 0
-    n_unrestricted = 0
     if n_bounded < n #If every variable is bounded, skip this
         for i in 1:n
             if !bounded[i] && nonnegative[i]
@@ -560,6 +577,7 @@ function compute_permutation(
         end
     end
     #Set unrestricted variables last in the permutation
+    n_unrestricted = 0
     if n_bounded + n_nonnegative < n
         for i in 1:n
             if !nonnegative[i]
@@ -568,6 +586,7 @@ function compute_permutation(
             end
         end
     end
+    @show n_bounded n_nonnegative n_unrestricted n
     @assert n_bounded + n_nonnegative + n_unrestricted == n
     bounded_end = n_bounded
     nonnegative_end = n_bounded + n_nonnegative

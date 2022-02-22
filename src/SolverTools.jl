@@ -12,6 +12,30 @@ const LP_SOLVER = Clp
 const GENERAL_SOLVER = CPLEX
 
 """
+    optimal_basis!(model :: JuMP.Model) :: Vector{Bool}
+
+Return a boolean vector with value true at index i iff the i-th variable is
+basic at the optimal solution of `model`.
+
+This function calls `optimize!` on `model` in order to be self-contained.
+"""
+function optimal_basis!(
+    model :: JuMP.Model
+) :: Vector{Bool}
+    optimize!(model)
+    x = all_variables(model)
+    n = length(x)
+    basis = fill(false, n)
+    for i in 1:n
+        status = MOI.get(model, MOI.VariableBasisStatus(), x[i])
+        if status == MOI.BASIC
+            basis[i] = true
+        end
+    end
+    return basis
+end
+
+"""
 Computes a strictly positive vector in the row span of `A` using
 linear programming. Assumes Ax = b is feasible, and
 max x
@@ -148,6 +172,18 @@ function is_bounded(
         return true
     end
     return false
+end
+
+function set_jump_objective!(
+    model :: JuMP.Model,
+    direction :: Symbol,
+    c :: Vector{T}
+) where {T <: Real}
+    if direction == :Max
+        @objective(model, Max, c' * all_variables(model))
+    else
+        @objective(model, Min, c' * all_variables(model))
+    end
 end
 
 """
