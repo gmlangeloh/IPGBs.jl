@@ -40,7 +40,7 @@ struct MonomialHeap{T <: GBOrder}
     set :: Dict{Vector{Int}, WeightedMonomial}
     order :: T
 
-    function MonomialHeap(o :: T)
+    function MonomialHeap{T}(o :: T) where {T <: GBOrder}
         h = BinaryMinHeap{WeightedMonomial}()
         s = Dict{Vector{Int}, WeightedMonomial}()
         new(h, s, o)

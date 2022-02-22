@@ -85,8 +85,8 @@ function direct_normal_form(
     gb :: BinomialSet{T, S},
     target_order :: S
 ) :: T where {T, S <: GBOrder}
-    m' = to_gbelement(copy(m), target_order, T)
-    nf = BinomialSets.reduce!(m', gb)
+    new_m = to_gbelement(copy(m), target_order, T)
+    nf = BinomialSets.reduce!(new_m, gb)
     return nf
 end
 

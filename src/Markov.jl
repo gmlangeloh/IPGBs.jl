@@ -23,8 +23,10 @@ using IPGBs.GBElements
 using IPGBs.IPInstances
 
 """
-Changes `H` to an upper row HNF matrix satisfying the following property:
-- all entries above a pivot are non-positive and of smaller magnitude than the pivot
+    normalize_hnf!(H :: Generic.MatSpaceElem{T})
+
+Change `H` to an upper row HNF matrix satisfying the following property:
+all entries above a pivot are non-positive and of smaller magnitude than the pivot
 
 Assumes `H` is already in HNF as defined by AbstractAlgebra.jl, that is, it is in
 upper row HNF satisfying:
@@ -53,7 +55,9 @@ function normalize_hnf!(
 end
 
 """
-Verifies whether `H` is in normalized HNF form as defined in `normalize_hnf!`.
+    is_normalized_hnf(H :: Generic.MatSpaceElem{T})
+
+Return true iff `H` is in normalized HNF form as defined in `normalize_hnf!`.
 """
 function is_normalized_hnf(
     H :: Generic.MatSpaceElem{T}
@@ -77,22 +81,26 @@ function is_normalized_hnf(
 end
 
 """
-Given a saturated lattice in the form L = {x | Ax = 0} find a lattice basis
-for it using the AbstractAlgebra library.
+    lattice_basis(A :: Matrix{Int}) :: Vector{Vector{BigInt}}
+
+Find a lattice basis for the saturated lattice in the form L = {x | Ax = 0} using the
+AbstractAlgebra library.
 """
 function lattice_basis(
-    A :: Array{Int, 2}
+    A :: Matrix{Int}
 ) :: Vector{Vector{BigInt}}
     m, n = size(A)
     space = MatrixSpace(ZZ, m, n)
-    rank, basis = kernel(space(A))
+    _, basis = kernel(space(A))
     julia_form = Array(basis)
     return [ julia_form[:, j] for j in 1:size(julia_form, 2)]
 end
 
 """
-Computes a subset of `markov` including only vectors which shouldn't be
-truncated according to the rule given by `truncation_type`.
+    truncate_markov(markov :: Vector{Vector{Int}}, instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
+
+Compute a subset of `markov` including only vectors which shouldn't be truncated
+according to the rule given by `truncation_type`.
 """
 function truncate_markov(
     markov :: Vector{Vector{Int}},
@@ -118,6 +126,13 @@ random_lifting(sigma) = rand(sigma)
 minimum_lifting(sigma) = minimum(sigma)
 
 """
+    project_and_lift(instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
+
+Compute a Markov basis of `instance` using the project-and-lift algorithm.
+
+Truncation is done with respect to `truncation_type`. If `truncation_type` is None, then
+a full Markov basis is computed instead.
+
 TODO I probably could make projections more efficient. But at least
 this way they are very simple to implement...
 """
@@ -176,8 +191,13 @@ function project_and_lift(
 end
 
 """
-Computes a Markov basis with the simplified algorithm. Assumes all data in
+    simple_markov(instance :: IPInstance) :: Vector{Vector{Int}}
+
+Compute a Markov basis of `instance` with the simplified algorithm. Assumes all data in
 instance.A and instance.b is non-negative.
+
+The simplified algorithm uses the fact (proved in, e.g. Thomas and Weismantel (1997))
+that the unit vectors on the original variables of the IP form a Markov basis.
 """
 function simple_markov(
     instance :: IPInstance
@@ -199,8 +219,10 @@ function simple_markov(
 end
 
 """
-Computes a Markov basis of `instance`.
+Compute a Markov basis of an IP.
 """
+function markov_basis end
+
 function markov_basis(
     instance :: IPInstance;
     algorithm :: Symbol = :Any,
@@ -223,13 +245,6 @@ function markov_basis(
     return basis
 end
 
-"""
-Computes a Markov basis for the IP instance
-
-min C * x
-s.t. A * x = b
-0 <= x <= u
-"""
 function markov_basis(
     A :: Array{Int, 2},
     b :: Vector{Int},
