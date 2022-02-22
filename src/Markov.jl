@@ -83,8 +83,10 @@ end
 """
     lattice_basis(A :: Matrix{Int}) :: Vector{Vector{BigInt}}
 
-Find a lattice basis for the saturated lattice in the form L = {x | Ax = 0} using the
-AbstractAlgebra library.
+Find a lattice basis for the saturated lattice in the form L = {x | Ax = 0}
+using the AbstractAlgebra library.
+
+TODO Do I need this? Why? Review project-and-lift.
 """
 function lattice_basis(
     A :: Matrix{Int}
@@ -94,6 +96,26 @@ function lattice_basis(
     _, basis = kernel(space(A))
     julia_form = Array(basis)
     return [ julia_form[:, j] for j in 1:size(julia_form, 2)]
+end
+
+"""
+    lex_groebner_basis(A :: Matrix{Int})
+
+Compute a lex Gröbner basis of `A` using the HNF algorithm.
+
+It is assumed the toric ideal I_A is zero-dimensional.
+TODO not sure this is the lex-gb I want. Review the theory on that!
+"""
+function lex_groebner_basis(
+    A :: Matrix{Int}
+)
+    m, n = size(A)
+    Mmn = MatrixSpace(ZZ, m, n)
+    rnk, basis = kernel(Mmn(A))
+    basis = basis' #Put the basis in row form
+    hnf_basis = hnf(basis)
+    normalize_hnf!(hnf_basis)
+    return rnk, hnf_basis
 end
 
 """
@@ -140,17 +162,11 @@ function project_and_lift(
     instance :: IPInstance;
     truncation_type :: Symbol = :None
 ) :: Vector{Vector{Int}}
-    #Compute lattice basis, TODO refactor
-    m, n = size(instance.A)
-    Mmn = MatrixSpace(ZZ, m, n)
-    rank, basis = kernel(Mmn(instance.A))
-    basis = basis' #Put the basis in row form
-    hnf_basis = hnf(basis)
-    normalize_hnf!(hnf_basis)
+    rank, hnf_basis = lex_groebner_basis(instance.A)
     @show hnf_basis
     #Now, the first `rank` columns of hnf_basis should be LI
     #and thus a Markov basis of the corresponding projection
-    sigma = Vector(rank+1:n)
+    sigma = Vector(rank+1:instance.n)
     nonnegative = nonnegative_vars(instance)
     for s in sigma
         nonnegative[s] = false
@@ -200,9 +216,11 @@ The simplified algorithm uses the fact (proved in, e.g. Thomas and Weismantel (1
 that the unit vectors on the original variables of the IP form a Markov basis.
 """
 function simple_markov(
-    instance :: IPInstance
-) :: Vector{Vector{Int}}
-    @assert is_nonnegative(instance) #Check whether the hypotheses hold
+    instance::IPInstance
+)::Vector{Vector{Int}}
+    #Check whether the hypotheses hold
+    @assert IPInstances.nonnegative_data_only(instance)
+    #Build "trivial" Markov basis
     n = size(instance.A, 2) - size(instance.A, 1)
     m = size(instance.A, 1) - n
     basis = Vector{Int}[]
@@ -229,7 +247,7 @@ function markov_basis(
     truncation_type :: Symbol = :None
 ) :: Vector{Vector{Int}}
     if algorithm == :Any
-        if is_nonnegative(instance)
+        if IPInstances.nonnegative_data_only(instance)
             #The Simple algorithm may be used, so use it.
             algorithm = :Simple
         else

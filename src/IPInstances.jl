@@ -1,15 +1,12 @@
 """
 TODO implement 'projections'
 - 4ti2 implements projections where some variables are set to unrestricted
-- I should do this as well, as soon as I finish implementing the above point on
-unrestricted variables
+- I should do this as well, as soon as I finish implementing the above point on unrestricted variables
+TODO Isn't this done already? Why didn't I delete the above todo before?
 """
 module IPInstances
 
-export IPInstance, original_matrix, original_rhs, original_upper_bounds,
-    original_objective, nonnegative_vars, invert_permutation, is_nonnegative,
-    is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation,
-    random_instance
+export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation
 
 import LinearAlgebra: I
 using JuMP
@@ -19,7 +16,9 @@ using IPGBs
 using IPGBs.SolverTools
 
 """
-Transforms a problem in the form:
+    normalize_ip(A :: Matrix{Int}, b :: Vector{Int}, c :: Matrix{T}, u :: Vector{Int}, nonnegative :: Vector{Bool}; ...) where {T <: Real}
+
+Transform a problem in the form:
 max C * x
 s.t. Ax <= b
 0 <= x <= u
@@ -31,10 +30,10 @@ x == u
 
 by adding slack variables.
 """
-function normalize(
-    A :: Array{Int, 2},
+function normalize_ip(
+    A :: Matrix{Int},
     b :: Vector{Int},
-    C :: Array{T, 2},
+    C :: Matrix{T},
     u :: Vector{Int},
     nonnegative :: Vector{Bool};
     apply_normalization :: Bool = true,
@@ -64,12 +63,15 @@ end
 Represents an instance of a problem
 
 min C * x
+
 s.t. A * x = b
+
 0 <= x <= u
+
 x in ZZ^n
 
 The instance is stored in normalized form, with permuted variables so that
-the variables appear in the following order: bounded, non-negative, unrestricted.
+the variables appear in the following order: bounded, non-negative but unbounded, unrestricted.
 """
 struct IPInstance
     #Problem data
@@ -118,7 +120,7 @@ struct IPInstance
             nonnegative = [ true for _ in 1:n ]
         end
         #Normalization of the data to the form Ax = b, minimization...
-        A, b, C, u, nonnegative = normalize(
+        A, b, C, u, nonnegative = normalize_ip(
             A, b, C, u, nonnegative,
             apply_normalization=apply_normalization,
             invert_objective=invert_objective
@@ -149,10 +151,18 @@ struct IPInstance
 end
 
 """
-Extracts numerical coefficients from a JuMP constraint. Assumes
-this is a scalar constraint (= a single constraint)
+    extract_constraint(model :: JuMP.Model, c :: JuMP.ConstraintRef, x :: Vector{JuMP.VariableRef})
+
+Extract numerical coefficients from a JuMP constraint, returning a vector
+with left-hand side coefficients and the right-hand side value.
+
+Assumes this is a scalar constraint (= a single constraint).
 """
-function extract_constraint(model::JuMP.Model, c::JuMP.ConstraintRef, x::Vector{JuMP.VariableRef})
+function extract_constraint(
+    model :: JuMP.Model,
+    c :: JuMP.ConstraintRef,
+    x :: Vector{JuMP.VariableRef}
+)
     lhs_data = MOI.get(model, MOI.ConstraintFunction(), c)
     #List of pairs (coef, variable) where variable is a MOI.VariableIndex
     #this index can be compared to index(:: VariableRef)
@@ -181,9 +191,15 @@ function extract_constraint(model::JuMP.Model, c::JuMP.ConstraintRef, x::Vector{
 end
 
 """
-Extracts lower / upper bound value from a VariableRef type constraint.
+    extract_bound(model :: JuMP.Model, c :: JuMP.ConstraintRef, x :: Vector{JuMP.VariableRef})
+
+Extract lower / upper bound value from a VariableRef type constraint `c`.
 """
-function extract_bound(model :: JuMP.Model, c :: JuMP.ConstraintRef, x :: Vector{JuMP.VariableRef})
+function extract_bound(
+    model :: JuMP.Model,
+    c :: JuMP.ConstraintRef,
+    x :: Vector{JuMP.VariableRef}
+)
     #Upper and lower bounds have to be turned into explicit constraints,
     #except for 0 lower bounds.
     var_index = MOI.get(model, MOI.ConstraintFunction(), c)
@@ -215,11 +231,10 @@ function extract_objective(obj :: JuMP.AffExpr, x :: Vector{JuMP.VariableRef})
     return c
 end
 
-"""
-JuMP represents the objective function as a single VariableRef when possible.
-This case needs to be treated separately here.
-"""
 function extract_objective(obj::JuMP.VariableRef, x::Vector{JuMP.VariableRef})
+    # JuMP represents the objective function as a single VariableRef when
+    #possible.
+    # This case needs to be treated separately here.
     c = zeros(Int, length(x))
     index = obj.index.value
     c[index] = 1
@@ -239,9 +254,6 @@ function extract_objective(
     return c
 end
 
-"""
-Build an IPInstance (IPGBs instance format) from any JuMP IP model.
-"""
 function IPInstance(model::JuMP.Model)
     #Extract A, b, c from the model.
     n = num_variables(model)
@@ -344,8 +356,11 @@ function IPInstance(model::JuMP.Model)
 end
 
 """
-Returns a new IPInstance corresponding to the relaxation of non-negative
-constraints given by `nonnegative` in `instance`.
+    nonnegativity_relaxation(instance :: IPInstance, nonnegative :: Vector{Bool}) :: IPInstance
+
+Return a new IPInstance corresponding to the relaxation of `instance`
+consisting of only keeping the non-negativity constraints of variables
+marked in `nonnegative`.
 """
 function nonnegativity_relaxation(
     instance :: IPInstance,
@@ -359,10 +374,12 @@ function nonnegativity_relaxation(
 end
 
 """
-Returns true iff all data in instance.A and instance.b is non-negative and
+    nonnegative_data_only(instance :: IPInstance) :: Bool
+
+Return true iff all data in `instance.A` and `instance.b` is non-negative and
 all variables are non-negative.
 """
-function is_nonnegative(
+function nonnegative_data_only(
     instance :: IPInstance
 ) :: Bool
     vars_nonneg = instance.nonnegative_end == instance.n
@@ -372,8 +389,10 @@ function is_nonnegative(
 end
 
 """
-Updates the objective function of `instance` to maximizing its i-th
-variable (= minimizing -x_i)
+    update_objective!(instance :: IPInstance, i :: Int)
+
+Update the objective function of `instance` to maximizing its `i`-th variable
+(= minimizing -x_i)
 """
 function update_objective!(
     instance :: IPInstance,
@@ -423,11 +442,11 @@ end
 #
 
 """
-Computes a boolean array indicating whether a given variable is bounded.
+    bounded_variables(model :: JuMP.Model, model_vars :: Vector{JuMP.VariableRef}) :: Vector{Bool}
 
-A variable x_i is bounded for the given model iff
-max {x_i | x feasible for model}
-is bounded. The model is assumed to be feasible.
+Return a boolean array indicating whether a given variable is bounded.
+
+A variable x_i is bounded for the given model iff max {x_i | x feasible for model} is bounded. The model is assumed to be feasible.
 """
 function bounded_variables(
     model :: JuMP.Model,
@@ -442,7 +461,9 @@ function bounded_variables(
 end
 
 """
-Returns true iff variable i is nonnegative.
+    is_nonnegative(i :: Int, instance :: IPInstance) :: Bool
+
+Return true iff the variable of index `i` in `instance` is nonnegative.
 """
 function is_nonnegative(
     i :: Int,
@@ -452,7 +473,9 @@ function is_nonnegative(
 end
 
 """
-Returns true iff variable i is bounded.
+    is_bounded(i :: Int, instance :: IPInstance) :: Bool
+
+Return true iff the variable of index `i` in `instance` is bounded.
 """
 function is_bounded(
     i :: Int,
@@ -462,7 +485,9 @@ function is_bounded(
 end
 
 """
-Returns a vector indicating whether each variable of `instance` is non-negative.
+    nonnegative_vars(instance :: IPInstance) :: Vector{Bool}
+
+Return a boolean vector indicating whether each variable of `instance` is non-negative.
 """
 function nonnegative_vars(
     instance :: IPInstance
@@ -471,7 +496,10 @@ function nonnegative_vars(
 end
 
 """
-Returns a vector u in kernel(instance.A) proving that x_i is unbounded.
+    unboundedness_proof(instance :: IPInstance, nonnegative :: Vector{Bool}, i :: Int) :: Vector{Int}
+
+Return a vector `u` in kernel(`instance.A`) proving that the variable of
+index `i` is unbounded.
 """
 function unboundedness_proof(
     instance :: IPInstance,
@@ -493,11 +521,12 @@ end
 #
 
 """
-Computes a permutation of variables that puts the variables in the following
-order: bounded, then unbounded (but restricted) and finally unrestricted.
+    compute_permutation(bounded :: Vector{Bool}, nonnegative :: Vector{Bool}) :: Tuple{Vector{Int}, Int, Int}
+
+Return a permutation of variables that puts the variables in the order [ bounded ; unbounded and restricted ; unrestricted ], along with the indices of the last bounded variable and the last unbounded but restricted variable.
+
 This operation should be stable with respect to the initial ordering of
-variables. In addition to the permutation, returns the index of the last
-bounded variable and the index of the last non-negative variable.
+variables.
 
 A permutation is represented by a vector perm such that perm[i] = j means
 that variable i is sent to j by the permutation.
@@ -546,7 +575,9 @@ function compute_permutation(
 end
 
 """
-Applies `permutation` to each vector in `vector_set`.
+    apply_permutation(vector_set :: Vector{Vector{Int}}, permutation :: Vector{Int}) :: Vector{Vector{Int}}
+
+Apply `permutation` to each vector in `vector_set`.
 """
 function apply_permutation(
     vector_set :: Vector{Vector{Int}},
@@ -562,9 +593,14 @@ function apply_permutation(
 end
 
 """
-Inverts the variable permutation of `instance` over `vector_set`.
+    original_variable_order(vector_set :: Vector{Vector{Int}}, instance :: IPInstance) :: Vector{Vector{Int}}
+
+Invert the variable permutation of `instance` over `vector_set`, returning to
+the original problem's variable order.
+
+This is useful to give users output in the same variable order they input.
 """
-function invert_permutation(
+function original_variable_order(
     vector_set :: Vector{Vector{Int}},
     instance :: IPInstance
 ) :: Vector{Vector{Int}}
@@ -576,9 +612,11 @@ end
 #
 
 """
-Returns a random feasible IPInstance with `m` constraints and `n` variables.
+    random_instance(m :: Int, n :: Int) :: IPInstance
+
+Return a random feasible IPInstance with `m` constraints and `n` variables.
 """
-function random_instance(
+function random_ipinstance(
     m :: Int,
     n :: Int
 ) :: IPInstance
