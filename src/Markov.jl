@@ -12,7 +12,7 @@ iteratively computing parts of the GB and continuing later
 """
 module Markov
 
-export markov_basis
+export markov_basis, lex_groebner_basis
 
 using AbstractAlgebra
 
@@ -121,7 +121,7 @@ function group_relaxation_basis(
 end
 
 """
-    lex_groebner_basis(A :: Matrix{Int})
+    lex_groebner_basis(instance :: IPInstance) :: BinomialSet
 
 Compute a lex Gröbner basis of `instance` using the HNF algorithm.
 
@@ -130,11 +130,11 @@ the lattice optimization problem given by `instance` is of rank n.
 """
 function lex_groebner_basis(
     instance :: IPInstance
-) :: BinomialSet{T, S} where {T, S <: GBOrder}
+) :: BinomialSet
     basis = group_relaxation_basis(instance)
     uhnf_basis = hnf(basis)
     normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
-    monomial_order = MonomialOrder(instance)
+    monomial_order = Orders.lex_order(instance, instance.nonnegative_end)
     gb_vectors = Vector{Int}[]
     try
         #Convert lex GB elements to Vector{Int}

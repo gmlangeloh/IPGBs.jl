@@ -51,7 +51,7 @@ function MonomialHeap(
     o :: T,
     monoms :: Vector{Vector{Int}}
 ) where {T <: GBOrder}
-    heap = MonomialHeap(o)
+    heap = MonomialHeap{T}(o)
     for m in monoms
         push!(heap, m)
     end

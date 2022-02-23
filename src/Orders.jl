@@ -69,18 +69,38 @@ mutable struct MonomialOrder <: GBOrder
     end
 end
 
-function MonomialOrder(instance :: IPInstance)
-    return MonomialOrder(instance.C, instance.A, instance.b, true)
+function MonomialOrder(
+    instance :: IPInstance,
+    vars :: Union{Int, Nothing} = nothing
+)
+    max_index = instance.n
+    if !isnothing(vars)
+        max_index = vars
+    end
+    return MonomialOrder(instance.C[:, 1:max_index],
+                         instance.A[:, 1:max_index], instance.b, true)
 end
 
 """
     lex_order(instance :: IPInstance) :: MonomialOrder
 
 Return the lex monomial order with x1 > x2 > ... > xn for `instance`.
+
+The optional parameter `vars` considers only the first `vars` variables of
+`instance` when constructing the lex order. This is useful for group
+relaxations.
 """
-function lex_order(instance :: IPInstance) :: MonomialOrder
+function lex_order(
+    instance :: IPInstance,
+    vars :: Union{Int, Nothing} = nothing
+) :: MonomialOrder
     C = Matrix{Float64}(I(instance.n))
-    return MonomialOrder(C, instance.A, instance.b, true)
+    max_index = instance.n
+    if !isnothing(vars)
+        max_index = vars
+    end
+    return MonomialOrder(C[:, 1:max_index], instance.A[:, 1:max_index],
+                         instance.b, true)
 end
 
 """

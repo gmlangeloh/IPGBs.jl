@@ -1,5 +1,7 @@
 module FGLM
 
+export fglm
+
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.Orders

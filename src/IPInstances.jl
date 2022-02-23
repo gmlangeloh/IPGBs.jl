@@ -6,7 +6,7 @@ TODO Isn't this done already? Why didn't I delete the above todo before?
 """
 module IPInstances
 
-export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation
+export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation
 
 import LinearAlgebra: I
 using JuMP
@@ -133,9 +133,6 @@ struct IPInstance
         #Compute boundedness of variables using the model
         bounded = bounded_variables(model, model_vars)
         SolverTools.set_jump_objective!(model, :Min, C[1, :])
-        @show collect(1:13)
-        @show nonnegative
-        @show bounded
         #Compute a permutation of variables of the given instance such that
         #vars appear in order: bounded, non-negative, unrestricted
         permutation, bounded_end, nonnegative_end = compute_permutation(bounded, nonnegative)
