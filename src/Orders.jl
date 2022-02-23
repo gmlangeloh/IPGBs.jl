@@ -2,6 +2,8 @@ module Orders
 
 export GBOrder, MonomialOrder, is_inverted, order_cost
 
+import LinearAlgebra: I
+
 using IPGBs.GBTools
 using IPGBs.IPInstances
 using IPGBs.SolverTools
@@ -16,8 +18,16 @@ is_inverted(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
 order_cost(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
 
 """
-Returns a new matrix with the rows of C plus new rows consisting of
-a grevlex tiebreaker, if C might not specify a full monomial order.
+    build_order(C :: Matrix{Float64}, A :: Matrix{Int}, b :: Vector{Int})
+
+Return a matrix defining the same monomial order as C but with additional
+revlex tiebreaking, if necessary, and with only positive entries in the
+first column.
+
+The matrix is returned in column-major form for efficiency, that is, the
+first weight vector used in monomial comparison corresponds to the first
+column of the matrix, instead of the first row as is usual in the GB
+literature.
 """
 function build_order(
     C :: Array{Float64, 2},
@@ -64,8 +74,21 @@ function MonomialOrder(instance :: IPInstance)
 end
 
 """
-The cost of some vector according to the cost matrix of `order`. This is
-the vector weighted by the first column of the cost matrix.
+    lex_order(instance :: IPInstance) :: MonomialOrder
+
+Return the lex monomial order with x1 > x2 > ... > xn for `instance`.
+"""
+function lex_order(instance :: IPInstance) :: MonomialOrder
+    C = Matrix{Float64}(I(instance.n))
+    return MonomialOrder(C, instance.A, instance.b, true)
+end
+
+"""
+    order_cost(order :: MonomialOrder, v :: AbstractVector{Int})
+
+The cost of some vector according to the cost matrix of `order`.
+
+This is the vector weighted by the first column of the cost matrix.
 """
 function order_cost(
     order :: MonomialOrder,
@@ -80,9 +103,6 @@ Base.length(o :: MonomialOrder) = size(o.cost_matrix, 2)
 #in cmp / lt below regardless.
 Base.getindex(o :: MonomialOrder, i, j) = o.cost_matrix[j, i]
 
-"""
-Efficient comparison of vectors with respect to a monomial order.
-"""
 function Base.cmp(
     order :: MonomialOrder,
     v1 :: T,
@@ -115,7 +135,9 @@ function Base.lt(
 end
 
 """
-Inverts `result` in case `order` is a maximization order.
+    invert_maximization(order :: MonomialOrder, result :: Bool)
+
+Invert `result` when `order` is a maximization order.
 """
 function invert_maximization(
     order :: MonomialOrder,
@@ -130,7 +152,9 @@ function invert_maximization(
 end
 
 """
-Returns true iff the trailing and leading terms of `v` are inverted with
+    is_inverted_generic(order :: MonomialOrder, v :: T) :: Bool where {T <: AbstractVector{Int}}
+
+Return true iff the trailing and leading terms of `v` are inverted with
 respect to `order`.
 """
 function is_inverted_generic(
@@ -152,7 +176,13 @@ function is_inverted_generic(
 end
 
 """
+    is_inverted_invlex(order :: MonomialOrder, v :: T) :: Bool where {T <: AbstractVector{Int}}
+
+Return true iff the trailing and leading terms of `v` are inverted with
+respect to the invlex order.
+
 `v` is inverted according to invlex iff its first non-zero entry is positive.
+Inversion testing is thus done more efficiently in the invlex case.
 """
 function is_inverted_invlex(
     order :: MonomialOrder,
@@ -169,7 +199,9 @@ function is_inverted_invlex(
 end
 
 """
-Efficiently returns whether v's leading and trailing terms are inverted.
+    is_inverted(order :: MonomialOrder, v :: T, cost :: Int) :: Bool where {T <: AbstractVector{Int}}
+
+Efficiently return whether v's leading and trailing terms are inverted.
 """
 function is_inverted(
     order :: MonomialOrder,
@@ -187,8 +219,11 @@ function is_inverted(
 end
 
 """
-Changes the order stored in MonomialOrder to a new order. Rebuilds
-tiebreaker if necessary.
+    change_ordering!(order :: MonomialOrder, new_order :: Matrix{Float64}, A :: Matrix{Int}, b :: Vector{Int})
+
+Change the order stored in MonomialOrder to a new order.
+
+The tiebreaker is rebuilt if necessary.
 """
 function change_ordering!(
     order :: MonomialOrder,
