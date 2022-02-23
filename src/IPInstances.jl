@@ -647,7 +647,7 @@ function random_ipinstance(
         b = rand(5:20, m)
         C = rand(-10:-1, 1, n)
         u = [ typemax(Int) for _ in 1:n ]
-        instance = IPInstance(A, b, C, u)
+        instance = IPInstance(A, b, C, u, invert_objective=false)
         #Check feasibility
         model, _, _ = SolverTools.feasibility_model(
             instance.A, instance.b, instance.u, nonnegative_vars(instance), Int
