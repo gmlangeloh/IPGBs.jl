@@ -3,6 +3,7 @@ module Orders
 export GBOrder, MonomialOrder, is_inverted, order_cost
 
 using IPGBs.GBTools
+using IPGBs.IPInstances
 using IPGBs.SolverTools
 
 """
@@ -56,6 +57,10 @@ mutable struct MonomialOrder <: GBOrder
     function MonomialOrder(costs :: Array{Float64, 2}, A, b, is_minimization)
         new(build_order(costs, A, b), :invlex, is_minimization)
     end
+end
+
+function MonomialOrder(instance :: IPInstance)
+    return MonomialOrder(instance.C, instance.A, instance.b, true)
 end
 
 """

@@ -10,7 +10,6 @@ export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_obj
 
 import LinearAlgebra: I
 using JuMP
-using OrderedCollections
 
 using IPGBs
 using IPGBs.SolverTools
@@ -101,14 +100,14 @@ struct IPInstance
 
     #TODO put a parameter to determine whether it is minimization or not
     function IPInstance(
-        A :: Array{Int, 2},
-        b :: Vector{Int},
-        C :: Array{T, 2},
-        u :: Vector{Int},
-        nonnegative :: Union{Nothing, Vector{Bool}} = nothing;
-        apply_normalization :: Bool = true,
-        invert_objective :: Bool = true
-    ) where {T <: Real}
+        A::Array{Int,2},
+        b::Vector{Int},
+        C::Array{T,2},
+        u::Vector{Int},
+        nonnegative::Union{Nothing,Vector{Bool}} = nothing;
+        apply_normalization::Bool = true,
+        invert_objective::Bool = true
+    ) where {T<:Real}
         m, n = size(A)
         @assert m == length(b)
         @assert n == size(C, 2)
@@ -117,13 +116,13 @@ struct IPInstance
         #If no non-negativity constraints are specified, assume all variables
         #are non-negative
         if isnothing(nonnegative)
-            nonnegative = [ true for _ in 1:n ]
+            nonnegative = [true for _ in 1:n]
         end
         #Normalization of the data to the form Ax = b, minimization...
         A, b, C, u, nonnegative = normalize_ip(
             A, b, C, u, nonnegative,
-            apply_normalization=apply_normalization,
-            invert_objective=invert_objective
+            apply_normalization = apply_normalization,
+            invert_objective = invert_objective
         )
         new_m, new_n = size(A)
         C = Float64.(C)
@@ -134,6 +133,9 @@ struct IPInstance
         #Compute boundedness of variables using the model
         bounded = bounded_variables(model, model_vars)
         SolverTools.set_jump_objective!(model, :Min, C[1, :])
+        @show collect(1:13)
+        @show nonnegative
+        @show bounded
         #Compute a permutation of variables of the given instance such that
         #vars appear in order: bounded, non-negative, unrestricted
         permutation, bounded_end, nonnegative_end = compute_permutation(bounded, nonnegative)
@@ -563,7 +565,7 @@ function compute_permutation(
     for i in 1:n
         if bounded[i] && nonnegative[i]
             n_bounded += 1
-            permutation[i] = n_bounded
+            permutation[n_bounded] = i
         end
     end
     #Next, we need to set non-negative, unbounded variables
@@ -572,7 +574,7 @@ function compute_permutation(
         for i in 1:n
             if !bounded[i] && nonnegative[i]
                 n_nonnegative += 1
-                permutation[i] = n_bounded + n_nonnegative
+                permutation[n_bounded + n_nonnegative] = i
             end
         end
     end
@@ -582,11 +584,10 @@ function compute_permutation(
         for i in 1:n
             if !nonnegative[i]
                 n_unrestricted += 1
-                permutation[i] = n_bounded + n_nonnegative + n_unrestricted
+                permutation[n_bounded + n_nonnegative + n_unrestricted] = i
             end
         end
     end
-    @show n_bounded n_nonnegative n_unrestricted n
     @assert n_bounded + n_nonnegative + n_unrestricted == n
     bounded_end = n_bounded
     nonnegative_end = n_bounded + n_nonnegative

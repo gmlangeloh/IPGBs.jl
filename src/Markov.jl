@@ -17,10 +17,12 @@ export markov_basis
 using AbstractAlgebra
 
 using IPGBs.Binomials
+using IPGBs.BinomialSets
 using IPGBs.Buchberger
 using IPGBs.GBAlgorithms
 using IPGBs.GBElements
 using IPGBs.IPInstances
+using IPGBs.Orders
 
 """
     normalize_hnf!(H :: Generic.MatSpaceElem{T})
@@ -38,7 +40,7 @@ function normalize_hnf!(
     m, n = size(H)
     for i in 1:m
         #Find the pivot in row i
-        j = i + 1
+        j = i
         while j <= n && H[i, j] == 0
             j += 1
         end
@@ -99,23 +101,56 @@ function lattice_basis(
 end
 
 """
+    group_relaxation_basis(instance :: IPInstance)
+
+Return a (row) basis of the lattice L = {x | instance.A * x = 0} with x[i]
+non-negative according to `instance`.
+
+It is assumed that `instance` is a group relaxation, that is, has the
+non-negativity constraint relaxed in exactly m variables.
+"""
+function group_relaxation_basis(
+    instance :: IPInstance
+)
+    m, n = size(instance.A)
+    mn_space = MatrixSpace(ZZ, m, n)
+    rnk, full_col_basis = kernel(mn_space(instance.A))
+    @assert rnk == n - m
+    projected_row_basis = transpose(full_col_basis[1:rnk, :])
+    return projected_row_basis
+end
+
+"""
     lex_groebner_basis(A :: Matrix{Int})
 
-Compute a lex Gröbner basis of `A` using the HNF algorithm.
+Compute a lex Gröbner basis of `instance` using the HNF algorithm.
 
-It is assumed the toric ideal I_A is zero-dimensional.
-TODO not sure this is the lex-gb I want. Review the theory on that!
+It is assumed the toric ideal of `instance.A` is zero-dimensional, i.e. that
+the lattice optimization problem given by `instance` is of rank n.
 """
 function lex_groebner_basis(
-    A :: Matrix{Int}
-)
-    m, n = size(A)
-    Mmn = MatrixSpace(ZZ, m, n)
-    rnk, basis = kernel(Mmn(A))
-    basis = basis' #Put the basis in row form
-    hnf_basis = hnf(basis)
-    normalize_hnf!(hnf_basis)
-    return rnk, hnf_basis
+    instance :: IPInstance
+) :: BinomialSet{T, S} where {T, S <: GBOrder}
+    basis = group_relaxation_basis(instance)
+    uhnf_basis = hnf(basis)
+    normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
+    monomial_order = MonomialOrder(instance)
+    gb_vectors = Vector{Int}[]
+    try
+        #Convert lex GB elements to Vector{Int}
+        gb_vectors = [
+            reshape(Int.(Array(uhnf_basis[i, :])), ncols(uhnf_basis))
+            for i in 1:nrows(uhnf_basis)
+        ]
+    catch e
+        if isa(e, InexactError)
+            error("Overflow in lex GB conversion.")
+        else
+            error("Unknown issue in converting lex GB to Vector{Int}.")
+        end
+    end
+    lex_gb = BinomialSet(gb_vectors, monomial_order)
+    return lex_gb
 end
 
 """
