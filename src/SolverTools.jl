@@ -5,8 +5,7 @@ module SolverTools
 
 using JuMP
 using Clp
-using CPLEX #TODO have to check license stuff for distribution later...
-#What do I do to select another solver in case CPLEX is not installed?
+using CPLEX
 
 const LP_SOLVER = Clp
 const GENERAL_SOLVER = CPLEX
@@ -36,16 +35,17 @@ function optimal_basis!(
 end
 
 """
-Computes a strictly positive vector in the row span of `A` using
-linear programming. Assumes Ax = b is feasible, and
-max x
-s.t. Ax = b
-x >= 0
-is bounded. Given these conditions, the dual variables of the
-constraints of the above LP give a positive row span vector.
+    positive_row_span(A :: Matrix{Int}, b :: Vector{Int})
+
+Compute a strictly positive vector in the row span of `A` using
+linear programming.
+
+Assumes Ax = b is feasible, and
+max x s.t. Ax = b, x >= 0 is bounded. Given these conditions, the dual
+variables of the constraints of the above LP give a positive row span vector.
 """
 function positive_row_span(
-    A :: Array{Int, 2},
+    A :: Matrix{Int},
     b :: Vector{Int}
 ) :: Vector{Float64}
     m, n = size(A)
@@ -65,17 +65,20 @@ function positive_row_span(
 end
 
 """
-Returns a JuMP model (alongside references to its variables and constraints)
-for the problem
+    jump_model(A :: Matrix{Int}, b :: Vector{Int}, C :: Array{Float64}, u :: Vector{Int}, nonnegative :: Vector{Bool}, var_type :: DataType)
 
-min c[1, :] * x
-s.t. Ax = b
-x_i >= 0 for all i s.t. nonnegative[i] == true
+Return a JuMP model (alongside references to its variables and constraints)
+for the given IP or LP problem.
+
+The optimization problem considered is
+min c[1, :] * x s.t. Ax = b, x_i >= 0 for all i s.t. nonnegative[i] == true
+
+The variables are integer if `var_type == Int` or real otherwise.
 
 TODO Should I do anything special for the binary case?
 """
 function jump_model(
-    A :: Array{Int, 2},
+    A :: Matrix{Int},
     b :: Vector{Int},
     C :: Array{Float64},
     u :: Vector{Int},
@@ -113,13 +116,15 @@ function jump_model(
 end
 
 """
-Returns a linear relaxation model of the problem
-min C[1, :]' * x
-s.t. Ax = b
-x >= 0
+    relaxation_model(A :: Matrix{Int}, b :: Vector{Int}, C :: Array{Float64}, u :: Vector{Int}, nonnegative :: Vector{Bool})
+
+Return a linear relaxation model of the given IP.
+
+The optimization problem considered is of the form
+min C[1, :]' * x s.t. Ax = b, x >= 0.
 """
 function relaxation_model(
-    A :: Array{Int, 2},
+    A :: Matrix{Int},
     b :: Vector{Int},
     C :: Array{Float64},
     u :: Vector{Int},
@@ -129,10 +134,10 @@ function relaxation_model(
 end
 
 """
-Searches for integer u such that
-Au = 0
-u_{not sigma} >= 0
-u_i > 0
+    unboundedness_ip_model(A :: Matrix{Int}, nonnegative :: Vector{Bool}, i :: Int)
+
+Return an IP that checks for the existence of an integer vector `u` such that
+`Au = 0`, `u[nonnegative] >= 0`, `u[i] > 0`.
 
 TODO this could also be done with LP as follows:
 "Assume all data is rational. Then, the polyhedron is rational, so the optimum
@@ -155,7 +160,9 @@ function unboundedness_ip_model(
 end
 
 """
-Returns true iff maximizing x_i in model is bounded.
+    is_bounded(i :: Int, model :: JuMP.Model, x :: Vector{JuMP.VariableRef})
+
+Return true iff maximizing x_i in model is bounded (has an optimal solution).
 
 It is assumed that the given model is (primal) feasible.
 """
@@ -174,6 +181,12 @@ function is_bounded(
     return false
 end
 
+"""
+    set_jump_objective!(model :: JuMP.Model, direction :: Symbol, c :: Vector{T}) where {T <: Real}
+
+Updates `model` changing its objective function to `c` and sense to
+`direction`, which can be either `:Max` or `:Min`.
+"""
 function set_jump_objective!(
     model :: JuMP.Model,
     direction :: Symbol,
@@ -187,16 +200,11 @@ function set_jump_objective!(
 end
 
 """
-Generates a feasibility checking model for
+    feasibility_model(A :: Matrix{Int}, b :: Vector{Int}, u :: Vector{Int}, nonnegative :: Vector{Bool}, var_type :: DataType)
 
-Ax = b
-0 <= x <= u
-
-where x is either an integer variable vector, if `var_type` == Int,
-or a real variable vector otherwise.
-
-Returns the JuMP model along with vectors with references to its variables
-and constraints.
+Return a feasibility checking model along with variable and constraint vectors
+for Ax = b, 0 <= x <= u, where x is either an integer variable vector, if
+`var_type == Int` or a real variable vector otherwise.
 """
 function feasibility_model(
     A :: Array{Int, 2},
@@ -210,7 +218,9 @@ function feasibility_model(
 end
 
 """
-Changes the RHS of `constraints` to b - A * v.
+    update_feasibility_model_rhs(constraints :: Vector{ConstraintRef}, A :: Matrix{Int}, b :: Vector{Int}, v :: T) where {T <: AbstractVector{Int}}
+
+Change the RHS of `constraints` to `b - A * v`.
 """
 function update_feasibility_model_rhs(
     constraints :: Vector{ConstraintRef},
@@ -224,7 +234,9 @@ function update_feasibility_model_rhs(
 end
 
 """
-Returns true iff the IP/LP given by `model` is feasible.
+    is_feasible(model :: JuMP.Model)
+
+Return true iff the IP/LP given by `model` is feasible.
 """
 function is_feasible(
     model :: JuMP.Model
