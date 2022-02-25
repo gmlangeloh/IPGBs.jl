@@ -1,14 +1,13 @@
 """
-TODO implement 'projections'
-- 4ti2 implements projections where some variables are set to unrestricted
-- I should do this as well, as soon as I finish implementing the above point on unrestricted variables
-TODO Isn't this done already? Why didn't I delete the above todo before?
+TODO Do I need to force upper bounds on all variables, even when they don't
+have natural upper bounds? I don't think so!
 """
 module IPInstances
 
 export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation
 
 import LinearAlgebra: I
+import AbstractAlgebra
 using JuMP
 
 using IPGBs
@@ -59,6 +58,26 @@ function normalize_ip(
 end
 
 """
+    feasible_solution(A :: Matrix{Int}, b :: Vector{Int}) :: Vector{Int}
+
+Return `x` such that `A * x == b` with no non-negativity conditions imposed
+on `x`.
+
+Uses the AbstractAlgebra package to do the computation.
+"""
+function feasible_solution(
+    A :: Matrix{Int},
+    b :: Vector{Int}
+) :: Vector{Int}
+    m, n = size(A)
+    @assert length(b) == m
+    matspaceA = AbstractAlgebra.MatrixSpace(ZZ, m, n)
+    matspaceb = AbstractAlgebra.MatrixSpace(ZZ, m, 1)
+    x = AbstractAlgebra.solve(matspaceA(A), matspaceb(b))
+    return reshape(Int.(Array(x)), n)
+end
+
+"""
 Represents an instance of a problem
 
 min C * x
@@ -78,6 +97,9 @@ struct IPInstance
     b :: Vector{Int}
     C :: Array{Float64, 2}
     u :: Vector{Int}
+
+    feasible :: Vector{Int} #some x such that A * x == b, not necessarily
+    #satisfying the non-negativity conditions. Useful for lattice computations
 
     #Data relative to permutation and variable types
     bounded_end :: Int #index of last bounded variable
@@ -141,8 +163,9 @@ struct IPInstance
         A = A[:, permutation]
         C = C[:, permutation]
         u = u[permutation]
+        feas = feasible_solution(A, b)
         #Create the normalized instance
-        new(A, b, C, u,
+        new(A, b, C, u, feas,
             bounded_end, nonnegative_end, permutation, inverse_perm,
             m, n, new_m, new_n, true,
             model, model_vars, model_cons
@@ -388,6 +411,31 @@ function group_relaxation(
     @assert count(basis) == instance.m
     #Keep only the nonnegativity constraints on the non-basic variables
     return nonnegativity_relaxation(instance, nonbasics)
+end
+
+"""
+    lattice_projection(instance :: IPInstance)
+
+Return `A, b, c` defining a new integer program by projecting away from the
+unrestricted variables (those that have no non-negativity constraint).
+"""
+function lattice_projection(
+    instance::IPInstance
+)
+    #Find new objective function
+    s = SolverTools.optimal_row_span(instance.A, instance.b, instance.C)
+    new_obj = copy(instance.C)
+    new_obj[1, :] -= s
+    @assert(all(IPGBs.is_approx_zero(new_obj[1, i])
+                for i in instance.nonnegative_end + 1:instance.n))
+    #Drop columns from the constraint matrix and objective function
+    #TODO Do I also need to drop some rows, or is that unnecessary?
+    new_A = instance.A[:, 1:instance.nonnegative_end]
+    new_obj = new_obj[:, 1:instance.nonnegative_end]
+    new_feas = instance.feasible[1:instance.nonnegative_end]
+    #Find new right-hand side
+    new_b = new_A * new_feas
+    return new_A, new_b, new_obj
 end
 
 """

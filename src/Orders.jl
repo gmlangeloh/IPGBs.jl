@@ -45,9 +45,11 @@ function build_order(
     #Make the first row strictly positive
     if any(full_matrix[1, j] < 0 for j in 1:n)
         d = SolverTools.positive_row_span(A, b)
-        lambda = 1 + maximum(-full_matrix[1, j] / d[j] for j in 1:n)
-        for j in 1:n
-            full_matrix[1, j] += lambda * d[j]
+        if !isnothing(d)
+            lambda = 1 + maximum(-full_matrix[1, j] / d[j] for j in 1:n)
+            for j in 1:n
+                full_matrix[1, j] += lambda * d[j]
+            end
         end
     end
     #Store the transpose to exploit the fact Julia stores matrices
