@@ -134,7 +134,7 @@ function lex_groebner_basis(
     basis = group_relaxation_basis(instance)
     uhnf_basis = hnf(basis)
     normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
-    monomial_order = Orders.lex_order(instance, instance.nonnegative_end)
+    monomial_order = Orders.lex_order(instance.nonnegative_end)
     gb_vectors = Vector{Int}[]
     try
         #Convert lex GB elements to Vector{Int}

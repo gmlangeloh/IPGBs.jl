@@ -4,6 +4,7 @@ export GBOrder, MonomialOrder, is_inverted, order_cost
 
 import LinearAlgebra: I
 
+using IPGBs
 using IPGBs.GBTools
 using IPGBs.IPInstances
 using IPGBs.SolverTools
@@ -18,91 +19,145 @@ is_inverted(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
 order_cost(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
 
 """
-    build_order(C :: Matrix{Float64}, A :: Matrix{Int}, b :: Vector{Int})
+    tiebreak(C :: Matrix{Float64}) :: Matrix{Float64}
 
-Return a matrix defining the same monomial order as C but with additional
-revlex tiebreaking, if necessary, and with only positive entries in the
-first column.
-
-The matrix is returned in column-major form for efficiency, that is, the
-first weight vector used in monomial comparison corresponds to the first
-column of the matrix, instead of the first row as is usual in the GB
-literature.
+Return a matrix corresponding to the same monomial order as `C`, tiebreaking
+it using the revlex order if `C` does not already specify a full monomial order
+itself.
 """
-function build_order(
-    C :: Array{Float64, 2},
-    A :: Array{Int, 2},
-    b :: Vector{Int}
-) :: Array{Float64, 2}
-    m = size(C, 1)
-    n = size(C, 2)
+function tiebreak(C :: Matrix{Float64})
+    m, n = size(C)
     if m < n #Insufficient tiebreaking in C
         tiebreaker = GBTools.revlex_matrix(n)
         full_matrix = vcat(C, tiebreaker)
     else
         full_matrix = C
     end
-    #Make the first row strictly positive
-    if any(full_matrix[1, j] < 0 for j in 1:n)
+    return full_matrix
+end
+
+"""
+    positive_first_row!(C :: Matrix{Float64}, A :: Matrix{Int}, b :: Vector{Int})
+
+Modify `C` so that its first row is strictly positive using dual data from
+the LP min C*x s.t. Ax = b, x >= 0.
+
+Assumes the given LP is bounded and feasible.
+"""
+function positive_first_row!(
+    C :: Matrix{Float64},
+    A :: Matrix{Int},
+    b :: Vector{Int}
+)
+    n = size(C, 2)
+    if any(C[1, j] < 0 for j in 1:n)
         d = SolverTools.positive_row_span(A, b)
         if !isnothing(d)
-            lambda = 1 + maximum(-full_matrix[1, j] / d[j] for j in 1:n)
+            lambda = 1 + maximum(-C[1, j] / d[j] for j in 1:n)
             for j in 1:n
-                full_matrix[1, j] += lambda * d[j]
+                C[1, j] += lambda * d[j]
             end
         end
     end
+end
+
+"""
+    projection_order(C :: Matrix{Float64}, A :: Matrix{Int}, b :: Vector{Int}, num_vars :: Int)
+
+Return a matrix corresponding to the same monomial order as `C` but using only
+the first `num_vars` variables.
+
+Uses the dual of the LP min C*x s.t. Ax = b, x >= 0 to find such an order.
+"""
+function projection_order(
+    C :: Matrix{Float64},
+    A :: Matrix{Int},
+    b :: Vector{Int},
+    num_vars :: Int
+) :: Matrix{Float64}
+    s = SolverTools.optimal_row_span(A, b, C)
+    projected_obj = copy(C)
+    projected_obj[1, :] -= s
+    @assert(all(IPGBs.is_approx_zero(projected_obj[1, i]) for i in (num_vars+1):size(C, 2)))
+    return projected_obj[:, 1:num_vars]
+end
+
+"""
+    normalize_order(C :: Matrix{Float64}, A :: Matrix{Int}, b :: Vector{Int}, num_vars :: Int)
+
+Return a cost matrix in column-major form giving the same monomial order as `C`
+using only the first num_vars variables.
+
+Normalization uses the dual data of the LP min C*x s.t. Ax = b, x >= 0.
+"""
+function normalize_order(
+    C::Matrix{Float64},
+    A::Matrix{Int},
+    b::Vector{Int},
+    num_vars::Int
+)::Matrix{Float64}
+    cost_matrix = zeros(Float64, num_vars, num_vars)
+    if num_vars == size(A, 2)
+        cost_matrix = tiebreak(C)
+        positive_first_row!(cost_matrix, A, b)
+    else
+        #Compute order projected into the first num_vars
+        proj = projection_order(C, A, b, num_vars)
+        cost_matrix = tiebreak(proj)
+    end
     #Store the transpose to exploit the fact Julia stores matrices
     #in column-major form. This helps performance of cmp and lt.
-    return full_matrix'
+    return cost_matrix'
 end
 
 """
 Implements a monomial order from a given cost matrix, including a grevlex
 tiebreaker if necessary.
+
+The cost matrix is represented in column-major order to speed up comparisons.
 """
 mutable struct MonomialOrder <: GBOrder
     cost_matrix :: Array{Float64, 2}
     tiebreaker :: Symbol
     is_minimization :: Bool
-    #Probably should carry a tiebreaker around too
-    function MonomialOrder(costs :: Array{Float64, 2}, A, b, is_minimization)
-        new(build_order(costs, A, b), :invlex, is_minimization)
+
+    MonomialOrder(c, tie, min) = new(c, tie, min)
+end
+
+function MonomialOrder(
+    costs::Matrix{Float64},
+    A::Matrix{Int},
+    b::Vector{Int},
+    is_minimization::Bool,
+    num_vars :: Union{Nothing, Int} = nothing
+)
+    max_vars = size(A, 2)
+    if !isnothing(num_vars)
+        max_vars = num_vars
     end
+    return MonomialOrder(normalize_order(costs, A, b, max_vars), :invlex,
+                         is_minimization)
 end
 
 function MonomialOrder(
     instance :: IPInstance,
-    vars :: Union{Int, Nothing} = nothing
+    num_vars :: Union{Nothing, Int} = nothing
 )
-    max_index = instance.n
-    if !isnothing(vars)
-        max_index = vars
-    end
-    return MonomialOrder(instance.C[:, 1:max_index],
-                         instance.A[:, 1:max_index], instance.b, true)
+    return MonomialOrder(instance.C, instance.A, instance.b, true, num_vars)
 end
 
 """
-    lex_order(instance :: IPInstance) :: MonomialOrder
+    lex_order(n :: Int) :: MonomialOrder
 
-Return the lex monomial order with x1 > x2 > ... > xn for `instance`.
-
-The optional parameter `vars` considers only the first `vars` variables of
-`instance` when constructing the lex order. This is useful for group
-relaxations.
+Return the lex monomial order with `x1 > x2 > ... > xn`.
 """
 function lex_order(
-    instance :: IPInstance,
-    vars :: Union{Int, Nothing} = nothing
+    n :: Int
 ) :: MonomialOrder
-    C = Matrix{Float64}(I(instance.n))
-    max_index = instance.n
-    if !isnothing(vars)
-        max_index = vars
-    end
-    return MonomialOrder(C[:, 1:max_index], instance.A[:, 1:max_index],
-                         instance.b, true)
+    C = Matrix{Float64}(I(n))
+    #No normalization is necessary for a lex order.
+    #Note: column-major or row-major is irrelevant here, as transpose(I) == I.
+    return MonomialOrder(C, :lex, true)
 end
 
 """

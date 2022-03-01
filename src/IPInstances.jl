@@ -71,8 +71,8 @@ function feasible_solution(
 ) :: Vector{Int}
     m, n = size(A)
     @assert length(b) == m
-    matspaceA = AbstractAlgebra.MatrixSpace(ZZ, m, n)
-    matspaceb = AbstractAlgebra.MatrixSpace(ZZ, m, 1)
+    matspaceA = AbstractAlgebra.MatrixSpace(AbstractAlgebra.ZZ, m, n)
+    matspaceb = AbstractAlgebra.MatrixSpace(AbstractAlgebra.ZZ, m, 1)
     x = AbstractAlgebra.solve(matspaceA(A), matspaceb(b))
     return reshape(Int.(Array(x)), n)
 end
@@ -411,31 +411,6 @@ function group_relaxation(
     @assert count(basis) == instance.m
     #Keep only the nonnegativity constraints on the non-basic variables
     return nonnegativity_relaxation(instance, nonbasics)
-end
-
-"""
-    lattice_projection(instance :: IPInstance)
-
-Return `A, b, c` defining a new integer program by projecting away from the
-unrestricted variables (those that have no non-negativity constraint).
-"""
-function lattice_projection(
-    instance::IPInstance
-)
-    #Find new objective function
-    s = SolverTools.optimal_row_span(instance.A, instance.b, instance.C)
-    new_obj = copy(instance.C)
-    new_obj[1, :] -= s
-    @assert(all(IPGBs.is_approx_zero(new_obj[1, i])
-                for i in instance.nonnegative_end + 1:instance.n))
-    #Drop columns from the constraint matrix and objective function
-    #TODO Do I also need to drop some rows, or is that unnecessary?
-    new_A = instance.A[:, 1:instance.nonnegative_end]
-    new_obj = new_obj[:, 1:instance.nonnegative_end]
-    new_feas = instance.feasible[1:instance.nonnegative_end]
-    #Find new right-hand side
-    new_b = new_A * new_feas
-    return new_A, new_b, new_obj
 end
 
 """
