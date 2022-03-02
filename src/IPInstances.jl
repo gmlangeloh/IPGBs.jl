@@ -362,6 +362,23 @@ function IPInstance(model::JuMP.Model)
                       apply_normalization=false)
 end
 
+function integer_objective(
+    instance :: IPInstance
+) :: Array{Int}
+    k, n = size(instance.C)
+    integer_C = zeros(Int, k, n)
+    #Find lcm of the denominators of instance.C
+    denoms = [ denominator(Rational(c)) for c in instance.C ]
+    l = lcm(denoms)
+    #Create integer objective function
+    for i in 1:k
+        for j in 1:n
+            integer_C[i, j] = Int(round(l * instance.C[i, j]))
+        end
+    end
+    return integer_C
+end
+
 """
     nonnegativity_relaxation(instance :: IPInstance, nonnegative :: Vector{Bool}) :: IPInstance
 

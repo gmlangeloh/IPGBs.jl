@@ -67,8 +67,8 @@ function write_4ti2_input(
     A :: Array{Int, 2},
     c :: Array{T},
     xinit :: Vector{Int},
+    nonnegative :: Vector{Bool},
     project_name = "tmp" :: String,
-    nonnegative = true :: String
 ) where {T <: Real}
     matrix_file = project_name * ".mat"
     _4ti2_write(A, matrix_file)
@@ -76,23 +76,18 @@ function write_4ti2_input(
     _4ti2_write(c, obj_file)
     xinit_file = project_name * ".zsol"
     _4ti2_write(xinit, xinit_file)
-    write_4ti2_sign(nonnegative, size(A, 2), project_name)
+    write_4ti2_sign(nonnegative, project_name)
 end
 
 """
 Writes sign file for 4ti2.
 """
 function write_4ti2_sign(
-    nonnegative :: Bool,
-    nvars :: Int,
+    nonnegative :: Vector{Bool},
     project_name = "tmp" :: String
 )
     sign_file = project_name * ".sign"
-    if nonnegative
-        _4ti2_write(ones(Int, nvars), sign_file)
-    else
-        _4ti2_write(zeros(Int, nvars), sign_file)
-    end
+    _4ti2_write(Int.(nonnegative), sign_file)
 end
 
 """
@@ -113,8 +108,8 @@ function minimize(
     A :: Array{Int, 2},
     c :: Array{T},
     xinit :: Vector{Int},
+    nonnegative :: Vector{Bool},
     project_name = "tmp" :: String,
-    nonnegative = true :: Bool;
     timeout :: Union{Int, Nothing} = nothing
 ) :: Tuple{Vector{Int}, Int} where {T <: Real}
     _4ti2_clear(project_name)
@@ -125,7 +120,7 @@ function minimize(
     _4ti2_write(c, obj_file)
     xinit_file = project_name * ".zsol"
     _4ti2_write(xinit, xinit_file)
-    write_4ti2_sign(nonnegative, size(A, 2), project_name)
+    write_4ti2_sign(nonnegative, project_name)
 
     #Run 4ti2
     if timeout == nothing
@@ -168,14 +163,14 @@ Returns the Gröbner Basis as a matrix where each row corresponds to a pure
 binomial in it.
 """
 function groebner(
-    A :: Array{Int, 2},
-    c :: Union{Array{T}, Nothing} = nothing,
-    project_name :: String = "tmp",
-    nonnegative :: Bool = true;
+    A::Array{Int,2},
+    c::Array{T},
+    nonnegative::Vector{Bool},
+    project_name::String = "tmp",
     truncation_sol = [],
-    lattice :: Bool = false,
-    quiet :: Bool = true
-) :: Array{Int, 2} where {T <: Real}
+    lattice::Bool = false,
+    quiet::Bool = true
+)::Array{Int,2} where {T<:Real}
     _4ti2_clear(project_name)
     #Write the project files
     if !lattice
@@ -185,11 +180,9 @@ function groebner(
         lattice_file = project_name * ".lat"
         _4ti2_write(A, lattice_file)
     end
-    if !isnothing(c)
-        obj_file = project_name * ".cost"
-        _4ti2_write(c, obj_file)
-    end
-    write_4ti2_sign(nonnegative, size(A, 2), project_name)
+    obj_file = project_name * ".cost"
+    _4ti2_write(c, obj_file)
+    write_4ti2_sign(nonnegative, project_name)
     #Set options for truncated bases
     truncation_opt = ""
     if length(truncation_sol) > 0
@@ -222,8 +215,8 @@ function normalform(
     A :: Array{Int, 2},
     c :: Array{T},
     xinit :: Vector{Int},
+    nonnegative :: Vector{Bool},
     project_name = "tmp" :: String,
-    nonnegative = true :: Bool
 ) :: Tuple{Vector{Int}, Int} where {T <: Real}
     #Write the project files
     matrix_file = project_name * ".mat"
@@ -232,7 +225,7 @@ function normalform(
     _4ti2_write(c, obj_file)
     xinit_file = project_name * ".feas"
     _4ti2_write(xinit, xinit_file)
-    write_4ti2_sign(nonnegative, size(A, 2), project_name)
+    write_4ti2_sign(nonnegative, project_name)
 
     #Run 4ti2
     cmd = `normalform -q $project_name`
@@ -263,10 +256,10 @@ function groebnernf(
     A :: Array{Int, 2},
     c :: Array{T},
     xinit :: Vector{Int},
+    nonnegative :: Vector{Bool},
     project_name = "tmp" :: String,
-    nonnegative = true :: Bool
 ) :: Tuple{Vector{Int}, Int} where {T <: Real}
-    _ = groebner(A, c, project_name, nonnegative, truncation_sol=xinit)
+    _ = groebner(A, c, nonnegative, project_name, truncation_sol=xinit)
     return normalform(A, c, xinit, project_name, nonnegative)
 end
 
@@ -277,9 +270,9 @@ where the rows are the elements of the basis.
 function markov(
     A :: Array{Int, 2},
     c :: Array{T},
-    project_name = "tmp" :: String,
-    nonnegative = true :: Bool;
-    truncation_sol = []
+    nonnegative :: Vector{Bool},
+    project_name :: String = "tmp",
+    truncation_sol :: Vector{Int} = []
 ) :: Array{Int, 2} where {T <: Real}
     _4ti2_clear(project_name)
     #Write the project files
@@ -287,7 +280,7 @@ function markov(
     _4ti2_write(A, matrix_file)
     obj_file = project_name * ".cost"
     _4ti2_write(c, obj_file)
-    write_4ti2_sign(nonnegative, size(A, 2), project_name)
+    write_4ti2_sign(nonnegative, project_name)
     #Set options for truncated bases
     truncation_opt = ""
     if length(truncation_sol) > 0
@@ -314,8 +307,8 @@ support to lattice bases instead of matrices...)
 """
 function graver(
     A :: Array{Int, 2},
+    nonnegative :: Vector{Bool},
     project_name :: String = "tmp",
-    nonnegative :: Bool = true
 ) :: Array{Int, 2}
     _4ti2_clear(project_name)
     #Write project files
