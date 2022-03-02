@@ -17,18 +17,18 @@ mutable struct WeightedMonomial
     count :: Int
     divisor_nf :: Vector{Int} #The normal form of a monomial dividing `monomial` when available
     var_index :: Int #A variable such that divisor[var_index] + 1 == monomial[var_index] and divisor[i] == monomial[i] for all other i. Set to 0 in case this isn't possible
-
-    function WeightedMonomial(
-        m :: Vector{Int},
-        o :: S,
-        divisor :: Vector{Int},
-        i :: Int
-    ) where {S <: GBOrder}
-        new(m, order_cost(o, m), 1, divisor, i)
-    end
 end
 
-Base.cmp(m1::WeightedMonomial, m2::WeightedMonomial) = cmp(m1.weight, m2.weight)
+function WeightedMonomial(
+    m::Vector{Int},
+    o::S,
+    divisor::Vector{Int},
+    i::Int
+) where {S<:GBOrder}
+    return WeightedMonomial(m, order_cost(o, m), 1, divisor, i)
+end
+
+Base.isless(m1::WeightedMonomial, m2::WeightedMonomial) = m1.weight < m2.weight
 
 """
 Keeps a priority list / heap of monomials, ordered by weight, without
@@ -71,6 +71,8 @@ function Base.push!(
         wm.count += 1
     else
         wm = WeightedMonomial(m, h.order, divisor, var_index)
+        push!(h.heap, wm)
+        h.set[m] = wm
     end
 end
 

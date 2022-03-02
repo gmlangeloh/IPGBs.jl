@@ -5,7 +5,7 @@ TODO make GBElements a consistent interface
 """
 module GBElements
 #TODO this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, to_gbelements, truncate, ipgbs_form, to_gbelement
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -124,7 +124,13 @@ function orientate!(
     g :: T,
     order :: GBOrder
 ) where {T <: AbstractVector{Int}}
-    if is_inverted(order, g, cost(g))
+    c = 0.0
+    if hasfield(T, :cost)
+        c = g.cost
+    else
+        c = order_cost(order, g)
+    end
+    if is_inverted(order, g, c)
         GBElements.opposite!(g)
     end
 end

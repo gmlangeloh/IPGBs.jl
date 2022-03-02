@@ -283,7 +283,7 @@ Efficiently return whether v's leading and trailing terms are inverted.
 function is_inverted(
     order :: MonomialOrder,
     v :: T,
-    cost :: Int
+    cost :: Real
 ) :: Bool where {T <: AbstractVector{Int}}
     if cost < 0
         return invert_maximization(order, true)
@@ -308,7 +308,7 @@ function change_ordering!(
     A :: Array{Int, 2},
     b :: Vector{Int}
 )
-    order.cost_matrix = build_order(new_order, A, b)
+    order.cost_matrix = normalize_order(new_order, A, b, size(A, 2))
 end
 
 end

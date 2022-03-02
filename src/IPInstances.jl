@@ -4,10 +4,10 @@ have natural upper bounds? I don't think so!
 """
 module IPInstances
 
-export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation
+export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation, lift_vector
 
 import LinearAlgebra: I
-import AbstractAlgebra
+using AbstractAlgebra
 using JuMP
 
 using IPGBs
@@ -58,26 +58,6 @@ function normalize_ip(
 end
 
 """
-    feasible_solution(A :: Matrix{Int}, b :: Vector{Int}) :: Vector{Int}
-
-Return `x` such that `A * x == b` with no non-negativity conditions imposed
-on `x`.
-
-Uses the AbstractAlgebra package to do the computation.
-"""
-function feasible_solution(
-    A :: Matrix{Int},
-    b :: Vector{Int}
-) :: Vector{Int}
-    m, n = size(A)
-    @assert length(b) == m
-    matspaceA = AbstractAlgebra.MatrixSpace(AbstractAlgebra.ZZ, m, n)
-    matspaceb = AbstractAlgebra.MatrixSpace(AbstractAlgebra.ZZ, m, 1)
-    x = AbstractAlgebra.solve(matspaceA(A), matspaceb(b))
-    return reshape(Int.(Array(x)), n)
-end
-
-"""
 Represents an instance of a problem
 
 min C * x
@@ -98,9 +78,6 @@ struct IPInstance
     C :: Array{Float64, 2}
     u :: Vector{Int}
 
-    feasible :: Vector{Int} #some x such that A * x == b, not necessarily
-    #satisfying the non-negativity conditions. Useful for lattice computations
-
     #Data relative to permutation and variable types
     bounded_end :: Int #index of last bounded variable
     nonnegative_end :: Int #index of last non-negative variable
@@ -119,6 +96,10 @@ struct IPInstance
     model :: JuMP.Model
     model_vars :: Vector{JuMP.VariableRef}
     model_cons :: Vector{JuMP.ConstraintRef} #TODO not a concrete type, fix this
+
+    #Lattice-related information
+    lattice_basis :: Generic.MatSpaceElem{BigInt} #Row basis
+    rank :: Int
 
     #TODO put a parameter to determine whether it is minimization or not
     function IPInstance(
@@ -163,12 +144,15 @@ struct IPInstance
         A = A[:, permutation]
         C = C[:, permutation]
         u = u[permutation]
-        feas = feasible_solution(A, b)
+        #Compute lattice information
+        rnk, basis = kernel(matrix(ZZ, A))
+        basis = transpose(basis) #Put in row form
         #Create the normalized instance
-        new(A, b, C, u, feas,
+        new(A, b, C, u,
             bounded_end, nonnegative_end, permutation, inverse_perm,
             m, n, new_m, new_n, true,
-            model, model_vars, model_cons
+            model, model_vars, model_cons,
+            basis, rnk
         )
     end
 end
@@ -411,6 +395,24 @@ function group_relaxation(
     @assert count(basis) == instance.m
     #Keep only the nonnegativity constraints on the non-basic variables
     return nonnegativity_relaxation(instance, nonbasics)
+end
+
+function lattice_basis_projection(
+    instance :: IPInstance
+)
+    return instance.lattice_basis[:, 1:instance.rank]
+end
+
+function lift_vector(
+    v :: Vector{Int},
+    instance :: IPInstance
+) :: Vector{Int}
+    #Find a lifted vector to full variables
+    col_basis = transpose(lattice_basis_projection(instance))
+    coefs = AbstractAlgebra.solve(col_basis, matrix(ZZ, length(v), 1, v))
+    full_col_basis = transpose(instance.lattice_basis)
+    res = full_col_basis * coefs
+    return Int.(reshape(Array(res), length(res)))
 end
 
 """

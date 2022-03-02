@@ -83,44 +83,6 @@ function is_normalized_hnf(
 end
 
 """
-    lattice_basis(A :: Matrix{Int}) :: Vector{Vector{BigInt}}
-
-Find a lattice basis for the saturated lattice in the form L = {x | Ax = 0}
-using the AbstractAlgebra library.
-
-TODO Do I need this? Why? Review project-and-lift.
-"""
-function lattice_basis(
-    A :: Matrix{Int}
-) :: Vector{Vector{BigInt}}
-    m, n = size(A)
-    space = MatrixSpace(ZZ, m, n)
-    _, basis = kernel(space(A))
-    julia_form = Array(basis)
-    return [ julia_form[:, j] for j in 1:size(julia_form, 2)]
-end
-
-"""
-    group_relaxation_basis(instance :: IPInstance)
-
-Return a (row) basis of the lattice L = {x | instance.A * x = 0} with x[i]
-non-negative according to `instance`.
-
-It is assumed that `instance` is a group relaxation, that is, has the
-non-negativity constraint relaxed in exactly m variables.
-"""
-function group_relaxation_basis(
-    instance :: IPInstance
-)
-    m, n = size(instance.A)
-    mn_space = MatrixSpace(ZZ, m, n)
-    rnk, full_col_basis = kernel(mn_space(instance.A))
-    @assert rnk == n - m
-    projected_row_basis = transpose(full_col_basis[1:rnk, :])
-    return projected_row_basis
-end
-
-"""
     lex_groebner_basis(instance :: IPInstance) :: BinomialSet
 
 Compute a lex Gröbner basis of `instance` using the HNF algorithm.
@@ -131,7 +93,7 @@ the lattice optimization problem given by `instance` is of rank n.
 function lex_groebner_basis(
     instance :: IPInstance
 ) :: BinomialSet
-    basis = group_relaxation_basis(instance)
+    basis = IPInstances.lattice_basis_projection(instance)
     uhnf_basis = hnf(basis)
     normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
     monomial_order = Orders.lex_order(instance.nonnegative_end)

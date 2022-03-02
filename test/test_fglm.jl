@@ -14,3 +14,4 @@ lex_gb = lex_groebner_basis(group_instance)
 target_order = MonomialOrder(group_instance, group_instance.nonnegative_end)
 final_gb = fglm(lex_gb, target_order)
 @show final_gb
+@show [lift_vector(v, group_instance) for v in final_gb.basis ]

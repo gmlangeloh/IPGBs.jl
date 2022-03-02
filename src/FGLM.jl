@@ -84,12 +84,11 @@ Compute the normal form of `m` with respect to `gb` by applying the usual reduct
 """
 function direct_normal_form(
     m :: WeightedMonomial,
-    gb :: BinomialSet{T, S},
-    target_order :: S
+    gb :: BinomialSet{T, S}
 ) :: T where {T, S <: GBOrder}
-    new_m = to_gbelement(copy(m), target_order, T)
-    nf = BinomialSets.reduce!(new_m, gb)
-    return nf
+    new_m = copy(m.monomial)
+    BinomialSets.reduce!(new_m, gb)
+    return new_m
 end
 
 """
@@ -101,20 +100,19 @@ This is the method suggested in the original FGLM paper Faugère et al (1994).
 """
 function fast_normal_form(
     m :: WeightedMonomial,
-    gb :: BinomialSet{T, S},
-    target_order :: S
+    gb :: BinomialSet{T, S}
 ) :: T where {T, S <: GBOrder}
     #Two cases: either m is 1, so there is no previously known normal form,
     #or m isn't 1, and thus we have a divisor and var index in m.
     if m.var_index == 0
         #Case 1: no previous normal form
-        return direct_normal_form(m, gb, target_order)
+        return direct_normal_form(m, gb)
     end
     #Case 2: use the divisor's normal form to speed up the computation
     prev_nf = copy(m.divisor_nf)
     prev_nf[m.var_index] += 1
-    nf = BinomialSets.reduce!(prev_nf, gb)
-    return nf
+    BinomialSets.reduce!(prev_nf, gb)
+    return prev_nf
 end
 
 """
@@ -142,7 +140,7 @@ function fglm(
     while !isempty(next_monomials)
         m = pop!(next_monomials)
         if is_below_staircase_fast(m)
-            nf = fast_normal_form(m, gb1, target_order)
+            nf = fast_normal_form(m, gb1)
             ld = find_linear_dependency(nf, std_basis)
             if isempty(ld)
                 #Linearly independent case, new std_basis monomial
@@ -151,8 +149,7 @@ function fglm(
             else
                 #Linearly dependent case, new gb2 binomial
                 new_binomial = m.monomial - ld
-                new_elem = to_gbelement(new_binomial, target_order, T)
-                push!(gb2, new_elem)
+                push!(gb2, new_binomial)
             end
         end
     end
