@@ -15,12 +15,10 @@ lex_gb = lex_groebner_basis(group_instance)
 target_order = MonomialOrder(group_instance, group_instance.nonnegative_end)
 final_gb = fglm(lex_gb, target_order)
 @show final_gb
-@show [lift_vector(v, group_instance) for v in final_gb.basis ]
+@show [ lift_vector(v, group_instance) for v in final_gb.basis ]
 
 #Testing the comparison to 4ti2
-#TODO This practically begs for groebner(instance), as it is a mess otherwise
-non_negative = [ i <= group_instance.nonnegative_end for i in 1:group_instance.n ]
-gb = groebner(group_instance.A, IPInstances.integer_objective(group_instance), non_negative)
+gb = groebner(group_instance)
 @show gb
 
 #The GB, according to 4ti2

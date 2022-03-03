@@ -56,7 +56,7 @@ function is_below_staircase(
     gb :: Vector{T}
 ) :: Bool where {T}
     for basis_monom in gb
-        if all(basis_monom[i] <= m[i] for i in 1:length(m))
+        if all(basis_monom[i] <= m.monomial[i] for i in 1:length(m.monomial))
             return false
         end
     end
@@ -139,7 +139,7 @@ function fglm(
     gb2 = T[]
     while !isempty(next_monomials)
         m = pop!(next_monomials)
-        if is_below_staircase_fast(m)
+        if is_below_staircase(m, gb2)
             nf = fast_normal_form(m, gb1)
             ld = find_linear_dependency(nf, std_basis)
             if isempty(ld)

@@ -9,6 +9,8 @@ export minimize, groebner, normalform, markov, groebnernf, graver
 using DelimitedFiles
 using LinearAlgebra
 
+using IPGBs.IPInstances
+
 """
 Internal use.
 
@@ -109,7 +111,7 @@ function minimize(
     c :: Array{T},
     xinit :: Vector{Int},
     nonnegative :: Vector{Bool},
-    project_name = "tmp" :: String,
+    project_name :: String = "tmp",
     timeout :: Union{Int, Nothing} = nothing
 ) :: Tuple{Vector{Int}, Int} where {T <: Real}
     _4ti2_clear(project_name)
@@ -123,7 +125,7 @@ function minimize(
     write_4ti2_sign(nonnegative, project_name)
 
     #Run 4ti2
-    if timeout == nothing
+    if isnothing(timeout)
         cmd = `minimize -q --precision=arb $project_name`
     else
         cmd = `timeout $timeout minimize -q --algorithm=weighted --precision=arb $project_name`
@@ -201,6 +203,12 @@ function groebner(
 
     #Returns the gb as a matrix where rows are elements of the test set
     return gb
+end
+
+function groebner(instance :: IPInstance)
+    nonnegative = IPInstances.nonnegative_variables(instance)
+    int_objective = IPInstances.integer_objective(instance)
+    return groebner(instance.A, int_objective, nonnegative)
 end
 
 """

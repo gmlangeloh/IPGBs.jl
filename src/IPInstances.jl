@@ -379,6 +379,10 @@ function integer_objective(
     return integer_C
 end
 
+function nonnegative_variables(instance :: IPInstance) :: Vector{Bool}
+    return [ i <= instance.nonnegative_end for i in 1:instance.n ]
+end
+
 """
     nonnegativity_relaxation(instance :: IPInstance, nonnegative :: Vector{Bool}) :: IPInstance
 
