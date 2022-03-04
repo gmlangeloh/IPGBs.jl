@@ -78,7 +78,12 @@ function projection_order(
     s = SolverTools.optimal_row_span(A, b, C)
     projected_obj = copy(C)
     projected_obj[1, :] -= s
-    @assert(all(IPGBs.is_approx_zero(projected_obj[1, i]) for i in (num_vars+1):size(C, 2)))
+    @show C
+    @show s
+    @show projected_obj
+    #TODO This assertion may fail when the LP above is degenerate
+    #I should prove that I can project away the objective regardless
+    #@assert(all(IPGBs.is_approx_zero(projected_obj[1, i]) for i in (num_vars+1):size(C, 2)))
     return projected_obj[:, 1:num_vars]
 end
 

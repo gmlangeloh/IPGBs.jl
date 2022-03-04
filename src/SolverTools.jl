@@ -7,6 +7,8 @@ using JuMP
 using Clp
 using CPLEX
 
+using IPGBs
+
 const LP_SOLVER = Clp
 const GENERAL_SOLVER = CPLEX
 
@@ -35,6 +37,36 @@ function optimal_basis!(
 end
 
 """
+    is_degenerate(model :: JuMP.Model, vars :: Vector{VariableRef}, constraints :: Vector{ConstraintRef})
+
+Return true iff the optimal basis of `model` is degenerate, i.e. if any of its
+basic variables has value 0.
+"""
+function is_degenerate(
+    model::JuMP.Model,
+    vars::Vector{JuMP.VariableRef},
+    constraints::Vector{JuMP.ConstraintRef}
+)::Bool
+    for i in 1:length(vars)
+        if MOI.get(model, MOI.VariableBasisStatus(), vars[i]) == MOI.BASIC
+            if IPGBs.is_approx_zero(value(vars[i]))
+                return true
+            end
+        end
+    end
+    #TODO Check at some point whether this really corresponds to the slacks
+    #of the constraints!
+    for j in 1:length(constraints)
+        if MOI.get(model, MOI.ConstraintBasisStatus(), constraints[j]) == MOI.BASIC
+            if IPGBs.is_approx_zero(value(constraints[j]))
+                return true
+            end
+        end
+    end
+    return false
+end
+
+"""
     optimal_row_span(A :: Matrix{Int}, b :: Vector{Int}, c :: Array{T}) where {T <: Real}
 
 Compute a vector in the row span of `A` given by `yA` where `y` is the optimal
@@ -48,8 +80,8 @@ function optimal_row_span(
     A::Matrix{Int},
     b::Vector{Int},
     C::Array{T},
-    sense :: Symbol = :Min
-) :: Union{Vector{Float64}, Nothing} where {T<:Real}
+    sense::Symbol = :Min
+)::Union{Vector{Float64},Nothing} where {T<:Real}
     m, n = size(A)
     @assert(n == size(C, 2))
     model = Model(GENERAL_SOLVER.Optimizer)
