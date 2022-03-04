@@ -13,15 +13,19 @@ using IPGBs.MonomialHeaps
 Add all monomials of the form x_i * `m` for all variables x_i to the heap `h` and count repetitions.
 """
 function update_monomial_heap!(
-    h :: MonomialHeap{S},
-    m :: Vector{Int},
-    nf :: T
-) where {T, S <: GBOrder}
-    n = length(m)
+    h::MonomialHeap{S},
+    m::WeightedMonomial,
+    nf::T
+) where {T,S<:GBOrder}
+    n = length(m.monomial)
     for i in 1:n
-        new_monom = copy(m)
+        new_supp_size = m.support_size
+        if m.monomial[i] == 0
+            new_supp_size += 1
+        end
+        new_monom = copy(m.monomial)
         new_monom[i] += 1
-        push!(h, new_monom, nf, i) #Push will deal with the repetitions
+        push!(h, new_monom, nf, i, new_supp_size) #Push will deal with the repetitions
     end
 end
 
@@ -74,7 +78,9 @@ This idea comes straight from the original FGLM paper Faugère et al (1994).
 function is_below_staircase_fast(
     m :: WeightedMonomial
 ) :: Bool
-    return m.count < length(m.monomial)
+    #return m.count < length(m.monomial)
+    #return m.count >= count(mi > 0 for mi in m.monomial)
+    return m.count >= m.support_size
 end
 
 """
@@ -139,18 +145,23 @@ function fglm(
     gb2 = T[]
     while !isempty(next_monomials)
         m = pop!(next_monomials)
-        if is_below_staircase(m, gb2)
+        @show m.monomial
+        if is_below_staircase_fast(m)
             nf = fast_normal_form(m, gb1)
             ld = find_linear_dependency(nf, std_basis)
             if isempty(ld)
                 #Linearly independent case, new std_basis monomial
                 std_basis[nf] = m.monomial
-                update_monomial_heap!(next_monomials, m.monomial, nf)
+                update_monomial_heap!(next_monomials, m, nf)
+                println("Standard basis")
             else
                 #Linearly dependent case, new gb2 binomial
                 new_binomial = m.monomial - ld
                 push!(gb2, new_binomial)
+                println("Gröbner basis")
             end
+        else
+            println("Above staircase")
         end
     end
     return BinomialSet(gb2, target_order)
