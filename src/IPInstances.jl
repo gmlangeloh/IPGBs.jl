@@ -685,7 +685,8 @@ function random_ipinstance(
 ) :: IPInstance
     instance = nothing
     feasible = false
-    while !feasible
+    bounded = false
+    while !feasible || !bounded
         #Build random instance in these parameters
         A = rand(-5:5, m, n)
         b = rand(5:20, m)
@@ -697,6 +698,8 @@ function random_ipinstance(
             instance.A, instance.b, instance.u, nonnegative_vars(instance), Int
         )
         feasible = SolverTools.is_feasible(model)
+        SolverTools.set_jump_objective!(model, :Min, vec(instance.C))
+        bounded = SolverTools.is_bounded(model)
     end
     return instance
 end

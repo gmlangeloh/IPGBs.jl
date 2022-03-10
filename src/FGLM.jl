@@ -78,8 +78,6 @@ This idea comes straight from the original FGLM paper Faugère et al (1994).
 function is_below_staircase_fast(
     m :: WeightedMonomial
 ) :: Bool
-    #return m.count < length(m.monomial)
-    #return m.count >= count(mi > 0 for mi in m.monomial)
     return m.count >= m.support_size
 end
 
@@ -145,7 +143,6 @@ function fglm(
     gb2 = T[]
     while !isempty(next_monomials)
         m = pop!(next_monomials)
-        @show m.monomial
         if is_below_staircase_fast(m)
             nf = fast_normal_form(m, gb1)
             ld = find_linear_dependency(nf, std_basis)
@@ -153,15 +150,11 @@ function fglm(
                 #Linearly independent case, new std_basis monomial
                 std_basis[nf] = m.monomial
                 update_monomial_heap!(next_monomials, m, nf)
-                println("Standard basis")
             else
                 #Linearly dependent case, new gb2 binomial
                 new_binomial = m.monomial - ld
                 push!(gb2, new_binomial)
-                println("Gröbner basis")
             end
-        else
-            println("Above staircase")
         end
     end
     return BinomialSet(gb2, target_order)

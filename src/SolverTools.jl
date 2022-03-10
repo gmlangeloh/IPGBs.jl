@@ -237,7 +237,7 @@ function is_bounded(
 end
 
 """
-    set_jump_objective!(model :: JuMP.Model, direction :: Symbol, c :: Vector{T}) where {T <: Real}
+    set_jump_objective!(model :: JuMP.Model, direction :: Symbol, c :: Vector{T}, x :: Vector{JuMP.VariableRef}) where {T <: Real}
 
 Updates `model` changing its objective function to `c` and sense to
 `direction`, which can be either `:Max` or `:Min`.
@@ -245,14 +245,17 @@ Updates `model` changing its objective function to `c` and sense to
 function set_jump_objective!(
     model::JuMP.Model,
     direction::Symbol,
-    c::Vector{T}
-) where {T<:Real}
+    c::Vector{T},
+    x :: Vector{JuMP.VariableRef}
+) where {T<: Real}
     if direction == :Max
-        @objective(model, Max, c' * all_variables(model))
+        @objective(model, Max, c' * x)
     else
-        @objective(model, Min, c' * all_variables(model))
+        @objective(model, Min, c' * x)
     end
 end
+
+set_jump_objective!(model::JuMP.Model, direction::Symbol, c::Vector{T}) where {T<:Real} = set_jump_objective!(model, direction, c, all_variables(model))
 
 """
     feasibility_model(A :: Matrix{Int}, b :: Vector{Int}, u :: Vector{Int}, nonnegative :: Vector{Bool}, var_type :: DataType)
@@ -298,6 +301,21 @@ function is_feasible(
 )::Bool
     optimize!(model)
     if termination_status(model) == MOI.INFEASIBLE
+        return false
+    end
+    return true
+end
+
+"""
+    is_bounded(model :: JuMP.Model)
+
+Return true iff the IP/LP given by `model` is feasible.
+"""
+function is_bounded(
+    model :: JuMP.Model
+) :: Bool
+    optimize!(model)
+    if termination_status(model) == MOI.DUAL_INFEASIBLE
         return false
     end
     return true
