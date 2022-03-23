@@ -547,6 +547,13 @@ function is_bounded(
     return i <= instance.bounded_end
 end
 
+function is_bounded(
+    instance :: IPInstance
+) :: Bool
+    SolverTools.set_jump_objective!(instance.model, :Min, vec(instance.C[1, :]))
+    return SolverTools.is_bounded(instance.model)
+end
+
 """
     nonnegative_vars(instance :: IPInstance) :: Vector{Bool}
 
