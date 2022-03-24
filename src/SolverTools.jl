@@ -120,7 +120,7 @@ function positive_row_span(
 end
 
 """
-    jump_model(A :: Matrix{Int}, b :: Vector{Int}, C :: Array{Float64}, u :: Vector{Int}, nonnegative :: Vector{Bool}, var_type :: DataType)
+    jump_model(A :: Matrix{Int}, b :: Vector{Int}, C :: Array{Float64}, u :: Vector{Union{Int, Nothing}}, nonnegative :: Vector{Bool}, var_type :: DataType)
 
 Return a JuMP model (alongside references to its variables and constraints)
 for the given IP or LP problem.
@@ -136,7 +136,7 @@ function jump_model(
     A::Matrix{Int},
     b::Vector{Int},
     C::Array{Float64},
-    u::Vector{Int},
+    u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
     var_type::DataType
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
@@ -149,7 +149,7 @@ function jump_model(
         @variable(model, x[1:n])
     end
     for i in 1:n
-        if u[i] != typemax(Int) #No upper bound necessary when u[i] == max int
+        if !isnothing(u[i])
             set_upper_bound(x[i], u[i])
         end
     end
@@ -171,7 +171,7 @@ function jump_model(
 end
 
 """
-    relaxation_model(A :: Matrix{Int}, b :: Vector{Int}, C :: Array{Float64}, u :: Vector{Int}, nonnegative :: Vector{Bool})
+    relaxation_model(A :: Matrix{Int}, b :: Vector{Int}, C :: Array{Float64}, u :: Vector{Union{Int, Nothing}}, nonnegative :: Vector{Bool})
 
 Return a linear relaxation model of the given IP.
 
@@ -182,7 +182,7 @@ function relaxation_model(
     A::Matrix{Int},
     b::Vector{Int},
     C::Array{Float64},
-    u::Vector{Int},
+    u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool}
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     return jump_model(A, b, C, u, nonnegative, Real)
@@ -258,7 +258,7 @@ end
 set_jump_objective!(model::JuMP.Model, direction::Symbol, c::Vector{T}) where {T<:Real} = set_jump_objective!(model, direction, c, all_variables(model))
 
 """
-    feasibility_model(A :: Matrix{Int}, b :: Vector{Int}, u :: Vector{Int}, nonnegative :: Vector{Bool}, var_type :: DataType)
+    feasibility_model(A :: Matrix{Int}, b :: Vector{Int}, u :: Vector{<: Union{Int, Nothing}}, nonnegative :: Vector{Bool}, var_type :: DataType)
 
 Return a feasibility checking model along with variable and constraint vectors
 for Ax = b, 0 <= x <= u, where x is either an integer variable vector, if
@@ -267,7 +267,7 @@ for Ax = b, 0 <= x <= u, where x is either an integer variable vector, if
 function feasibility_model(
     A::Array{Int,2},
     b::Vector{Int},
-    u::Vector{Int},
+    u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
     var_type::DataType
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}

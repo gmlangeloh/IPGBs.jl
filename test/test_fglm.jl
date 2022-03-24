@@ -20,12 +20,3 @@ final_gb = fglm(lex_gb, target_order)
 #Testing the comparison to 4ti2
 gb = groebner(group_instance)
 @show gb
-
-#The GB, according to 4ti2
-#julia> groebner(group_instance.A, obj_C, nN)
-#5×13 Matrix{Int64}:
-# -2  0  1  0  0   0   0  -1   0   0  -4   2   0
-# -1  0  0  0  1   0   0   0   0  -1  -3  -2   0
-#  0  0  0  1  0   1   0   0  -1   0  -4   5  -1
-#  0  1  0  0  0  -1  -1   0   0   0  -6  -3   1
-#  4  0  0  0  0  -1   0   0   0   0  -1  -5   1

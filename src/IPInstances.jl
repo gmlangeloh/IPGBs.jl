@@ -1,7 +1,3 @@
-"""
-TODO Do I need to force upper bounds on all variables, even when they don't
-have natural upper bounds? I don't think so!
-"""
 module IPInstances
 
 export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation, lift_vector
@@ -14,7 +10,7 @@ using IPGBs
 using IPGBs.SolverTools
 
 """
-    normalize_ip(A :: Matrix{Int}, b :: Vector{Int}, c :: Matrix{T}, u :: Vector{Int}, nonnegative :: Vector{Bool}; ...) where {T <: Real}
+    normalize_ip(A :: Matrix{Int}, b :: Vector{Int}, c :: Matrix{T}, u :: Vector{<: Union{Int, Nothing}}, nonnegative :: Vector{Bool}; ...) where {T <: Real}
 
 Transform a problem in the form:
 max C * x
@@ -29,31 +25,48 @@ x == u
 by adding slack variables.
 """
 function normalize_ip(
-    A :: Matrix{Int},
-    b :: Vector{Int},
-    C :: Matrix{T},
-    u :: Vector{Int},
-    nonnegative :: Vector{Bool};
-    apply_normalization :: Bool = true,
-    invert_objective :: Bool = true
-) :: Tuple{Array{Int, 2}, Vector{Int}, Array{Float64, 2}, Vector{Int}, Vector{Bool}} where {T <: Real}
+    A::Matrix{Int},
+    b::Vector{Int},
+    C::Matrix{T},
+    u::Vector{<: Union{Int,Nothing}},
+    nonnegative::Vector{Bool};
+    apply_normalization::Bool = true,
+    invert_objective::Bool = true
+)::Tuple{Array{Int,2},Vector{Int},Array{Float64,2},Vector{Union{Int,Nothing}},Vector{Bool}} where {T<:Real}
     if !apply_normalization
         return A, b, C, u, nonnegative
     end
     m, n = size(A)
-    In = Matrix{Int}(I, n, n)
+    k = count(!isnothing(u[i]) for i in 1:length(u))
+    Ik = Matrix{Int}(I, k, k)
+    UBkn = zeros(Int, k, n)
+    ubs = Int[]
+    i = 1
+    for j in 1:n
+        if !isnothing(u[i])
+            push!(ubs, u[i])
+            UBkn[i, j] = 1
+            i += 1
+        end
+    end
     Im = Matrix{Int}(I, m, m)
-    Znm = zeros(Int, n, m)
-    Zmn = zeros(Int, m, n)
-    new_A = [A Im Zmn; In Znm In]
-    new_b = [b; u]
+    Zkm = zeros(Int, k, m)
+    Zmk = zeros(Int, m, k)
+    new_A = [A Im Zmk; UBkn Zkm Ik]
+    new_b = [b; ubs]
     #The reductions without fullfilter only work correctly if the problem
     #is in minimization form. Thus we take the opposite of C instead, as
     #this is easier than changing everything else
     sign = invert_objective ? -1 : 1
-    new_C = [sign * C zeros(Int, size(C, 1), n + m)]
-    new_u = [u; [typemax(Int) for _ in 1:(n+m)]]
-    new_nonnegative = [nonnegative; [true for _ in 1:(n+m)]] #slacks are non-negative
+    new_C = [sign * C zeros(Int, size(C, 1), k + m)]
+    new_u = Union{Int, Nothing}[]
+    for val in u
+        push!(new_u, val)
+    end
+    for _ in 1:(k+m)
+        push!(new_u, nothing)
+    end
+    new_nonnegative = [nonnegative; [true for _ in 1:(k+m)]] #slacks are non-negative
     return new_A, new_b, new_C, new_u, new_nonnegative
 end
 
@@ -76,7 +89,7 @@ struct IPInstance
     A :: Array{Int, 2}
     b :: Vector{Int}
     C :: Array{Float64, 2}
-    u :: Vector{Int}
+    u :: Vector{Union{Int, Nothing}}
 
     #Data relative to permutation and variable types
     bounded_end :: Int #index of last bounded variable
@@ -106,7 +119,7 @@ struct IPInstance
         A::Array{Int,2},
         b::Vector{Int},
         C::Array{T,2},
-        u::Vector{Int},
+        u::Vector{<:Union{Int,Nothing}},
         nonnegative::Union{Nothing,Vector{Bool}} = nothing;
         apply_normalization::Bool = true,
         invert_objective::Bool = true
@@ -129,21 +142,23 @@ struct IPInstance
         )
         new_m, new_n = size(A)
         C = Float64.(C)
-        #Setting up linear relaxation model
+        #Create a JuMP model to compute bounded variables
         model, model_vars, model_cons = SolverTools.relaxation_model(A, b, C, u, nonnegative)
-        #Checks feasibility of the linear relaxation
-        @assert SolverTools.is_feasible(model)
-        #Compute boundedness of variables using the model
-        bounded = bounded_variables(model, model_vars)
-        SolverTools.set_jump_objective!(model, :Min, C[1, :])
         #Compute a permutation of variables of the given instance such that
         #vars appear in order: bounded, non-negative, unrestricted
+        bounded = bounded_variables(model, model_vars)
         permutation, bounded_end, nonnegative_end = compute_permutation(bounded, nonnegative)
         inverse_perm = invperm(permutation)
         #Permute columns of problem data
         A = A[:, permutation]
         C = C[:, permutation]
         u = u[permutation]
+        #Update the JuMP model with the permutation info
+        model, model_vars, model_cons = SolverTools.relaxation_model(A, b, C, u, nonnegative)
+        #Checks feasibility of the linear relaxation
+        @assert SolverTools.is_feasible(model)
+        #Compute boundedness of variables using the model
+        SolverTools.set_jump_objective!(model, :Min, C[1, :])
         #Compute lattice information
         rnk, basis = kernel(matrix(ZZ, A))
         basis = transpose(basis) #Put in row form
@@ -698,7 +713,10 @@ function random_ipinstance(
         A = rand(-5:5, m, n)
         b = rand(5:20, m)
         C = rand(-10:-1, 1, n)
-        u = [ typemax(Int) for _ in 1:n ]
+        u = Union{Int, Nothing}[]
+        for _ in 1:n
+            push!(u, nothing)
+        end
         instance = IPInstance(A, b, C, u, invert_objective=false)
         #Check feasibility
         model, _, _ = SolverTools.feasibility_model(
