@@ -207,7 +207,7 @@ function unboundedness_ip_model(
     #Get model with 0 in RHS and objective function
     m, n = size(A)
     b = zeros(Int, m)
-    C = zeros(Int, 1, n)
+    C = zeros(Float64, 1, n)
     u = [typemax(Int) for _ in 1:n]
     model, vars, constrs = jump_model(A, b, C, u, nonnegative, Int)
     @constraint(model, vars[i] >= 1)

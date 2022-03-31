@@ -82,6 +82,13 @@ function is_normalized_hnf(
     return true
 end
 
+function group_relaxation_markov(instance::IPInstance)
+    basis = IPInstances.lattice_basis_projection(instance)
+    uhnf_basis = hnf(basis)
+    normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
+    return uhnf_basis, rank(uhnf_basis)
+end
+
 """
     lex_groebner_basis(instance :: IPInstance) :: BinomialSet
 
@@ -93,9 +100,7 @@ the lattice optimization problem given by `instance` is of rank n.
 function lex_groebner_basis(
     instance :: IPInstance
 ) :: BinomialSet
-    basis = IPInstances.lattice_basis_projection(instance)
-    uhnf_basis = hnf(basis)
-    normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
+    uhnf_basis, _ = group_relaxation_markov(instance)
     monomial_order = Orders.lex_order(instance.nonnegative_end)
     gb_vectors = Vector{Int}[]
     try
@@ -159,11 +164,10 @@ function project_and_lift(
     instance :: IPInstance;
     truncation_type :: Symbol = :None
 ) :: Vector{Vector{Int}}
-    rank, hnf_basis = lex_groebner_basis(instance.A)
-    @show hnf_basis
+    hnf_basis, rnk = group_relaxation_markov(instance)
     #Now, the first `rank` columns of hnf_basis should be LI
     #and thus a Markov basis of the corresponding projection
-    sigma = Vector(rank+1:instance.n)
+    sigma = Vector(rnk+1:instance.n)
     nonnegative = nonnegative_vars(instance)
     for s in sigma
         nonnegative[s] = false

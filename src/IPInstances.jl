@@ -595,7 +595,8 @@ function unboundedness_proof(
     model, vars, _ = SolverTools.unboundedness_ip_model(instance.A, nonnegative, i)
     JuMP.optimize!(model)
     if JuMP.termination_status(model) != JuMP.MOI.OPTIMAL
-        error("Unboundedness model should be feasible.")
+        error("Unboundedness model should be feasible, status: ",
+              JuMP.termination_status(model))
     end
     u = Int.(round.(JuMP.value.(vars)))
     return u
