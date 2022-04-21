@@ -148,11 +148,13 @@ function jump_model(
     else #var_type is Real / linear relaxation is used
         @variable(model, x[1:n])
     end
-    for i in 1:n
-        if !isnothing(u[i])
-            set_upper_bound(x[i], u[i])
-        end
-    end
+    #TODO Should I set these upper bounds? My model already includes them
+    #when necessary as additional constraints!
+    #for i in 1:n
+    #    if !isnothing(u[i])
+    #        set_upper_bound(x[i], u[i])
+    #    end
+    #end
     #Set non-negativity constraints for the relevant variables
     for i in 1:n
         if nonnegative[i]
@@ -208,7 +210,7 @@ function unboundedness_ip_model(
     m, n = size(A)
     b = zeros(Int, m)
     C = zeros(Float64, 1, n)
-    u = [typemax(Int) for _ in 1:n]
+    u = [nothing for _ in 1:n]
     model, vars, constrs = jump_model(A, b, C, u, nonnegative, Int)
     @constraint(model, vars[i] >= 1)
     return model, vars, constrs

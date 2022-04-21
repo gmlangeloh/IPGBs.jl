@@ -146,7 +146,7 @@ struct IPInstance
         model, model_vars, model_cons = SolverTools.relaxation_model(A, b, C, u, nonnegative)
         #Compute a permutation of variables of the given instance such that
         #vars appear in order: bounded, non-negative, unrestricted
-        bounded = bounded_variables(model, model_vars)
+        bounded = bounded_variables(model, model_vars, model_cons, b)
         permutation, bounded_end, nonnegative_end = compute_permutation(bounded, nonnegative)
         inverse_perm = invperm(permutation)
         #Permute columns of problem data
@@ -524,17 +524,26 @@ end
 
 Return a boolean array indicating whether a given variable is bounded.
 
-A variable x_i is bounded for the given model iff max {x_i | x feasible for model} is bounded. The model is assumed to be feasible.
+A variable x_i is bounded for the given model iff max {x_i | x feasible for model} is bounded for all feasible RHS.
 """
 function bounded_variables(
     model :: JuMP.Model,
-    model_vars :: Vector{JuMP.VariableRef}
+    model_vars :: Vector{JuMP.VariableRef},
+    model_cons :: Vector{JuMP.ConstraintRef},
+    b :: Vector{Int}
 ) :: Vector{Bool}
     n = length(model_vars)
     bounded = zeros(Bool, n)
+    #Set the RHS to 0 to check boundedness for all RHS, by duality
+    set_normalized_rhs.(model_cons, 0)
+    println("Printing bounded_variables model")
+    println(model)
     for i in 1:n
         bounded[i] = SolverTools.is_bounded(i, model, model_vars)
     end
+    #Set the RHS back to its original value
+    set_normalized_rhs.(model_cons, b)
+    println(bounded)
     return bounded
 end
 
@@ -594,6 +603,7 @@ function unboundedness_proof(
     @assert !is_bounded(i, instance)
     model, vars, _ = SolverTools.unboundedness_ip_model(instance.A, nonnegative, i)
     JuMP.optimize!(model)
+    println(model)
     if JuMP.termination_status(model) != JuMP.MOI.OPTIMAL
         error("Unboundedness model should be feasible, status: ",
               JuMP.termination_status(model))
@@ -626,6 +636,7 @@ function compute_permutation(
     @assert length(bounded) == length(nonnegative)
     n = length(bounded)
     permutation = zeros(Int, n)
+    #TODO FIX BOUNDED / NONNEGATIVE classification!!!
     #Set bounded variables first after permutation
     n_bounded = 0
     for i in 1:n

@@ -193,6 +193,7 @@ function project_and_lift(
             markov = GBAlgorithms.run(alg, quiet=true)
         else
             #Find some vector u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
+            println(projection.model)
             u = unboundedness_proof(projection, nonnegative, perm_i)
             push!(markov, u)
         end
