@@ -161,9 +161,9 @@ TODO I probably could make projections more efficient. But at least
 this way they are very simple to implement...
 """
 function project_and_lift(
-    instance :: IPInstance;
-    truncation_type :: Symbol = :None
-) :: Vector{Vector{Int}}
+    instance::IPInstance;
+    truncation_type::Symbol = :None
+)::Vector{Vector{Int}}
     hnf_basis, rnk = group_relaxation_markov(instance)
     #Now, the first `rank` columns of hnf_basis should be LI
     #and thus a Markov basis of the corresponding projection
@@ -176,21 +176,26 @@ function project_and_lift(
     markov = Vector{Int}[]
     for row in eachrow(Array(hnf_basis))
         v = Vector{Int}(row)
-        push!(markov, v)
+        push!(markov, lift_vector(v, instance))
     end
     projection = nonnegativity_relaxation(instance, nonnegative)
     #Main loop: lift each variable in sigma
     while !isempty(sigma)
         i = minimum_lifting(sigma) #Pick some variable to lift
         perm_i = projection.permutation[i] #This is the index of i in projection
+        #TODO Instead of doing this check "efficiently", I can
+        #solve an LP right at this point to check for boundedness
+        #It can be the unboundedness proof LP, which looks correct.
+        #I can use it to determine whether I fall in the bounded case
+        #Then, follow the book De Loera et al in each one of the cases
         if is_bounded(perm_i, projection)
             #A GB wrt the adequate order is a Markov basis of the lifted problem
             #Set up the right order in projection. minimize -i = maximize i
             update_objective!(projection, perm_i)
             alg = BuchbergerAlgorithm(
-                markov, projection, truncation_type=truncation_type
+                markov, projection, truncation_type = truncation_type
             )
-            markov = GBAlgorithms.run(alg, quiet=true)
+            markov = GBAlgorithms.run(alg, quiet = true)
         else
             #Find some vector u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
             println(projection.model)

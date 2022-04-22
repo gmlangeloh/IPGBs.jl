@@ -280,7 +280,7 @@ function markov(
     c :: Array{T},
     nonnegative :: Vector{Bool},
     project_name :: String = "tmp",
-    truncation_sol :: Vector{Int} = []
+    truncation_sol :: Vector{Int} = Int[]
 ) :: Array{Int, 2} where {T <: Real}
     _4ti2_clear(project_name)
     #Write the project files

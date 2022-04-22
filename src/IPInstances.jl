@@ -439,6 +439,12 @@ function lattice_basis_projection(
     return instance.lattice_basis[:, 1:instance.rank]
 end
 
+"""
+    lift_vector(v :: Vector{Int}, instance :: IPInstance) :: Vector{Int}
+
+Lift `v` from an (extended) group relaxation to the full problem given by
+`instance`.
+"""
 function lift_vector(
     v :: Vector{Int},
     instance :: IPInstance
@@ -536,14 +542,11 @@ function bounded_variables(
     bounded = zeros(Bool, n)
     #Set the RHS to 0 to check boundedness for all RHS, by duality
     set_normalized_rhs.(model_cons, 0)
-    println("Printing bounded_variables model")
-    println(model)
     for i in 1:n
         bounded[i] = SolverTools.is_bounded(i, model, model_vars)
     end
     #Set the RHS back to its original value
     set_normalized_rhs.(model_cons, b)
-    println(bounded)
     return bounded
 end
 
