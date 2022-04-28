@@ -323,4 +323,39 @@ function is_bounded(
     return true
 end
 
+#Used in Markov / Project-and-lift, bounded case
+#TODO write documentation
+function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
+    m, n = size(A)
+    model = Model(CPLEX.Optimizer)
+    set_silent(model)
+    @variable(model, x[1:m])
+    @objective(model, Max, 0)
+    #TODO this can be done more efficiently, but it's fine like this for now
+    Aσ = A[:, sigma]
+    not_sigma = [j for j in 1:n if !(j in sigma)]
+    ANσ = A[:, not_sigma]
+    b = zeros(Int, n)
+    b[i] = -1
+    @show size(A) size(Aσ) size(ANσ)
+    for j in 1:length(sigma)
+        @constraint(model, Aσ[:, j]' * x == b[sigma[j]])
+    end
+    for j in 1:length(not_sigma)
+        @constraint(model, ANσ[:, j]' * x <= b[not_sigma[j]])
+    end
+    println(model)
+    optimize!(model)
+    if termination_status(model) == MOI.OPTIMAL
+        c = value.(x)
+        @show c
+        @show -transpose(A) * c
+        @show sigma
+        #TODO Looks reasonable, but not quite what's required in the book.
+        #Check whether this is really correct.
+        return -transpose(A) * c
+    end
+    error("This problem was supposed to be feasible.")
+end
+
 end

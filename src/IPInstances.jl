@@ -608,8 +608,9 @@ function unboundedness_proof(
     JuMP.optimize!(model)
     println(model)
     if JuMP.termination_status(model) != JuMP.MOI.OPTIMAL
-        error("Unboundedness model should be feasible, status: ",
-              JuMP.termination_status(model))
+        return Int[]
+        #error("Unboundedness model should be feasible, status: ",
+        #      JuMP.termination_status(model))
     end
     u = Int.(round.(JuMP.value.(vars)))
     return u

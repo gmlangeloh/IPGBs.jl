@@ -24,6 +24,8 @@ using IPGBs.GBElements
 using IPGBs.IPInstances
 using IPGBs.Orders
 
+using IPGBs.SolverTools #TODO remove this dependency when possible
+
 """
     normalize_hnf!(H :: Generic.MatSpaceElem{T})
 
@@ -183,23 +185,22 @@ function project_and_lift(
     while !isempty(sigma)
         i = minimum_lifting(sigma) #Pick some variable to lift
         perm_i = projection.permutation[i] #This is the index of i in projection
-        #TODO Instead of doing this check "efficiently", I can
-        #solve an LP right at this point to check for boundedness
-        #It can be the unboundedness proof LP, which looks correct.
-        #I can use it to determine whether I fall in the bounded case
-        #Then, follow the book De Loera et al in each one of the cases
-        if is_bounded(perm_i, projection)
+        u = unboundedness_proof(projection, nonnegative, perm_i)
+        if isempty(u) #i is bounded in projection
             #A GB wrt the adequate order is a Markov basis of the lifted problem
             #Set up the right order in projection. minimize -i = maximize i
+            #TODO follow De Loera et al on the new objective function
+            c = SolverTools.bounded_objective(instance.A, perm_i, sigma)
+            for m in markov
+                @show c' * m m[i]
+            end
             update_objective!(projection, perm_i)
             alg = BuchbergerAlgorithm(
                 markov, projection, truncation_type = truncation_type
             )
             markov = GBAlgorithms.run(alg, quiet = true)
         else
-            #Find some vector u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
-            println(projection.model)
-            u = unboundedness_proof(projection, nonnegative, perm_i)
+            #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
             push!(markov, u)
         end
         #Finished lifting i, remove it from sigma
