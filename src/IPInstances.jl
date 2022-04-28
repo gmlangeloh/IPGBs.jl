@@ -491,6 +491,15 @@ function update_objective!(
     end
 end
 
+function update_objective!(
+    instance :: IPInstance,
+    i :: Int,
+    sigma :: Vector{Int}
+)
+    c = SolverTools.bounded_objective(instance.A, i, sigma)
+    instance.C[1, :] = c
+end
+
 #
 # The following functions are used to obtain original, non-normalized data
 #
@@ -606,7 +615,6 @@ function unboundedness_proof(
     @assert !is_bounded(i, instance)
     model, vars, _ = SolverTools.unboundedness_ip_model(instance.A, nonnegative, i)
     JuMP.optimize!(model)
-    println(model)
     if JuMP.termination_status(model) != JuMP.MOI.OPTIMAL
         return Int[]
         #error("Unboundedness model should be feasible, status: ",

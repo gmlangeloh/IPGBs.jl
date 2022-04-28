@@ -24,8 +24,6 @@ using IPGBs.GBElements
 using IPGBs.IPInstances
 using IPGBs.Orders
 
-using IPGBs.SolverTools #TODO remove this dependency when possible
-
 """
     normalize_hnf!(H :: Generic.MatSpaceElem{T})
 
@@ -187,14 +185,8 @@ function project_and_lift(
         perm_i = projection.permutation[i] #This is the index of i in projection
         u = unboundedness_proof(projection, nonnegative, perm_i)
         if isempty(u) #i is bounded in projection
-            #A GB wrt the adequate order is a Markov basis of the lifted problem
-            #Set up the right order in projection. minimize -i = maximize i
-            #TODO follow De Loera et al on the new objective function
-            c = SolverTools.bounded_objective(instance.A, perm_i, sigma)
-            for m in markov
-                @show c' * m m[i]
-            end
-            update_objective!(projection, perm_i)
+            #Compute a GB in the adequate order
+            update_objective!(projection, perm_i, sigma)
             alg = BuchbergerAlgorithm(
                 markov, projection, truncation_type = truncation_type
             )

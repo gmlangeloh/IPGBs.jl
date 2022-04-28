@@ -323,8 +323,21 @@ function is_bounded(
     return true
 end
 
-#Used in Markov / Project-and-lift, bounded case
-#TODO write documentation
+"""
+    bounded_objective(A :: Matrix{Int}, i :: Int, sigma :: Vector{Int})
+
+Compute the objective function for the bounded case of the project-and-lift
+algorithm.
+
+By Farkas Lemma, either
+A^σ x^σ + A_σ x_σ = 0 has a solution with b^T x < 0
+or
+y^T A^σ <= (b^σ)^T
+y^T A_σ == b_σ^T has a solution.
+In this case of P&L, the latter holds and if y is a solution it follows that
+c = b - A^T y satisfies:
+c_σ = 0 and c^T u = -u_i for all u in ker(A).
+"""
 function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
     m, n = size(A)
     model = Model(CPLEX.Optimizer)
@@ -337,23 +350,16 @@ function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
     ANσ = A[:, not_sigma]
     b = zeros(Int, n)
     b[i] = -1
-    @show size(A) size(Aσ) size(ANσ)
     for j in 1:length(sigma)
         @constraint(model, Aσ[:, j]' * x == b[sigma[j]])
     end
     for j in 1:length(not_sigma)
         @constraint(model, ANσ[:, j]' * x <= b[not_sigma[j]])
     end
-    println(model)
     optimize!(model)
     if termination_status(model) == MOI.OPTIMAL
         c = value.(x)
-        @show c
-        @show -transpose(A) * c
-        @show sigma
-        #TODO Looks reasonable, but not quite what's required in the book.
-        #Check whether this is really correct.
-        return -transpose(A) * c
+        return b - transpose(A) * c
     end
     error("This problem was supposed to be feasible.")
 end
