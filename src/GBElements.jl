@@ -217,7 +217,7 @@ function truncate(
     binomial :: T,
     A :: Array{Int, 2},
     b :: Vector{Int},
-    u :: Vector{Int},
+    u :: Vector{Union{Int, Nothing}},
     model :: JuMP.Model,
     model_constraints :: Vector{JuMP.ConstraintRef},
     should_truncate :: Bool,
@@ -260,10 +260,12 @@ Checks whether v is bounded coordinate by coordinate by u.
 """
 function le_upperbound(
     v :: T,
-    u :: Vector{Int}
+    u :: Vector{Union{Int, Nothing}}
 ) :: Bool where {T <: AbstractVector{Int}}
     for i in 1:length(v)
-        if v[i] > 0 && v[i] > u[i]
+        if isnothing(u[i])
+            continue
+        elseif v[i] > 0 && v[i] > u[i]
             return false
         elseif v[i] < 0 && -v[i] > u[i]
             return false
@@ -290,7 +292,7 @@ function simple_truncation(
     v :: T,
     A :: Array{Int, 2},
     b :: Vector{Int},
-    u :: Vector{Int}
+    u :: Vector{Union{Int, Nothing}}
 ) :: Bool where {T <: AbstractVector{Int}}
     head, tail = degrees(v, A)
     return le_coordinatewise(head, b) && le_coordinatewise(tail, b) &&
