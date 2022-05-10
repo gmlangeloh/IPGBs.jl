@@ -4,6 +4,13 @@ Specialized module for faster bitsets in the context of GBs / IP.
 module FastBitSets
 export FastBitSet, disjoint, BitTriangle, add_row!
 
+
+#BitVector-based implementation, it is slower than FastBitSets
+function disjoint(b1 :: BitVector, b2 :: BitVector)
+    @assert length(b1) == length(b2)
+    return all(!(b1[i] && b2[i]) for i in 1:length(b1))
+end
+
 const BITS_PER_WORD = 8 * sizeof(Int)
 
 #

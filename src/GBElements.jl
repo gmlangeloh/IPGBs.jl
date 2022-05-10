@@ -154,6 +154,36 @@ function degrees(
     return A * positive_g, A * negative_g
 end
 
+#Compute supports represented by BitVectors. Slower than FastBitSets
+function bitvector_supports(g :: AbstractVector{Int})
+    pos_supp = BitVector()
+    neg_supp = BitVector()
+    for gi in g
+        if gi > 0
+            push!(pos_supp, true)
+            push!(neg_supp, false)
+        elseif gi < 0
+            push!(pos_supp, false)
+            push!(neg_supp, true)
+        else #gi == 0
+            push!(pos_supp, false)
+            push!(neg_supp, false)
+        end
+    end
+    return pos_supp, neg_supp
+end
+
+function bitvector_supports(B :: Vector{T}) where {T <: AbstractVector{Int}}
+    pos_supps = BitVector[]
+    neg_supps = BitVector[]
+    for g in B
+        p, n = bitvector_supports(g)
+        push!(pos_supps, p)
+        push!(neg_supps, n)
+    end
+    return pos_supps, neg_supps
+end
+
 """
 Computes bitsets with positive and negative supports of `g`.
 """
