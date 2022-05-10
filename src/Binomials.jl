@@ -38,8 +38,7 @@ function GBElements.minus(
     h :: Binomial
 ) :: Binomial
     result .= g.element .- h.element
-    new_cost = g.cost - h.cost
-    return Binomial(result, new_cost)
+    return Binomial(result, g.cost - h.cost)
 end
 
 function Base.copy(
