@@ -53,7 +53,7 @@ function _4ti2_clear(
 )
     extensions = [
         ".zsol", ".lat", ".mat", ".cost", ".gro", "gra", ".feas", ".nf",
-        ".sign", ".min"
+        ".sign", ".min", ".mar"
     ]
     for ext in extensions
         path = filename * ext
@@ -109,8 +109,8 @@ I found that --precision=arb is often necessary here to avoid errors.
 function minimize(
     A :: Array{Int, 2},
     c :: Array{T},
-    xinit :: Vector{Int},
-    nonnegative :: Vector{Bool},
+    xinit :: Vector{Int};
+    nonnegative :: Vector{Bool} = Bool[],
     project_name :: String = "tmp",
     timeout :: Union{Int, Nothing} = nothing
 ) :: Tuple{Vector{Int}, Int} where {T <: Real}
@@ -122,6 +122,9 @@ function minimize(
     _4ti2_write(c, obj_file)
     xinit_file = project_name * ".zsol"
     _4ti2_write(xinit, xinit_file)
+    if isempty(nonnegative)
+        nonnegative = fill(true, size(A, 2))
+    end
     write_4ti2_sign(nonnegative, project_name)
 
     #Run 4ti2
@@ -166,10 +169,10 @@ binomial in it.
 """
 function groebner(
     A::Array{Int,2},
-    c::Array{T},
-    nonnegative::Vector{Bool},
+    c::Array{T};
+    nonnegative::Vector{Bool} = Bool[],
     project_name::String = "tmp",
-    truncation_sol = [],
+    truncation_sol = Int[],
     lattice::Bool = false,
     quiet::Bool = true
 )::Array{Int,2} where {T<:Real}
@@ -184,6 +187,9 @@ function groebner(
     end
     obj_file = project_name * ".cost"
     _4ti2_write(c, obj_file)
+    if isempty(nonnegative)
+        nonnegative = fill(true, size(A, 2))
+    end
     write_4ti2_sign(nonnegative, project_name)
     #Set options for truncated bases
     truncation_opt = ""
@@ -208,7 +214,7 @@ end
 function groebner(instance :: IPInstance)
     nonnegative = IPInstances.nonnegative_variables(instance)
     int_objective = IPInstances.integer_objective(instance)
-    return groebner(instance.A, int_objective, nonnegative)
+    return groebner(instance.A, int_objective, nonnegative=nonnegative)
 end
 
 """
@@ -222,8 +228,8 @@ Returns the normal form and its value using `c` as objective function.
 function normalform(
     A :: Array{Int, 2},
     c :: Array{T},
-    xinit :: Vector{Int},
-    nonnegative :: Vector{Bool},
+    xinit :: Vector{Int};
+    nonnegative :: Vector{Bool} = Bool[],
     project_name = "tmp" :: String,
 ) :: Tuple{Vector{Int}, Int} where {T <: Real}
     #Write the project files
@@ -233,6 +239,9 @@ function normalform(
     _4ti2_write(c, obj_file)
     xinit_file = project_name * ".feas"
     _4ti2_write(xinit, xinit_file)
+    if isempty(nonnegative)
+        nonnegative = fill(true, size(A, 2))
+    end
     write_4ti2_sign(nonnegative, project_name)
 
     #Run 4ti2
@@ -263,12 +272,18 @@ Returns the optimal solution to the given IP along with its objective value.
 function groebnernf(
     A :: Array{Int, 2},
     c :: Array{T},
-    xinit :: Vector{Int},
+    xinit :: Vector{Int};
     nonnegative :: Vector{Bool},
     project_name = "tmp" :: String,
 ) :: Tuple{Vector{Int}, Int} where {T <: Real}
-    _ = groebner(A, c, nonnegative, project_name, truncation_sol=xinit)
-    return normalform(A, c, xinit, project_name, nonnegative)
+    _ = groebner(
+        A, c, nonnegative=nonnegative, project_name=project_name,
+        truncation_sol=xinit
+    )
+    return normalform(
+        A, c, xinit,
+        project_name=project_name, nonnegative=nonnegative
+    )
 end
 
 """
@@ -277,8 +292,8 @@ where the rows are the elements of the basis.
 """
 function markov(
     A :: Array{Int, 2},
-    c :: Array{T},
-    nonnegative :: Vector{Bool},
+    c :: Array{T};
+    nonnegative :: Vector{Bool} = Bool[],
     project_name :: String = "tmp",
     truncation_sol :: Vector{Int} = Int[]
 ) :: Array{Int, 2} where {T <: Real}
@@ -288,6 +303,9 @@ function markov(
     _4ti2_write(A, matrix_file)
     obj_file = project_name * ".cost"
     _4ti2_write(c, obj_file)
+    if isempty(nonnegative)
+        nonnegative = fill(true, size(A, 2))
+    end
     write_4ti2_sign(nonnegative, project_name)
     #Set options for truncated bases
     truncation_opt = ""
