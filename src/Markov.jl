@@ -206,6 +206,84 @@ function project_and_lift(
     return markov
 end
 
+struct ProjectAndLiftState
+    instance::IPInstance #Instance being solved by P&L
+    sigma::Vector{Int} #List of variables that still have to be lifted
+    nonnegative::Vector{Bool} #Whether each variable is nonnegative at this state
+    projection::IPInstance #Current projected lattice problem
+    markov::Vector{Vector{Int}} #Current (partial) Markov basis
+end
+
+function initialize_project_and_lift(
+    instance::IPInstance
+)::ProjectAndLiftState
+    hnf_basis, rnk = group_relaxation_markov(instance)
+    #Now, the first `rank` columns of hnf_basis should be LI
+    #and thus a Markov basis of the corresponding projection
+    sigma = Vector(rnk+1:instance.n)
+    nonnegative = nonnegative_vars(instance)
+    for s in sigma
+        nonnegative[s] = false
+    end
+    #This is a Markov basis of the projected problem
+    markov = Vector{Int}[]
+    for row in eachrow(Array(hnf_basis))
+        v = Vector{Int}(row)
+        push!(markov, lift_vector(v, instance))
+    end
+    projection = nonnegativity_relaxation(instance, nonnegative)
+    return ProjectAndLiftState(instance, sigma, nonnegative, projection, markov)
+end
+
+function next(
+    state::ProjectAndLiftState;
+    truncation_type::Symbol = :None
+)::ProjectAndLiftState
+    i = minimum_lifting(state.sigma) #Pick some variable to lift
+    perm_i = state.projection.permutation[i] #This is the index of i in projection
+    u = unboundedness_proof(state.projection, state.nonnegative, perm_i)
+    if isempty(u) #i is bounded in projection
+        #Compute a GB in the adequate order
+        update_objective!(state.projection, perm_i, state.sigma)
+        alg = BuchbergerAlgorithm(
+            state.markov, state.projection, truncation_type = truncation_type
+        )
+        markov = GBAlgorithms.run(alg, quiet = true)
+    else
+        #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
+        push!(markov, u)
+    end
+    #Finished lifting i, remove it from sigma
+    i_index = findfirst(isequal(i), state.sigma)
+    deleteat!(state.sigma, i_index)
+    state.nonnegative[i] = true
+    projection = nonnegativity_relaxation(state.instance, state.nonnegative)
+    #Truncate the Markov basis
+    markov = truncate_markov(markov, state.instance, truncation_type)
+    return ProjectAndLiftState(
+        state.instance, state.sigma, state.nonnegative, projection, markov
+    )
+end
+
+function is_finished(
+    state::ProjectAndLiftState
+)::Bool
+    return isempty(state.sigma)
+end
+
+#TODO Test this one against my original project-and-lift implementation
+#TODO Make this one be the permanent project_and_lift function later, after I'm sure it works
+function stateful_pl(
+    instance::IPInstance;
+    truncation_type::Symbol = :None
+) :: Vector{Vector{Bool}}
+    state = initialize_project_and_lift(instance)
+    while !is_finished(state)
+        next(state, truncation_type=truncation_type)
+    end
+    return state.markov
+end
+
 """
     simple_markov(instance :: IPInstance) :: Vector{Vector{Int}}
 
