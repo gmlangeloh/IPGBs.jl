@@ -5,10 +5,6 @@ as sets of generators of an ideal for computing Gröbner bases.
 Two methods are implemented:
 - a simplified method that only works when all data defining an IP is negative
 - the project-and-lift algorithm of 4ti2 / Malkin's thesis
-
-TODO implement a Project-and-Lift state structure. This will facilitate the
-implementation of group relaxations and early termination, as well as
-iteratively computing parts of the GB and continuing later
 """
 module Markov
 
@@ -35,7 +31,7 @@ upper row HNF satisfying:
 - all entries above a pivot are non-negative and of smaller magnitude than the pivot
 """
 function normalize_hnf!(
-    H :: Generic.MatSpaceElem{T}
+    H::Generic.MatSpaceElem{T}
 ) where {T}
     m, n = size(H)
     for i in 1:m
@@ -62,8 +58,8 @@ end
 Return true iff `H` is in normalized HNF form as defined in `normalize_hnf!`.
 """
 function is_normalized_hnf(
-    H :: Generic.MatSpaceElem{T}
-) :: Bool where {T}
+    H::Generic.MatSpaceElem{T}
+)::Bool where {T}
     m, n = size(H)
     for i in 1:m
         j = i + 1
@@ -82,6 +78,14 @@ function is_normalized_hnf(
     return true
 end
 
+"""
+    group_relaxation_markov(instance::IPInstance)
+
+Compute a Markov basis of the group relaxation of `instance`, returning this basis in
+matrix form and its rank.
+
+The computation is done using the Hermite Normal Form algorithm.
+"""
 function group_relaxation_markov(instance::IPInstance)
     basis = IPInstances.lattice_basis_projection(instance)
     uhnf_basis = hnf(basis)
@@ -98,8 +102,8 @@ It is assumed the toric ideal of `instance.A` is zero-dimensional, i.e. that
 the lattice optimization problem given by `instance` is of rank n.
 """
 function lex_groebner_basis(
-    instance :: IPInstance
-) :: BinomialSet
+    instance::IPInstance
+)::BinomialSet
     uhnf_basis, _ = group_relaxation_markov(instance)
     monomial_order = Orders.lex_order(instance.nonnegative_end)
     gb_vectors = Vector{Int}[]
@@ -127,10 +131,10 @@ Compute a subset of `markov` including only vectors which shouldn't be truncated
 according to the rule given by `truncation_type`.
 """
 function truncate_markov(
-    markov :: Vector{Vector{Int}},
-    instance :: IPInstance,
-    truncation_type :: Symbol
-) :: Vector{Vector{Int}}
+    markov::Vector{Vector{Int}},
+    instance::IPInstance,
+    truncation_type::Symbol
+)::Vector{Vector{Int}}
     truncated_basis = Vector{Int}[]
     should_truncate = truncation_type != :None
     for v in markov
@@ -146,65 +150,7 @@ function truncate_markov(
     return truncated_basis
 end
 
-random_lifting(sigma) = rand(sigma)
 minimum_lifting(sigma) = minimum(sigma)
-
-"""
-    project_and_lift(instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
-
-Compute a Markov basis of `instance` using the project-and-lift algorithm.
-
-Truncation is done with respect to `truncation_type`. If `truncation_type` is None, then
-a full Markov basis is computed instead.
-
-TODO I probably could make projections more efficient. But at least
-this way they are very simple to implement...
-"""
-function project_and_lift(
-    instance::IPInstance;
-    truncation_type::Symbol = :None
-)::Vector{Vector{Int}}
-    hnf_basis, rnk = group_relaxation_markov(instance)
-    #Now, the first `rank` columns of hnf_basis should be LI
-    #and thus a Markov basis of the corresponding projection
-    sigma = Vector(rnk+1:instance.n)
-    nonnegative = nonnegative_vars(instance)
-    for s in sigma
-        nonnegative[s] = false
-    end
-    #This is a Markov basis of the projected problem
-    markov = Vector{Int}[]
-    for row in eachrow(Array(hnf_basis))
-        v = Vector{Int}(row)
-        push!(markov, lift_vector(v, instance))
-    end
-    projection = nonnegativity_relaxation(instance, nonnegative)
-    #Main loop: lift each variable in sigma
-    while !isempty(sigma)
-        i = minimum_lifting(sigma) #Pick some variable to lift
-        perm_i = projection.permutation[i] #This is the index of i in projection
-        u = unboundedness_proof(projection, nonnegative, perm_i)
-        if isempty(u) #i is bounded in projection
-            #Compute a GB in the adequate order
-            update_objective!(projection, perm_i, sigma)
-            alg = BuchbergerAlgorithm(
-                markov, projection, truncation_type = truncation_type
-            )
-            markov = GBAlgorithms.run(alg, quiet = true)
-        else
-            #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
-            push!(markov, u)
-        end
-        #Finished lifting i, remove it from sigma
-        i_index = findfirst(isequal(i), sigma)
-        deleteat!(sigma, i_index)
-        nonnegative[i] = true
-        projection = nonnegativity_relaxation(instance, nonnegative)
-        #Truncate the Markov basis
-        markov = truncate_markov(markov, instance, truncation_type)
-    end
-    return markov
-end
 
 struct ProjectAndLiftState
     instance::IPInstance #Instance being solved by P&L
@@ -214,6 +160,14 @@ struct ProjectAndLiftState
     markov::Vector{Vector{Int}} #Current (partial) Markov basis
 end
 
+"""
+    initialize_project_and_lift(instance :: IPInstance)
+
+Create the initial state of the project-and-lift algorithm for IP `instance`, including
+a Markov basis for its group relaxation.
+
+The group relaxation Markov basis is obtained through the Hermite Normal Form algorithm.
+"""
 function initialize_project_and_lift(
     instance::IPInstance
 )::ProjectAndLiftState
@@ -235,6 +189,15 @@ function initialize_project_and_lift(
     return ProjectAndLiftState(instance, sigma, nonnegative, projection, markov)
 end
 
+"""
+    next(state :: ProjectAndLiftState; truncation_type :: Symbol) :: ProjectAndLiftState
+
+Run a single iteration of the project-and-lift algorithm over `state`, returning the new
+state after that iteration.
+
+One iteration involves lifting a previously unlifted variable, either through a linear
+program or a Gröbner Basis computation.
+"""
 function next(
     state::ProjectAndLiftState;
     truncation_type::Symbol = :None
@@ -265,21 +228,35 @@ function next(
     )
 end
 
+"""
+    is_finished(state::ProjectAndLiftState) :: Bool
+
+Check whether the project-and-lift algorithm is ready to terminate at `state`.
+"""
 function is_finished(
     state::ProjectAndLiftState
 )::Bool
     return isempty(state.sigma)
 end
 
-#TODO Test this one against my original project-and-lift implementation
-#TODO Make this one be the permanent project_and_lift function later, after I'm sure it works
-function stateful_pl(
+"""
+    project_and_lift(instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
+
+Compute a Markov basis of `instance` using the project-and-lift algorithm.
+
+Truncation is done with respect to `truncation_type`. If `truncation_type` is None, then
+a full Markov basis is computed instead.
+
+TODO I probably could make projections more efficient. But at least
+this way they are very simple to implement...
+"""
+function project_and_lift(
     instance::IPInstance;
     truncation_type::Symbol = :None
-) :: Vector{Vector{Bool}}
+)::Vector{Vector{Int}}
     state = initialize_project_and_lift(instance)
     while !is_finished(state)
-        next(state, truncation_type=truncation_type)
+        state = next(state, truncation_type = truncation_type)
     end
     return state.markov
 end
@@ -320,10 +297,10 @@ Compute a Markov basis of an IP.
 function markov_basis end
 
 function markov_basis(
-    instance :: IPInstance;
-    algorithm :: Symbol = :Any,
-    truncation_type :: Symbol = :None
-) :: Vector{Vector{Int}}
+    instance::IPInstance;
+    algorithm::Symbol = :Any,
+    truncation_type::Symbol = :None
+)::Vector{Vector{Int}}
     if algorithm == :Any
         if IPInstances.nonnegative_data_only(instance)
             #The Simple algorithm may be used, so use it.
@@ -336,22 +313,22 @@ function markov_basis(
     if algorithm == :Simple
         basis = simple_markov(instance)
     else
-        basis = project_and_lift(instance, truncation_type=truncation_type)
+        basis = project_and_lift(instance, truncation_type = truncation_type)
     end
     return basis
 end
 
 function markov_basis(
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    C :: Array{Int, 2},
-    u :: Vector{Int};
-    algorithm :: Symbol = :Any,
-    truncation_type :: Symbol = :None
-) :: Vector{Vector{Int}}
+    A::Array{Int,2},
+    b::Vector{Int},
+    C::Array{Int,2},
+    u::Vector{Int};
+    algorithm::Symbol = :Any,
+    truncation_type::Symbol = :None
+)::Vector{Vector{Int}}
     instance = IPInstance(A, b, C, u)
     return markov_basis(
-        instance, algorithm=algorithm, truncation_type=truncation_type
+        instance, algorithm = algorithm, truncation_type = truncation_type
     )
 end
 

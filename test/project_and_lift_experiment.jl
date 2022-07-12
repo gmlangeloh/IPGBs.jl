@@ -16,7 +16,7 @@ end
 instance = IPInstances.IPInstance(
     knapsack.A, knapsack.b, knapsack.C, u, apply_normalization=false,
     invert_objective=false)
-fourti2_markov = IPGBs.FourTi2.markov(instance.A, instance.C, fill(true, size(instance.A, 2)))
+fourti2_markov = IPGBs.FourTi2.markov(instance.A, instance.C, nonnegative=fill(true, size(instance.A, 2)))
 @show fourti2_markov
 mbasis = Markov.project_and_lift(instance)
 @show mbasis
