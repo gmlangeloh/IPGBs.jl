@@ -141,6 +141,9 @@ function MonomialOrder(
                          is_minimization)
 end
 
+MonomialOrder(C :: Matrix{S}, A, b, min, nvars = nothing) where {S <: Real} =
+    MonomialOrder(Float64.(C), A, b, min, nvars)
+
 function MonomialOrder(
     instance :: IPInstance,
     num_vars :: Union{Nothing, Int} = nothing
@@ -219,7 +222,7 @@ end
 Invert `result` when `order` is a maximization order.
 """
 function invert_maximization(
-    order :: MonomialOrder,
+    _ :: MonomialOrder,
     result :: Bool
 ) :: Bool
     #TODO I don't know if this is correct in the maximization case...

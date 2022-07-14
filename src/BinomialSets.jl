@@ -46,6 +46,20 @@ function BinomialSet(
     return BinomialSet{T, S}(basis, order, !is_implicit(T))
 end
 
+function BinomialSet(
+    basis :: Vector{T},
+    C :: Array{S},
+    A :: Matrix{Int},
+    b :: Vector{Int}
+) where {T <: AbstractVector{Int}, S <: Real}
+    is_minimization = !is_implicit(T)
+    if !(S <: Float64)
+        C = Float64.(C)
+    end
+    order = MonomialOrder(C, A, b, is_minimization)
+    return BinomialSet{T, MonomialOrder}(basis, order, is_minimization)
+end
+
 """
 Changes the ordering of `bs` to a monomial order given by the matrix
 `new_order`.
