@@ -93,8 +93,8 @@ basis.
 function groebner_basis(
     A::Array{Int,2},
     b::Vector{Int},
-    C::Array{T,2},
-    u::Vector{Int};
+    C::Array{T,2};
+    u::Union{Nothing,Vector{<:Union{Int,Nothing}}} = nothing,
     use_signatures::Bool = false,
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
@@ -102,6 +102,12 @@ function groebner_basis(
     quiet::Bool = false,
     minimization::Bool = true
 )::Vector{Vector{Int}} where {T<:Real}
+    if isnothing(u)
+        u = Union{Int,Nothing}[]
+        for _ in 1:size(A, 2)
+            push!(u, nothing)
+        end
+    end
     instance = IPInstance(A, b, C, u)
     markov = markov_basis(instance)
     return groebner_basis(
@@ -168,8 +174,8 @@ function groebner_basis(
     markov_basis::Vector{Vector{Int}},
     A::Array{Int,2},
     b::Vector{Int},
-    C::Array{T,2},
-    u::Vector{Int};
+    C::Array{T,2};
+    u::Union{Nothing,Vector{<:Union{Int,Nothing}}} = nothing,
     use_signatures::Bool = false,
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
@@ -177,6 +183,12 @@ function groebner_basis(
     quiet::Bool = false,
     minimization::Bool = true
 )::Vector{Vector{Int}} where {T<:Real}
+    if isnothing(u)
+        u = Union{Int,Nothing}[]
+        for _ in 1:size(A, 2)
+            push!(u, nothing)
+        end
+    end
     instance = IPInstance(A, b, C, u)
     return groebner_basis(
         markov_basis, instance,
