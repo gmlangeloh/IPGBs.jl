@@ -74,6 +74,10 @@ function change_ordering!(
     #TODO I probably should also reorientate all elements of bs
 end
 
+function binomials(fourti2_basis :: Matrix{Int})
+    return [ fourti2_basis[i, :] for i in 1:size(fourti2_basis, 1) ]
+end
+
 has_order(:: BinomialSet) = true
 has_order(:: AbstractVector) = false
 
