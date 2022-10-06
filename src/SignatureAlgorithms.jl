@@ -550,7 +550,7 @@ function high_base_divisor(
     min_index = FastComparator.find_position(minimal_divisor.siglead, comp)
     #TODO I should pass this assert. Put it back in later.
     #@assert isequal(gb[min_index].siglead, minimal_divisor)
-    for i in 2:length(base_divisors)
+    for i in (firstindex(base_divisors)+1):last_index(base_divisors)
         div = base_divisors[i]
         div_index = FastComparator.find_position(div.siglead, comp)
         #TODO I should pass this assert. Put it back in later.
@@ -576,7 +576,7 @@ function low_base_divisor(
     end
     max_index = basis_index(base_sigs[1], algorithm.basis_signatures)
     max_div = gb[max_index]
-    for i in 2:length(base_sigs)
+    for i in (firstindex(base_sigs)+1):lastindex(base_sigs)
         div_index = basis_index(base_sigs[i], algorithm.basis_signatures)
         div = gb[div_index]
         if FastComparator.compare(comp, div_index, max_index) == :gt

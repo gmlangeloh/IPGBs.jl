@@ -89,7 +89,7 @@ function test_cover_one_by_one(instance, n; max_inequalities=nothing)
     for ineq in ineqs
         #Compute new matrix and RHS including the cover ineq
         new_b[length(new_b)] = length(ineq) - 1
-        for index in 1:size(new_A, 2)
+        for index in axes(new_A, 2)
             new_A[size(new_A, 1), index] = 0
         end
         for index in ineq

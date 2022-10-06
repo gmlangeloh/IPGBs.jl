@@ -72,7 +72,7 @@ function leading_term(
     g :: T
 ) :: Vector{Int} where {T <: AbstractVector{Int}}
     lt = zeros(Int, length(g))
-    for i in 1:length(g)
+    for i in eachindex(g)
         if g[i] > 0
             lt[i] = g[i]
         end
@@ -90,7 +90,7 @@ function head(
     g :: GBElement
 ) :: Vector{Int}
     head = Int[]
-    for i in 1:length(g)
+    for i in eachindex(g)
         if g[i] > 0
             push!(head, i)
         end
@@ -115,7 +115,7 @@ end
 function opposite!(
     g :: T
 ) where {T <: AbstractVector{Int}}
-    for i in 1:length(g)
+    for i in eachindex(g)
         g[i] = -g[i]
     end
 end
@@ -192,7 +192,7 @@ function supports(
 ) :: Tuple{FastBitSet, FastBitSet}
     pos_supp = Int[]
     neg_supp = Int[]
-    for i in 1:length(g)
+    for i in eachindex(g)
         if g[i] > 0
             push!(pos_supp, i)
         elseif g[i] < 0
@@ -277,7 +277,7 @@ function is_negative_disjoint(
     negative :: Bool = false
 ) :: Bool where {T <: AbstractVector{Int}}
     sign = negative ? -1 : 1
-    for i in 1:length(g)
+    for i in eachindex(g)
         if sign * g[i] < 0 && h[i] < 0
             return false
         end
@@ -292,7 +292,7 @@ function le_upperbound(
     v :: T,
     u :: Vector{Union{Int, Nothing}}
 ) :: Bool where {T <: AbstractVector{Int}}
-    for i in 1:length(v)
+    for i in eachindex(g)
         if isnothing(u[i])
             continue
         elseif v[i] > 0 && v[i] > u[i]
@@ -375,7 +375,7 @@ function filter(
     fullfilter :: Bool = false
 ) :: Vector{Int} where {T <: AbstractVector{Int}}
     filter = Int[]
-    for i in 1:length(binomial)
+    for i in eachindex(binomial)
         if binomial[i] > 0 || (fullfilter && binomial[i] != 0)
             push!(filter, i)
         end
@@ -521,21 +521,21 @@ function reduce!(
     factor = reduction_factor(binomial, reducer, negative=negative)
     reduced_to_zero = true
     if !negative && factor == 1
-        for i in 1:length(binomial)
+        for i in eachindex(binomial)
             binomial[i] -= reducer[i]
             if binomial[i] != 0
                 reduced_to_zero = false
             end
         end
     elseif negative && factor == -1
-        for i in 1:length(binomial)
+        for i in eachindex(binomial)
             binomial[i] += reducer[i]
             if binomial[i] != 0
                 reduced_to_zero = false
             end
         end
     else
-        for i in 1:length(binomial)
+        for i in eachindex(binomial)
             binomial[i] -= factor * reducer[i]
             if binomial[i] != 0
                 reduced_to_zero = false

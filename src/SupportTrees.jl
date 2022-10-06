@@ -103,7 +103,7 @@ function support_tree(
     fullfilter :: Bool = false
 ) :: SupportTree{T} where { T <: AbstractVector{Int}, S <: AbstractVector{T}}
     tree = SupportTree{T}(fullfilter)
-    for i in 1:length(gb)
+    for i in eachindex(gb)
         addbinomial!(tree, gb[i])
     end
     return tree

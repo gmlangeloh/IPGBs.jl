@@ -119,7 +119,7 @@ function candidate_pair(
     sigma :: Vector{Bool}
 ) :: AdmissiblePair
     cand = copy(w)
-    for i in 1:length(cand)
+    for i in eachindex(cand)
         if sigma[i]
             cand[i] = 0
         end

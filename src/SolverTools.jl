@@ -350,10 +350,10 @@ function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
     ANσ = A[:, not_sigma]
     b = zeros(Int, n)
     b[i] = -1
-    for j in 1:length(sigma)
+    for j in eachindex(sigma)
         @constraint(model, Aσ[:, j]' * x == b[sigma[j]])
     end
-    for j in 1:length(not_sigma)
+    for j in eachindex(not_sigma)
         @constraint(model, ANσ[:, j]' * x <= b[not_sigma[j]])
     end
     optimize!(model)
