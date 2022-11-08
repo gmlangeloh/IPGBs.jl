@@ -276,16 +276,27 @@ function simple_markov(
     #Check whether the hypotheses hold
     @assert IPInstances.nonnegative_data_only(instance)
     #Build "trivial" Markov basis
-    n = size(instance.A, 2) - size(instance.A, 1)
-    m = size(instance.A, 1) - n
+    #Assumes there are upper bound constraints on the variables
+    has_bounds = IPInstances.has_variable_bound_constraints(instance)
+    n = size(instance.A, 2) - size(instance.A, 1) #Do not count slacks
+    if has_bounds
+        m = size(instance.A, 1) - n #Only count constraints that don't correspond to variable upper bounds
+    else
+        m = size(instance.A, 1)
+    end
     basis = Vector{Int}[]
+    g = Int[]
     for i in 1:n
         v = zeros(Int, n)
         v[i] = 1
         r = zeros(Int, n)
         r[i] = -1
         s = -copy(instance.A[1:m, i])
-        g = vcat(v, s, r)
+        if has_bounds
+            g = vcat(v, s, r)
+        else
+            g = vcat(v, s)
+        end
         push!(basis, g)
     end
     return basis

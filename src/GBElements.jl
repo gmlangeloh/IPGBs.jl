@@ -292,7 +292,7 @@ function le_upperbound(
     v :: T,
     u :: Vector{Union{Int, Nothing}}
 ) :: Bool where {T <: AbstractVector{Int}}
-    for i in eachindex(g)
+    for i in eachindex(v)
         if isnothing(u[i])
             continue
         elseif v[i] > 0 && v[i] > u[i]
@@ -364,6 +364,11 @@ end
 #
 
 """
+    filter(
+    binomial :: T;
+    fullfilter :: Bool = false
+) :: Vector{Int} where {T <: AbstractVector{Int}}
+
 Gets the filter of a binomial, that is, the list of indices of variables
 appearing in its leading term.
 
@@ -384,6 +389,16 @@ function filter(
 end
 
 """
+    reduces(
+    g :: P,
+    filter :: Vector{Int},
+    reducer :: T,
+    gb :: S;
+    fullfilter :: Bool = true,
+    negative :: Bool = false,
+    is_singular :: Ref{Bool} = Ref(false)
+) :: Bool where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
+
 Checks whether `reducer` divides `g`, using the filter of `reducer` for
 efficiency. When fullfilter = true, checks if g.head >= reducer.head and
 g.tail >= reducer.tail coordinate-wise, while also checking a degree criterion.
@@ -444,6 +459,14 @@ function reduces(
     return true
 end
 
+"""
+    monomial_quotient(
+    binomial :: T,
+    reducer :: T
+) :: Vector{Int} where {T <: GBElement}
+
+TBW
+"""
 function monomial_quotient(
     binomial :: T,
     reducer :: T
@@ -459,6 +482,12 @@ function monomial_quotient(
 end
 
 """
+    reduction_factor(
+    binomial :: T,
+    reducer :: T;
+    negative :: Bool = false
+) :: Int where {T <: AbstractVector{Int}}
+
 Finds the maximum k such that k * reducer <= binomial coordinate-wise.
 """
 function reduction_factor(

@@ -50,6 +50,7 @@ function positive_first_row!(
     b :: Vector{Int}
 )
     n = size(C, 2)
+    @assert n == size(A, 2)
     if any(C[1, j] < 0 for j in 1:n)
         d = SolverTools.positive_row_span(A, b)
         if !isnothing(d)

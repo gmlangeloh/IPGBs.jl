@@ -99,8 +99,9 @@ function groebner_basis(
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
-    quiet::Bool = false,
-    minimization::Bool = true
+    quiet::Bool = true,
+    minimization::Bool = true,
+    normalize_ip::Bool = true
 )::Vector{Vector{Int}} where {T<:Real}
     if isnothing(u)
         u = Union{Int,Nothing}[]
@@ -108,7 +109,7 @@ function groebner_basis(
             push!(u, nothing)
         end
     end
-    instance = IPInstance(A, b, C, u)
+    instance = IPInstance(A, b, C, u, apply_normalization=normalize_ip)
     markov = markov_basis(instance)
     return groebner_basis(
         markov, instance,
@@ -131,7 +132,7 @@ function groebner_basis(
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
-    quiet::Bool = false,
+    quiet::Bool = true,
     minimization::Bool = true
 )::Vector{Vector{Int}}
     markov = markov_basis(instance)
@@ -156,7 +157,7 @@ function groebner_basis(
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
-    quiet::Bool = false,
+    quiet::Bool = true,
     minimization::Bool = true
 )::Vector{Vector{Int}}
     return groebner_basis(
@@ -180,7 +181,7 @@ function groebner_basis(
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
-    quiet::Bool = false,
+    quiet::Bool = true,
     minimization::Bool = true
 )::Vector{Vector{Int}} where {T<:Real}
     if isnothing(u)
@@ -218,7 +219,7 @@ function groebner_basis(
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
-    quiet::Bool = false,
+    quiet::Bool = true,
     minimization::Bool = true
 )::Vector{Vector{Int}}
     #Setting parameters

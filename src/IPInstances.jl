@@ -100,8 +100,8 @@ struct IPInstance
     #Problem metadata
     orig_cons :: Int #constraints before normalization
     orig_vars :: Int #variables before normalization
-    m :: Int
-    n :: Int
+    m :: Int #number of constraints after normalization
+    n :: Int #number of variables after normalization
     sense :: Bool #true if minimization
 
     #Store a linear relaxation of this instance as a JuMP model
@@ -392,6 +392,28 @@ function integer_objective(
         end
     end
     return integer_C
+end
+
+function has_variable_bound_constraints(instance :: IPInstance) :: Bool
+    cols_not_slacks = instance.n - instance.m
+    rows_not_variable_bounds = instance.m - cols_not_slacks
+    if rows_not_variable_bounds < cols_not_slacks
+        return false
+    end
+    #Check if the last few constraints form an identity matrix
+    for i in (rows_not_variable_bounds+1):instance.m
+        for j in 1:cols_not_slacks
+            if i - rows_not_variable_bounds == j
+                if instance.A[i, j] == 1
+                    return false #If not 1 in the diagonal, not an identity
+                end
+            elseif instance.A[i, j] != 0
+                #If not 0 elsewhere, not an identity
+                return false
+            end
+        end
+    end
+    return true
 end
 
 function nonnegative_variables(instance :: IPInstance) :: Vector{Bool}
