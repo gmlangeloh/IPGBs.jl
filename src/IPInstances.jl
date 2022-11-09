@@ -172,6 +172,28 @@ struct IPInstance
     end
 end
 
+function Base.show(io::IO, instance::IPInstance)
+    obj = "min $(instance.C) \n"
+    constr = ""
+    for i in 1:size(instance.A, 1)
+        row = instance.A[i, :]
+        str = "$row = $(instance.b[i]) \n"
+        constr *= str
+    end
+    bounds = ""
+    for i in 1:length(instance.u)
+        if isnothing(instance.u[i])
+            continue
+        end
+        bounds *= "0 <= x$(i) <= $(instance.u[i])"
+        if i < length(instance.u)
+            bounds *= "\n"
+        end
+    end
+    final = obj * constr * bounds
+    print(io, final)
+end
+
 """
     extract_constraint(model :: JuMP.Model, c :: JuMP.ConstraintRef, x :: Vector{JuMP.VariableRef})
 

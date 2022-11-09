@@ -110,7 +110,9 @@ function groebner_basis(
         end
     end
     instance = IPInstance(A, b, C, u, apply_normalization=normalize_ip)
+    @debug "Starting to compute Markov basis for " instance
     markov = markov_basis(instance)
+    @debug "Starting to compute Gröbner basis for: " markov
     return groebner_basis(
         markov, instance,
         use_signatures = use_signatures,

@@ -186,6 +186,8 @@ function initialize_project_and_lift(
         push!(markov, lift_vector(v, instance))
     end
     projection = nonnegativity_relaxation(instance, nonnegative)
+    @debug "Group relaxation Markov Basis: " markov
+    @debug "Variables to lift: " sigma
     return ProjectAndLiftState(instance, sigma, nonnegative, projection, markov)
 end
 
@@ -207,13 +209,16 @@ function next(
     u = unboundedness_proof(state.projection, state.nonnegative, perm_i)
     if isempty(u) #i is bounded in projection
         #Compute a GB in the adequate order
+        @debug "Lifting $perm_i in bounded case, applying Buchberger's algorithm"
         update_objective!(state.projection, perm_i, state.sigma)
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
         markov = GBAlgorithms.run(alg, quiet = true)
+        @debug "New Markov Basis obtained through Buchberger" markov
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
+        @debug "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
         push!(markov, u)
     end
     #Finished lifting i, remove it from sigma
@@ -254,10 +259,14 @@ function project_and_lift(
     instance::IPInstance;
     truncation_type::Symbol = :None
 )::Vector{Vector{Int}}
+    @debug "Initializing Project-and-lift"
     state = initialize_project_and_lift(instance)
     while !is_finished(state)
+        l = length(state.sigma)
+        @debug "Starting iteration with $l variables left to lift: " state.sigma
         state = next(state, truncation_type = truncation_type)
     end
+    @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
     return state.markov
 end
 
@@ -273,6 +282,7 @@ that the unit vectors on the original variables of the IP form a Markov basis.
 function simple_markov(
     instance::IPInstance
 )::Vector{Vector{Int}}
+    @debug "Computing Markov basis using the Simple Markov algorithm"
     #Check whether the hypotheses hold
     @assert IPInstances.nonnegative_data_only(instance)
     #Build "trivial" Markov basis
