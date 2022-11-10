@@ -110,9 +110,7 @@ function groebner_basis(
         end
     end
     instance = IPInstance(A, b, C, u, apply_normalization=normalize_ip)
-    @debug "Starting to compute Markov basis for " instance
     markov = markov_basis(instance)
-    @debug "Starting to compute Gröbner basis for: " markov
     return groebner_basis(
         markov, instance,
         use_signatures = use_signatures,
@@ -225,6 +223,7 @@ function groebner_basis(
     minimization::Bool = true
 )::Vector{Vector{Int}}
     #Setting parameters
+    @debug "Starting to compute Gröbner basis for: " markov_basis
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
     representation = implicit_representation ? GradedBinomial : Binomial
     use_minimization = implicit_representation ? false : minimization
@@ -247,8 +246,9 @@ function groebner_basis(
             trunc_var_type = trunc_var, minimization = use_minimization
         )
     end
-    results = GBAlgorithms.run(algorithm, quiet = quiet)
-    return results
+    gb = GBAlgorithms.run(algorithm, quiet = quiet)
+    @debug "IPGBs finished, GB:" gb
+    return gb
 end
 
 end

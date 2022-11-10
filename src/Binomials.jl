@@ -8,7 +8,12 @@ using IPGBs.Orders
 mutable struct Binomial <: GBElement
     element :: Vector{Int}
     cost :: Int
+    nonnegative_end :: Int #Index of the last non-negative variable of
+    #the current IP problem
 end
+
+#By default, all variables are considered non-negative.
+Binomial(b :: Vector{Int}, c :: Int) = Binomial(b, c, length(element))
 
 GBElements.cost(g :: Binomial) = g.cost
 GBElements.fullform(g :: Binomial) = g.element
@@ -24,9 +29,10 @@ function Base.:-(
     g :: Binomial,
     h :: Binomial
 ) :: Binomial
+    @assert g.nonnegative_end == h.nonnegative_end
     new_element = g.element - h.element
     new_cost = g.cost - h.cost
-    return Binomial(new_element, new_cost)
+    return Binomial(new_element, new_cost, g.nonnegative_end)
 end
 
 """
@@ -37,14 +43,28 @@ function GBElements.minus(
     g :: Binomial,
     h :: Binomial
 ) :: Binomial
+    @assert g.nonnegative_end == h.nonnegative_end
     result .= g.element .- h.element
-    return Binomial(result, g.cost - h.cost)
+    return Binomial(result, g.cost - h.cost, g.nonnegative_end)
 end
 
 function Base.copy(
     g :: Binomial
 ) :: Binomial
-    return Binomial(copy(g.element), g.cost)
+    return Binomial(copy(g.element), g.cost, g.nonnegative_end)
+end
+
+function filter(
+    binomial :: Binomial;
+    fullfilter :: Bool = false
+) :: Vector{Int}
+    filter = Int[]
+    for i in 1:binomial.nonnegative_end
+        if binomial[i] > 0 || (fullfilter && binomial[i] != 0)
+            push!(filter, i)
+        end
+    end
+    return filter
 end
 
 #

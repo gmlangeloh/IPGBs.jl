@@ -211,6 +211,7 @@ function next(
         #Compute a GB in the adequate order
         @debug "Lifting $perm_i in bounded case, applying Buchberger's algorithm"
         update_objective!(state.projection, perm_i, state.sigma)
+        @debug state.projection
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
@@ -322,6 +323,7 @@ function markov_basis(
     algorithm::Symbol = :Any,
     truncation_type::Symbol = :None
 )::Vector{Vector{Int}}
+    @debug "Starting to compute Markov basis for " instance
     if algorithm == :Any
         if IPInstances.nonnegative_data_only(instance)
             #The Simple algorithm may be used, so use it.

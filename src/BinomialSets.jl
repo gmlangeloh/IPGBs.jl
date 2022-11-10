@@ -420,6 +420,7 @@ function auto_reduce_once!(
             #No need to update the basis in this case
         end
     end
+    @debug "Removed elements with auto-reduction: " removed
     return removed, removed_before_index
 end
 

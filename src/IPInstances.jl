@@ -541,7 +541,8 @@ function update_objective!(
     sigma :: Vector{Int}
 )
     c = SolverTools.bounded_objective(instance.A, i, sigma)
-    instance.C[1, :] = c
+    #We take the negative here to normalize the problem to minimization form
+    instance.C[1, :] = -c
 end
 
 #

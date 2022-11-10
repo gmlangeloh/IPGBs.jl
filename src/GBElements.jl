@@ -42,10 +42,11 @@ only subtype supported.
 function to_gbelement(
     v :: Vector{Int},
     order :: T,
-    S :: DataType
+    nonnegative_end :: Int,
+    S :: DataType,
 ) where {T <: GBOrder}
     c = Int(round(order_cost(order, v)))
-    b = S(v, c)
+    b = S(v, c, nonnegative_end)
     orientate!(b, order)
     return b
 end
@@ -369,7 +370,7 @@ end
     fullfilter :: Bool = false
 ) :: Vector{Int} where {T <: AbstractVector{Int}}
 
-Gets the filter of a binomial, that is, the list of indices of variables
+The filter of a binomial, that is, the list of indices of variables
 appearing in its leading term.
 
 If fullfilter = true, include the indices of variables appearing in its

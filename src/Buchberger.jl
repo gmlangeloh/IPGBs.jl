@@ -95,7 +95,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         @assert !isempty(markov)
         #Build order and generating set
         order = MonomialOrder(instance.C, instance.A, instance.b, minimization)
-        generating_set = [to_gbelement(m, order, T) for m in markov]
+        generating_set = [to_gbelement(m, order, instance.nonnegative_end, T) for m in markov]
         preallocated = Vector{Int}(undef, length(generating_set[1]))
         should_truncate = truncation_type != :None
         #Initialize a feasibility model in case we want to use model truncation
@@ -194,33 +194,6 @@ function GBAlgorithms.process_zero_reduction!(
     :: CriticalPair
 ) where {T <: GBElement}
     increment(algorithm, :zero_reductions)
-end
-
-#TODO this one should likely be removed when the Markov basis functions
-#are implemented!
-function GBAlgorithms.initialize!(
-    algorithm :: BuchbergerAlgorithm{T}
-) where {T <: GBElement}
-    A = algorithm.instance.A
-    b = algorithm.instance.b
-    C = algorithm.instance.C
-    u = algorithm.instance.u
-    if T == Binomial
-        num_gens = size(A, 2) - size(A, 1)
-        lattice_generator = lattice_generator_binomial
-    else
-        num_gens = size(A, 2)
-        lattice_generator = lattice_generator_graded
-    end
-    num_vars = size(A, 2)
-    algorithm.preallocated = Vector{Int}(undef, num_vars)
-    for i in 1:num_gens
-        e = lattice_generator(i, A, b, C, u, order(algorithm.basis),
-                              check_truncation=truncate_basis(algorithm))
-        if !isnothing(e)
-            update!(algorithm, e, nothing)
-        end
-    end
 end
 
 end

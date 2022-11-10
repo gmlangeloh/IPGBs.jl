@@ -145,6 +145,7 @@ function print_algorithm_stats(
     algorithm :: GBAlgorithm,
     quiet :: Bool
 )
+    @debug "GB Algorithm stats:" stats(algorithm)
     if !quiet
         println(stats(algorithm))
         #This is kind of a hack but works
@@ -162,11 +163,13 @@ function run(
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
+    @debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
+        @debug "Processing: " sbinomial(algorithm, pair)
         if late_pair_elimination(algorithm, pair)
             #Pair elimination succeeded, skip this S-pair
             continue
@@ -175,11 +178,13 @@ function run(
         binomial = sbinomial(algorithm, pair)
         reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial)
+            @debug "Adding binomial to GB: " binomial
             update!(algorithm, binomial, pair)
         elseif reduced_to_zero #Update syzygies in case this makes sense
             process_zero_reduction!(algorithm, binomial, pair)
         end
     end
+    @debug "Basis before interreduction: " current_basis(algorithm)
     print_algorithm_stats(algorithm, quiet)
     return prepare_gb_output(algorithm)
 end
