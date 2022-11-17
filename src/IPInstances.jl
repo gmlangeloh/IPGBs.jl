@@ -108,13 +108,13 @@ struct IPInstance
     #It is used to check whether variables are bounded
     model :: JuMP.Model
     model_vars :: Vector{JuMP.VariableRef}
-    model_cons :: Vector{JuMP.ConstraintRef} #TODO not a concrete type, fix this
+    model_cons :: Vector{JuMP.ConstraintRef} #TODO: not a concrete type, fix this
 
     #Lattice-related information
     lattice_basis :: Generic.MatSpaceElem{BigInt} #Row basis
     rank :: Int
 
-    #TODO put a parameter to determine whether it is minimization or not
+    #TODO: put a parameter to determine whether it is minimization or not
     function IPInstance(
         A::Array{Int,2},
         b::Vector{Int},
@@ -339,7 +339,7 @@ function IPInstance(model::JuMP.Model)
     #Add upper and lower bounds to A, whenever necessary
     for (var, lb) in lower_bounds
         if !IPGBs.is_approx_zero(lb) #Zero lower bounds may be ignored
-            #TODO Zero lbs are important for project-and-lift, add them later
+            #TODO: Zero lbs are important for project-and-lift, add them later
             #separately from the rest of the data
             new_row = zeros(Int, n)
             new_row[var] = 1
@@ -693,7 +693,7 @@ function compute_permutation(
     @assert length(bounded) == length(nonnegative)
     n = length(bounded)
     permutation = zeros(Int, n)
-    #TODO FIX BOUNDED / NONNEGATIVE classification!!!
+    #TODO: FIX BOUNDED / NONNEGATIVE classification!!!
     #Set bounded variables first after permutation
     n_bounded = 0
     for i in 1:n

@@ -169,7 +169,6 @@ function run(
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
-        @debug "Processing: " sbinomial(algorithm, pair)
         if late_pair_elimination(algorithm, pair)
             #Pair elimination succeeded, skip this S-pair
             continue
@@ -178,7 +177,6 @@ function run(
         binomial = sbinomial(algorithm, pair)
         reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial)
-            @debug "Adding binomial to GB: " binomial
             update!(algorithm, binomial, pair)
         elseif reduced_to_zero #Update syzygies in case this makes sense
             process_zero_reduction!(algorithm, binomial, pair)

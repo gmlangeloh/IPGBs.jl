@@ -1,10 +1,10 @@
 """ This module defines all the binomial data structures used in my implementations
 of Buchberger's algorithm and Signature-based algorithms.
 
-TODO make GBElements a consistent interface
+TODO: make GBElements a consistent interface
 """
 module GBElements
-#TODO this is way too long, clean it up or at least break it into more exports
+#TODO: this is way too long, clean it up or at least break it into more exports
 export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement
 
 using IPGBs.FastBitSets
@@ -85,7 +85,7 @@ end
 The indices of the positive support of `g`. Or indices of the support of
 leading_term(g)
 
-TODO could probably turn this into an iterator instead, would be more efficient
+TODO: could probably turn this into an iterator instead, would be more efficient
 """
 function head(
     g :: GBElement
@@ -344,7 +344,7 @@ previously built `model` by modifying `constraints`.
 Returns true iff `v` is feasible for the above model, which means it should NOT
 be truncated.
 
-TODO LP truncation is slightly slower than I hoped. IP truncation is very slow.
+TODO: LP truncation is slightly slower than I hoped. IP truncation is very slow.
 Can I implement the model more efficiently somehow?
 """
 function model_truncation(

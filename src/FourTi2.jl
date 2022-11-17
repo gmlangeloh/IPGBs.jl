@@ -9,6 +9,7 @@ export minimize, groebner, normalform, markov, groebnernf, graver
 using DelimitedFiles
 using LinearAlgebra
 
+using IPGBs.GBTools
 using IPGBs.IPInstances
 
 """
@@ -174,7 +175,8 @@ function groebner(
     project_name::String = "tmp",
     truncation_sol = Int[],
     lattice::Bool = false,
-    quiet::Bool = true
+    quiet::Bool = true,
+    markov::Union{Nothing,Vector{Vector{Int}}} = nothing
 )::Array{Int,2} where {T<:Real}
     _4ti2_clear(project_name)
     #Write the project files
@@ -186,11 +188,23 @@ function groebner(
         _4ti2_write(A, lattice_file)
     end
     obj_file = project_name * ".cost"
+    #bounded_c = [c; GBTools.revlex_matrix(size(c, 2))]
+    #_4ti2_write(bounded_c, obj_file)
     _4ti2_write(c, obj_file)
     if isempty(nonnegative)
         nonnegative = fill(true, size(A, 2))
     end
     write_4ti2_sign(nonnegative, project_name)
+    if !isnothing(markov)
+        markov_file = project_name * ".mar"
+        M = zeros(Int, length(markov), length(markov[1]))
+        for i in 1:length(markov)
+            for j in 1:length(markov[1])
+                M[i, j] = markov[i][j]
+            end
+        end
+        _4ti2_write(M, markov_file)
+    end
     #Set options for truncated bases
     truncation_opt = ""
     if length(truncation_sol) > 0
@@ -211,10 +225,15 @@ function groebner(
     return gb
 end
 
-function groebner(instance :: IPInstance)
+function groebner(
+    instance :: IPInstance; 
+    markov :: Union{Nothing,Vector{Vector{Int}}} = nothing
+)
     nonnegative = IPInstances.nonnegative_variables(instance)
     int_objective = IPInstances.integer_objective(instance)
-    return groebner(instance.A, int_objective, nonnegative=nonnegative)
+    return groebner(
+        instance.A, int_objective, nonnegative=nonnegative, markov=markov
+    )
 end
 
 """
@@ -328,7 +347,7 @@ end
 """
 Calls 4ti2's graver command.
 
-TODO Implement other options (lower and upper bound, arbitrary signs,
+TODO: Implement other options (lower and upper bound, arbitrary signs,
 support to lattice bases instead of matrices...)
 """
 function graver(

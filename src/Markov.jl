@@ -20,6 +20,9 @@ using IPGBs.GBElements
 using IPGBs.IPInstances
 using IPGBs.Orders
 
+using IPGBs.FourTi2
+using IPGBs.GBTools
+
 """
     normalize_hnf!(H :: Generic.MatSpaceElem{T})
 
@@ -207,16 +210,21 @@ function next(
     i = minimum_lifting(state.sigma) #Pick some variable to lift
     perm_i = state.projection.permutation[i] #This is the index of i in projection
     u = unboundedness_proof(state.projection, state.nonnegative, perm_i)
+    markov = state.markov
     if isempty(u) #i is bounded in projection
         #Compute a GB in the adequate order
+        # TODO: Fix and cleanup. In the end, I should not call 4ti2 here!
         @debug "Lifting $perm_i in bounded case, applying Buchberger's algorithm"
-        update_objective!(state.projection, perm_i, state.sigma)
-        @debug state.projection
+        update_objective!(state.projection, perm_i)
+        correct_gb = groebner(state.projection, markov=state.markov)
+        markov = GBTools.tovector(correct_gb)
+        @debug "Correct Markov basis computed by 4ti2: $(correct_gb)"
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
-        markov = GBAlgorithms.run(alg, quiet = true)
-        @debug "New Markov Basis obtained through Buchberger" markov
+        markov2 = GBAlgorithms.run(alg, quiet = true)
+        markov = markov2
+        @debug "New Markov Basis obtained through Buchberger" markov2
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
         @debug "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
@@ -253,7 +261,7 @@ Compute a Markov basis of `instance` using the project-and-lift algorithm.
 Truncation is done with respect to `truncation_type`. If `truncation_type` is None, then
 a full Markov basis is computed instead.
 
-TODO I probably could make projections more efficient. But at least
+TODO: I probably could make projections more efficient. But at least
 this way they are very simple to implement...
 """
 function project_and_lift(

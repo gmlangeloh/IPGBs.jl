@@ -54,7 +54,7 @@ function is_degenerate(
             end
         end
     end
-    #TODO Check at some point whether this really corresponds to the slacks
+    #TODO: Check at some point whether this really corresponds to the slacks
     #of the constraints!
     for j in 1:length(constraints)
         if MOI.get(model, MOI.ConstraintBasisStatus(), constraints[j]) == MOI.BASIC
@@ -130,7 +130,7 @@ min c[1, :] * x s.t. Ax = b, x_i >= 0 for all i s.t. nonnegative[i] == true
 
 The variables are integer if `var_type == Int` or real otherwise.
 
-TODO Should I do anything special for the binary case?
+TODO: Should I do anything special for the binary case?
 """
 function jump_model(
     A::Matrix{Int},
@@ -148,7 +148,7 @@ function jump_model(
     else #var_type is Real / linear relaxation is used
         @variable(model, x[1:n])
     end
-    #TODO Should I set these upper bounds? My model already includes them
+    #TODO: Should I set these upper bounds? My model already includes them
     #when necessary as additional constraints!
     #for i in 1:n
     #    if !isnothing(u[i])
@@ -196,7 +196,7 @@ end
 Return an IP that checks for the existence of an integer vector `u` such that
 `Au = 0`, `u[nonnegative] >= 0`, `u[i] > 0`.
 
-TODO this could also be done with LP as follows:
+TODO: this could also be done with LP as follows:
 "Assume all data is rational. Then, the polyhedron is rational, so the optimum
 must be rational. Multiply by a large enough integer..."
 Implement it this way later!
@@ -344,7 +344,7 @@ function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
     set_silent(model)
     @variable(model, x[1:m])
     @objective(model, Max, 0)
-    #TODO this can be done more efficiently, but it's fine like this for now
+    #TODO: this can be done more efficiently, but it's fine like this for now
     Aσ = A[:, sigma]
     not_sigma = [j for j in 1:n if !(j in sigma)]
     ANσ = A[:, not_sigma]

@@ -1,4 +1,4 @@
-#TODO re-export the relevant functions: the 4ti2 interface and my GB
+#TODO: re-export the relevant functions: the 4ti2 interface and my GB
 #implementations
 module IPGBs
 export groebner_basis
@@ -20,12 +20,12 @@ include("./GradedBinomials.jl")
 include("./BinomialSets.jl")
 include("./SignaturePolynomials.jl")
 include("./TriangleHeaps.jl")
+include("./FourTi2.jl")
 include("./GBAlgorithms.jl")
 
 include("./FGLM.jl")
 include("./Buchberger.jl")
 include("./SignatureAlgorithms.jl")
-include("./FourTi2.jl")
 include("./Markov.jl")
 include("./StandardDecomposition.jl")
 
@@ -203,9 +203,9 @@ function groebner_basis(
 end
 
 """
-TODO write full documentation for this top-level function...
+TODO: write full documentation for this top-level function...
 
-TODO as the number of arguments and complexity of preprocessing goes up, that
+TODO: as the number of arguments and complexity of preprocessing goes up, that
 should probably be done in another module
 
 - module_order is one of :ltpot, :pot and :top. Only relevant for signature
@@ -234,7 +234,7 @@ function groebner_basis(
 
     #Run GB algorithm over the given instance
     if use_signatures
-        #TODO Change the SignatureAlgorithm constructor, then send the whole
+        #TODO: Change the SignatureAlgorithm constructor, then send the whole
         #instance
         algorithm = algorithm_type(
             representation, instance.C, instance.A, instance.b, module_order,

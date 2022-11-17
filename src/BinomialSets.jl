@@ -22,7 +22,7 @@ struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     basis :: Vector{T}
     order :: S
     reduction_tree :: SupportTree{T}
-    minimization_form :: Bool #TODO maybe this should be part of the order?
+    minimization_form :: Bool #TODO: maybe this should be part of the order?
 
     #We store the supports here instead of on the elements themselves to avoid
     #having to compute them unnecessarily or having to compute them after creating
@@ -71,7 +71,7 @@ function change_ordering!(
     b :: Vector{Int}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     Orders.change_ordering!(bs.order, new_order, A, b)
-    #TODO I probably should also reorientate all elements of bs
+    #TODO: I probably should also reorientate all elements of bs
 end
 
 function binomials(fourti2_basis :: Matrix{Int})
@@ -376,7 +376,7 @@ function is_truncated_groebner_basis(
             s = BinomialPair(i, j)
             binomial = sbinomial(mem, s, bs)
             reduced_to_zero, _ = reduce!(binomial, bs)
-            #TODO we likely can't always use simple_truncation here.
+            #TODO: we likely can't always use simple_truncation here.
             if !reduced_to_zero && simple_truncation(binomial, A, b, u)
                 #Note we check isfeasible after reduction. This is often
                 #quicker, because then we skip the check for zero reductions
@@ -434,13 +434,16 @@ multiple of LT(h), for h distinct from g in the GB.
 function minimal_basis!(
     gb :: BinomialSet{T, S}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
+    @debug "Computing minimal Gröbner basis"
     for i in length(gb):-1:1
         g = gb[i]
         reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
         if !isnothing(reducer)
+            @debug "Reducing $g by $reducer; removing the former"
             deleteat!(gb, i)
         end
     end
+    @debug "Minimal GB: $gb"
 end
 
 """
@@ -449,15 +452,16 @@ Updates gb to a reduced Gröbner Basis.
 function reduced_basis!(
     gb :: BinomialSet{T, S}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
+    @debug "Computing reduced Gröbner basis"
     #Currently, this implementation doesn't support signatures
-    #TODO Fix this later
+    #TODO: Fix this later
     if has_signature(T)
         return
     end
     minimal_basis!(gb)
     if !is_minimization(gb)
         #Doesn't compute reduced basis for implicit representation
-        #TODO fix this in some later version!
+        #TODO: fix this in some later version!
         return
     end
     for i in length(gb):-1:1
