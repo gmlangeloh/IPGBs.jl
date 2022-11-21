@@ -470,6 +470,7 @@ function reduced_basis!(
         while reducing
             h = find_reducer(g, gb, reduction_tree(gb), negative=true)
             if !isnothing(h)
+                @debug "Tail-reducing $g by $h"
                 GBElements.reduce!(g, h, order(gb), negative=true)
             else
                 reducing = false

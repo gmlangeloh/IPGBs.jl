@@ -114,9 +114,11 @@ function GBElements.reduce!(
     order :: GBOrder;
     negative :: Bool = false
 ) :: Bool
-    reduced_to_zero = GBElements.reduce!(g.element, h.element)
-    if !reduced_to_zero #For efficiency, don't do the other stuff in this case
-        g.cost -= h.cost
+    factor = GBElements.reduction_factor(g.element, h.element)
+    reduced_to_zero = GBElements.reduce!(g.element, h.element, factor)
+    #For efficiency, don't do reorientation when there was a zero-reduction
+    if !reduced_to_zero || negative 
+        g.cost -= factor * h.cost
         orientate!(g, order)
     end
     return reduced_to_zero

@@ -545,10 +545,10 @@ end
 
 function reduce!(
     binomial :: T,
-    reducer :: T;
+    reducer :: T,
+    factor :: Int;
     negative :: Bool = false
 ) :: Bool where {T <: AbstractVector{Int}}
-    factor = reduction_factor(binomial, reducer, negative=negative)
     reduced_to_zero = true
     if !negative && factor == 1
         for i in eachindex(binomial)
@@ -573,6 +573,15 @@ function reduce!(
         end
     end
     return reduced_to_zero
+end
+
+function reduce!(
+    binomial :: T,
+    reducer :: T;
+    negative :: Bool = false
+) :: Bool where {T <: AbstractVector{Int}}
+    factor = reduction_factor(binomial, reducer, negative=negative)
+    return reduce!(binomial, reducer, factor, negative=negative)
 end
 
 #
