@@ -484,6 +484,23 @@ function lattice_basis_projection(
 end
 
 """
+    group_initial_solution(
+    instance :: IPInstance
+) :: Vector{Int}
+
+Return a solution to instance.A == instance.b, dropping the non-negativity
+constraints.
+"""
+function initial_solution(
+    instance :: IPInstance
+) :: Vector{Int}
+    mat_A = matrix(ZZ, instance.A)
+    mat_b = matrix(ZZ, length(instance.b), 1, instance.b)
+    x = AbstractAlgebra.solve(mat_A, mat_b)
+    return reshape(convert.(Int, Array(x)), size(instance.A, 2))
+end
+
+"""
     lift_vector(v :: Vector{Int}, instance :: IPInstance) :: Vector{Int}
 
 Lift `v` from an (extended) group relaxation to the full problem given by
@@ -693,7 +710,6 @@ function compute_permutation(
     @assert length(bounded) == length(nonnegative)
     n = length(bounded)
     permutation = zeros(Int, n)
-    #TODO: FIX BOUNDED / NONNEGATIVE classification!!!
     #Set bounded variables first after permutation
     n_bounded = 0
     for i in 1:n

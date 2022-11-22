@@ -218,7 +218,7 @@ function next(
         update_objective!(state.projection, perm_i)
         correct_gb = groebner(state.projection, markov=state.markov)
         markov = GBTools.tovector(correct_gb)
-        @debug "Correct Markov basis computed by 4ti2: $(correct_gb)"
+        @debug "Correct Markov basis computed by 4ti2: $(markov)"
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )

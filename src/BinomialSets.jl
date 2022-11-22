@@ -434,16 +434,13 @@ multiple of LT(h), for h distinct from g in the GB.
 function minimal_basis!(
     gb :: BinomialSet{T, S}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
-    @debug "Computing minimal Gröbner basis"
     for i in length(gb):-1:1
         g = gb[i]
         reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
         if !isnothing(reducer)
-            @debug "Reducing $g by $reducer; removing the former"
             deleteat!(gb, i)
         end
     end
-    @debug "Minimal GB: $gb"
 end
 
 """
@@ -452,7 +449,6 @@ Updates gb to a reduced Gröbner Basis.
 function reduced_basis!(
     gb :: BinomialSet{T, S}
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
-    @debug "Computing reduced Gröbner basis"
     #Currently, this implementation doesn't support signatures
     #TODO: Fix this later
     if has_signature(T)
@@ -470,7 +466,6 @@ function reduced_basis!(
         while reducing
             h = find_reducer(g, gb, reduction_tree(gb), negative=true)
             if !isnothing(h)
-                @debug "Tail-reducing $g by $h"
                 GBElements.reduce!(g, h, order(gb), negative=true)
             else
                 reducing = false

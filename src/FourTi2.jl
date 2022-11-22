@@ -188,8 +188,6 @@ function groebner(
         _4ti2_write(A, lattice_file)
     end
     obj_file = project_name * ".cost"
-    #bounded_c = [c; GBTools.revlex_matrix(size(c, 2))]
-    #_4ti2_write(bounded_c, obj_file)
     _4ti2_write(c, obj_file)
     if isempty(nonnegative)
         nonnegative = fill(true, size(A, 2))
@@ -198,8 +196,8 @@ function groebner(
     if !isnothing(markov)
         markov_file = project_name * ".mar"
         M = zeros(Int, length(markov), length(markov[1]))
-        for i in 1:length(markov)
-            for j in 1:length(markov[1])
+        for i in eachindex(markov)
+            for j in eachindex(markov[i])
                 M[i, j] = markov[i][j]
             end
         end
@@ -231,8 +229,10 @@ function groebner(
 )
     nonnegative = IPInstances.nonnegative_variables(instance)
     int_objective = IPInstances.integer_objective(instance)
+    init_sol = IPInstances.initial_solution(instance)
     return groebner(
-        instance.A, int_objective, nonnegative=nonnegative, markov=markov
+        instance.A, int_objective, nonnegative=nonnegative, markov=markov,
+        truncation_sol=init_sol
     )
 end
 
