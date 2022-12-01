@@ -43,10 +43,11 @@ function to_gbelement(
     v :: Vector{Int},
     order :: T,
     nonnegative_end :: Int,
+    bounded_end :: Int,
     S :: DataType,
 ) where {T <: GBOrder}
     c = Int(round(order_cost(order, v)))
-    b = S(v, c, nonnegative_end)
+    b = S(v, c, nonnegative_end, bounded_end)
     orientate!(b, order)
     return b
 end

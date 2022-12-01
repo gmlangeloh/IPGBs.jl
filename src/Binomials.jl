@@ -10,10 +10,11 @@ mutable struct Binomial <: GBElement
     cost :: Int
     nonnegative_end :: Int #Index of the last non-negative variable of
     #the current IP problem
+    bounded_end :: Int
 end
 
 #By default, all variables are considered non-negative.
-Binomial(b :: Vector{Int}, c :: Int) = Binomial(b, c, length(element))
+Binomial(b :: Vector{Int}, c :: Int) = Binomial(b, c, length(element), length(element))
 
 GBElements.cost(g :: Binomial) = g.cost
 GBElements.fullform(g :: Binomial) = g.element
@@ -32,7 +33,7 @@ function Base.:-(
     @assert g.nonnegative_end == h.nonnegative_end
     new_element = g.element - h.element
     new_cost = g.cost - h.cost
-    return Binomial(new_element, new_cost, g.nonnegative_end)
+    return Binomial(new_element, new_cost, g.nonnegative_end, g.bounded_end)
 end
 
 """
@@ -45,13 +46,13 @@ function GBElements.minus(
 ) :: Binomial
     @assert g.nonnegative_end == h.nonnegative_end
     result .= g.element .- h.element
-    return Binomial(result, g.cost - h.cost, g.nonnegative_end)
+    return Binomial(result, g.cost - h.cost, g.nonnegative_end, g.bounded_end)
 end
 
 function Base.copy(
     g :: Binomial
 ) :: Binomial
-    return Binomial(copy(g.element), g.cost, g.nonnegative_end)
+    return Binomial(copy(g.element), g.cost, g.nonnegative_end, g.bounded_end)
 end
 
 function GBElements.filter(
@@ -65,6 +66,20 @@ function GBElements.filter(
         end
     end
     return filter
+end
+
+function GBElements.is_negative_disjoint(
+    g :: Binomial,
+    h :: Binomial;
+    negative :: Bool = false
+) :: Bool
+    sign = negative ? -1 : 1
+    for i in 1:g.bounded_end
+        if sign * g[i] < 0 && h[i] < 0
+            return false
+        end
+    end
+    return true
 end
 
 #
