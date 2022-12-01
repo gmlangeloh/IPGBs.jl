@@ -54,7 +54,6 @@ function Base.copy(
     return Binomial(copy(g.element), g.cost, g.nonnegative_end)
 end
 
-#TODO FIND OUT WHY THE ALGORITHM DOESNT TERMINATE WHEN THIS IS UPDATED!!!
 function GBElements.filter(
     binomial :: Binomial;
     fullfilter :: Bool = false

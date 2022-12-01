@@ -38,6 +38,7 @@ import .Binomials: Binomial
 import .GradedBinomials: GradedBinomial
 
 using JuMP
+using Random
 
 """
 Simple truncation works when the data in A, b are all non-negative.
@@ -248,7 +249,8 @@ function groebner_basis(
     end
     gb = GBAlgorithms.run(algorithm, quiet = quiet)
     @debug "IPGBs finished, GB:" gb
-    correct_gb = GBTools.tovector(FourTi2.groebner(instance, markov=markov_basis))
+    proj_name = "debug_" * randstring(8)
+    correct_gb = GBTools.tovector(FourTi2.groebner(instance, markov=markov_basis, project_name=proj_name))
     @debug "4ti2 GB: " correct_gb
     return gb
 end

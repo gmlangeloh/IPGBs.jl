@@ -169,21 +169,30 @@ function run(
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
+        @show current_basis(algorithm)[GBElements.first(pair)]
+        @show current_basis(algorithm)[GBElements.second(pair)]
+        println()
         if late_pair_elimination(algorithm, pair)
             #Pair elimination succeeded, skip this S-pair
+            println("Eliminated by criteria")
             continue
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, pair)
         reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial)
+            println("Added to basis")
             update!(algorithm, binomial, pair)
         elseif reduced_to_zero #Update syzygies in case this makes sense
+            println("Reduced to 0")
             process_zero_reduction!(algorithm, binomial, pair)
         end
     end
     @debug "Basis before interreduction: " current_basis(algorithm)
     print_algorithm_stats(algorithm, quiet)
+    #tr(bin) = truncate(algorithm, bin)
+    println("ENDED RUN")
+    #println(is_truncated_groebner_basis(current_basis(algorithm), tr))
     return prepare_gb_output(algorithm)
 end
 

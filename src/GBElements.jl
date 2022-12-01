@@ -187,6 +187,10 @@ end
 
 """
 Computes bitsets with positive and negative supports of `g`.
+
+TODO: The negative supports should only be considered for bounded
+variables / components. This needs to be implemented somewhere; either
+here or wherever the supports are checked.
 """
 function supports(
     g :: AbstractVector{Int}

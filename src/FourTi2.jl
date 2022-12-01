@@ -225,14 +225,15 @@ end
 
 function groebner(
     instance :: IPInstance; 
-    markov :: Union{Nothing,Vector{Vector{Int}}} = nothing
+    markov :: Union{Nothing,Vector{Vector{Int}}} = nothing,
+    project_name :: String = "tmp"
 )
     nonnegative = IPInstances.nonnegative_variables(instance)
     int_objective = IPInstances.integer_objective(instance)
     init_sol = IPInstances.initial_solution(instance)
     return groebner(
         instance.A, int_objective, nonnegative=nonnegative, markov=markov,
-        truncation_sol=init_sol
+        truncation_sol=init_sol, project_name=project_name
     )
 end
 

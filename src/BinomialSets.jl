@@ -358,17 +358,17 @@ function is_groebner_basis(
 end
 
 """
-Checks whether `bs` is a truncated Gröbner Basis where truncation is done with
-respect to
+    is_truncated_groebner_basis(
+    bs :: BinomialSet{T, S},
+    truncate :: Function
+) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
 
-Ax <= b
-x <= u
+Returns true if and only if `bs` is a truncated Gröbner Basis with truncation
+done using the `truncate` function.
 """
 function is_truncated_groebner_basis(
     bs :: BinomialSet{T, S},
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    u :: Vector{Int}
+    truncate :: Function
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     mem = Vector{Int}(undef, length(bs[1]))
     for i in 1:length(bs)
@@ -376,9 +376,8 @@ function is_truncated_groebner_basis(
             s = BinomialPair(i, j)
             binomial = sbinomial(mem, s, bs)
             reduced_to_zero, _ = reduce!(binomial, bs)
-            #TODO: we likely can't always use simple_truncation here.
-            if !reduced_to_zero && simple_truncation(binomial, A, b, u)
-                #Note we check isfeasible after reduction. This is often
+            if !reduced_to_zero && !truncate(binomial)
+                #Note we check truncation after reduction. This is often
                 #quicker, because then we skip the check for zero reductions
                 return false
             end
