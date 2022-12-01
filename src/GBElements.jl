@@ -332,7 +332,6 @@ function simple_truncation(
     head, tail = degrees(v, A)
     return le_coordinatewise(head, b) && le_coordinatewise(tail, b) &&
         le_upperbound(v, u)
-        #sparse_le(v.head, v.element, u) && sparse_le(v.tail, v.element, u)
 end
 
 """
