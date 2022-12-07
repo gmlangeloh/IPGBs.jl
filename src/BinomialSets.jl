@@ -469,7 +469,12 @@ function reduced_basis!(
         while reducing
             h = find_reducer(g, gb, reduction_tree(gb), negative=true)
             if !isnothing(h)
+                #The binomial has to be removed from the tree first, otherwise
+                #its filter will already have been changed and it won't be
+                #found in the tree.
+                SupportTrees.removebinomial!(gb.reduction_tree, g)
                 GBElements.reduce!(g, h, order(gb), negative=true)
+                SupportTrees.addbinomial!(gb.reduction_tree, g)
             else
                 reducing = false
             end
