@@ -518,6 +518,15 @@ function lift_vector(
     return Int.(reshape(Array(res), length(res)))
 end
 
+function truncation_weight(
+    instance :: IPInstance
+) :: Tuple{Vector{Float64}, Float64}
+    b = instance.b
+    nonnegative = nonnegative_variables(instance)
+    A = Array(Int.(transpose(instance.lattice_basis)))
+    return SolverTools.optimal_weight_vector(A, b, nonnegative)
+end
+
 """
     nonnegative_data_only(instance :: IPInstance) :: Bool
 

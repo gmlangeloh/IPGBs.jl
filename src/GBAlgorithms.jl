@@ -164,6 +164,8 @@ function run(
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
     @debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
+    #TODO: This is not the best place to do this!
+    w, max_w = IPInstances.truncation_weight(algorithm.instance)
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
@@ -175,6 +177,10 @@ function run(
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, pair)
+        #TODO: move this somewhere else later / make a function
+        if w' * binomial.data > max_w
+            continue
+        end
         reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial)
             update!(algorithm, binomial, pair)
