@@ -26,6 +26,7 @@ update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
     error("Not implemented.")
 truncate_basis(algorithm :: GBAlgorithm) = algorithm.should_truncate
 use_implicit_representation(:: GBAlgorithm) = false
+quick_truncation(:: GBAlgorithm, :: GBElement) = false
 
 function initialize!(
     :: GBAlgorithm,
@@ -164,8 +165,6 @@ function run(
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
     @debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
-    #TODO: This is not the best place to do this!
-    w, max_w = IPInstances.truncation_weight(algorithm.instance)
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
@@ -177,8 +176,7 @@ function run(
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, pair)
-        #TODO: move this somewhere else later / make a function
-        if w' * binomial.data > max_w
+        if quick_truncation(algorithm, binomial)
             continue
         end
         reduced_to_zero, _ = reduce!(algorithm, binomial)

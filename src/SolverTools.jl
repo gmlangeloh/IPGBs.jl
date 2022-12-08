@@ -367,15 +367,16 @@ end
 function optimal_weight_vector(
     A :: Matrix{Int}, 
     b :: Vector{Int}, 
-    nonnegative :: Vector{Bool}
+    unbounded :: Vector{Bool}
 ) :: Tuple{Vector{Float64}, Float64}
     model = Model(GENERAL_SOLVER.Optimizer)
+    set_silent(model)
     m, n = size(A)
     @assert length(b) == n
     @variable(model, x[1:n] >= 0)
     @objective(model, Min, b' * x)
     for i in 1:n
-        if !nonnegative[i]
+        if unbounded[i]
             set_upper_bound(x[i], 0)
         end
     end
@@ -387,6 +388,7 @@ function optimal_weight_vector(
     if termination_status(model) == MOI.OPTIMAL
         return value.(x), objective_value(model)
     end
+    @show termination_status(model)
     error("Optimal weight vector is infeasible.")
 end
 

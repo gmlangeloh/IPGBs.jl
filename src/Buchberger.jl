@@ -83,6 +83,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     model_constraints :: Vector{ConstraintRef}
     instance :: IPInstance
     truncated_gens :: Vector{T}
+    truncation_weight :: Vector{Float64}
+    max_truncation_weight :: Float64
 
     function BuchbergerAlgorithm(
         markov :: Vector{Vector{Int}},
@@ -120,13 +122,14 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
                 push!(nontruncated_gens, gen)
             end
         end
+        weight, max_weight = truncation_weight(instance)
         #Initialize the state of the algorithm (no pairs processed yet)
         state = BuchbergerState(length(nontruncated_gens))
         stats = BuchbergerStats()
         new{T}(
             BinomialSet{T, MonomialOrder}(nontruncated_gens, order, minimization),
             state, should_truncate, truncation_type, stats, preallocated, 0,
-            model, vars, constrs, instance, truncated_gens
+            model, vars, constrs, instance, truncated_gens, weight, max_weight
         )
     end
 end
@@ -197,6 +200,22 @@ function GBAlgorithms.process_zero_reduction!(
     :: CriticalPair
 ) where {T <: GBElement}
     increment(algorithm, :zero_reductions)
+end
+
+"""
+    GBAlgorithms.quick_truncation(
+    algorithm :: BuchbergerAlgorithm{T},
+    g :: T
+) where {T <: GBElement}
+
+Return true iff `g` is truncated by the weight criterion, that is, its
+weight is higher than the maximum weight for fibers of the given instance.
+"""
+function GBAlgorithms.quick_truncation(
+    algorithm :: BuchbergerAlgorithm{T},
+    g :: T
+) where {T <: GBElement}
+    return algorithm.truncation_weight' * g > algorithm.max_truncation_weight
 end
 
 end
