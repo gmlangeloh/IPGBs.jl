@@ -170,21 +170,38 @@ function run(
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
+        foundyou = false
+        if sbinomial(algorithm, pair).element == [0, 1, 0, -1, -1, -20, -940]
+            foundyou = true
+        end
         if late_pair_elimination(algorithm, pair)
             #Pair elimination succeeded, skip this S-pair
+            if foundyou
+                @debug "ELIMINATED BY CRITERIA" algorithm.instance.bounded_end algorithm.instance.n
+                @debug current_basis(algorithm)[pair.i] current_basis(algorithm)[pair.j]
+            end
             continue
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, pair)
         if quick_truncation(algorithm, binomial)
+            if foundyou
+                @debug "ELIMINATED BY WEIGHT"
+            end
             continue
         end
         reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial)
             update!(algorithm, binomial, pair)
         elseif reduced_to_zero #Update syzygies in case this makes sense
+            if foundyou
+                @debug "ELIMINATED BY ZERO REDUCTION"
+            end
             process_zero_reduction!(algorithm, binomial, pair)
         end
+            if foundyou
+                @debug "ELIMINATED BY truncation"
+            end
     end
     @debug "Basis before interreduction: " current_basis(algorithm)
     print_algorithm_stats(algorithm, quiet)

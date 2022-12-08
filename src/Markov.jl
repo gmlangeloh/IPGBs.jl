@@ -213,16 +213,16 @@ function next(
     markov = state.markov
     if isempty(u) #i is bounded in projection
         #Compute a GB in the adequate order
-        # TODO: Fix and cleanup. In the end, I should not call 4ti2 here!
         @debug "Lifting $perm_i in bounded case, applying Buchberger's algorithm"
         update_objective!(state.projection, perm_i)
-        correct_gb = groebner(state.projection, markov=state.markov)
-        markov = GBTools.tovector(correct_gb)
-        @debug "Correct Markov basis computed by 4ti2: $(markov)"
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
         markov2 = GBAlgorithms.run(alg, quiet = true)
+        # TODO: Fix and cleanup. In the end, I should not call 4ti2 here!
+        correct_gb = groebner(state.projection, markov=state.markov)
+        markov = GBTools.tovector(correct_gb)
+        @debug "Correct Markov basis computed by 4ti2: $(markov)"
         markov = markov2
         @debug "New Markov Basis obtained through Buchberger" markov2
     else
