@@ -13,7 +13,7 @@ mutable struct Binomial <: GBElement
     bounded_end :: Int
 end
 
-#By default, all variables are considered non-negative.
+#By default, all variables are considered non-negative and bounded
 Binomial(b :: Vector{Int}, c :: Int) = Binomial(b, c, length(element), length(element))
 
 GBElements.cost(g :: Binomial) = g.cost
