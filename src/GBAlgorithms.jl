@@ -26,6 +26,7 @@ update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
     error("Not implemented.")
 truncate_basis(algorithm :: GBAlgorithm) = algorithm.should_truncate
 use_implicit_representation(:: GBAlgorithm) = false
+quick_truncation(:: GBAlgorithm, :: GBElement) = false
 
 function initialize!(
     :: GBAlgorithm,
@@ -175,6 +176,9 @@ function run(
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, pair)
+        if quick_truncation(algorithm, binomial)
+            continue
+        end
         reduced_to_zero, _ = reduce!(algorithm, binomial)
         if !reduced_to_zero && !truncate(algorithm, binomial)
             update!(algorithm, binomial, pair)

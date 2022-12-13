@@ -340,7 +340,7 @@ c_σ = 0 and c^T u = -u_i for all u in ker(A).
 """
 function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
     m, n = size(A)
-    model = Model(CPLEX.Optimizer)
+    model = Model(GENERAL_SOLVER.Optimizer)
     set_silent(model)
     @variable(model, x[1:m])
     @objective(model, Max, 0)
@@ -362,6 +362,34 @@ function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
         return b - transpose(A) * c
     end
     error("This problem was supposed to be feasible.")
+end
+
+function optimal_weight_vector(
+    A :: Matrix{Int}, 
+    b :: Vector{Int}, 
+    unbounded :: Vector{Bool}
+) :: Tuple{Vector{Float64}, Float64}
+    model = Model(GENERAL_SOLVER.Optimizer)
+    set_silent(model)
+    m, n = size(A)
+    @assert length(b) == n
+    @variable(model, x[1:n] >= 0)
+    @objective(model, Min, b' * x)
+    for i in 1:n
+        if unbounded[i]
+            set_upper_bound(x[i], 0)
+        end
+    end
+    for i in 1:m
+        @constraint(model, A[i, :]' * x == 0)
+    end
+    @constraint(model, sum(x[j] for j in 1:n) == 1)
+    optimize!(model)
+    if termination_status(model) == MOI.OPTIMAL
+        return value.(x), objective_value(model)
+    end
+    @show termination_status(model)
+    error("Optimal weight vector is infeasible.")
 end
 
 end

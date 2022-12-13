@@ -1,6 +1,6 @@
 module IPInstances
 
-export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation, lift_vector
+export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation, lift_vector, truncation_weight
 
 import LinearAlgebra: I
 using AbstractAlgebra
@@ -113,6 +113,8 @@ struct IPInstance
     #Lattice-related information
     lattice_basis :: Generic.MatSpaceElem{BigInt} #Row basis
     rank :: Int
+    fiber_solution :: Vector{Int} #v such that Av = b. Not necessarily non-negative.
+    originally_bounded :: Vector{Bool}
 
     #TODO: put a parameter to determine whether it is minimization or not
     function IPInstance(
@@ -160,14 +162,17 @@ struct IPInstance
         #Compute boundedness of variables using the model
         SolverTools.set_jump_objective!(model, :Min, C[1, :])
         #Compute lattice information
-        rnk, basis = kernel(matrix(ZZ, A))
+        mat_A = matrix(ZZ, A)
+        mat_b = matrix(ZZ, new_m, 1, b)
+        rnk, basis = kernel(mat_A)
         basis = transpose(basis) #Put in row form
+        fiber_sol = Int.(reshape(Array(solve(mat_A, mat_b)), new_n))
         #Create the normalized instance
         new(A, b, C, u,
             bounded_end, nonnegative_end, permutation, inverse_perm,
             m, n, new_m, new_n, true,
             model, model_vars, model_cons,
-            basis, rnk
+            basis, rnk, fiber_sol, bounded
         )
     end
 end
@@ -516,6 +521,15 @@ function lift_vector(
     full_col_basis = transpose(instance.lattice_basis)
     res = full_col_basis * coefs
     return Int.(reshape(Array(res), length(res)))
+end
+
+function truncation_weight(
+    instance :: IPInstance
+) :: Tuple{Vector{Float64}, Float64}
+    A = Array(Int.(instance.lattice_basis))
+    b = instance.fiber_solution
+    unbounded = map(x -> !x, instance.originally_bounded)
+    return SolverTools.optimal_weight_vector(A, b, unbounded)
 end
 
 """

@@ -311,20 +311,9 @@ function is_support_reducible(
     i :: Int,
     j :: Int,
     bs :: BinomialSet{T, S},
-    instance :: IPInstance
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     neg_sup = bs.negative_supports
     pos_sup = bs.positive_supports
-    #If there are unbounded components, do not use support bitsets
-    if instance.bounded_end < instance.n
-        if is_minimization(bs)
-            return !is_negative_disjoint(i, j, bs, instance) ||
-                is_positive_disjoint(i, j, bs, instance)
-        end
-        return is_negative_disjoint(i, j, bs, instance) ||
-            !is_positive_disjoint(i, j, bs, instance)
-    end
-    #Use support bitsets for a little more efficiency
     if is_minimization(bs)
         return !disjoint(neg_sup[i], neg_sup[j]) ||
             disjoint(pos_sup[i], pos_sup[j])
@@ -404,23 +393,27 @@ end
 Reduces each element of the GB by the previous elements.
 """
 function auto_reduce_once!(
-    gb :: BinomialSet{T, S},
-    index :: Int
+    gb :: BinomialSet{T, S};
+    index :: Int = 0
 ) :: Tuple{Int, Int} where {T <: AbstractVector{Int}, S <: GBOrder}
     removed = 0
     removed_before_index = 0
     for i in length(gb):-1:1
-        g = gb[i]
+        g = copy(gb[i]) #We reduce a copy of the element, otherwise, if it
+        #is changed by reduction, it will stay in the reduction tree later
         reduced_to_zero, changed = reduce!(g, gb, skipbinomial=g)
-        if reduced_to_zero
+        if reduced_to_zero || changed
             deleteat!(gb, i)
+        end
+        if reduced_to_zero
             removed += 1
             if i < index
                 removed_before_index += 1
             end
         elseif changed
-            #Change was already made in-place in reduce!
-            #No need to update the basis in this case
+            #After modification, the element has to be added again to
+            #the basis in order to update the reduction tree
+            push!(gb, g)
         end
     end
     @debug "Removed elements with auto-reduction: " removed
@@ -469,7 +462,12 @@ function reduced_basis!(
         while reducing
             h = find_reducer(g, gb, reduction_tree(gb), negative=true)
             if !isnothing(h)
+                #The binomial has to be removed from the tree first, otherwise
+                #its filter will already have been changed and it won't be
+                #found in the tree.
+                SupportTrees.removebinomial!(gb.reduction_tree, g)
                 GBElements.reduce!(g, h, order(gb), negative=true)
+                SupportTrees.addbinomial!(gb.reduction_tree, g)
             else
                 reducing = false
             end

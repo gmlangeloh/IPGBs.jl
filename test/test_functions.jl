@@ -56,7 +56,7 @@ function test_buchberger(
 
     #Compute a GB using my Buchberger implementation
     gb, time, _, _, _ = @timed groebner_basis(
-        instance.A, instance.b, instance.C, instance.u, use_signatures = false,
+        instance.A, instance.b, instance.C, u=instance.u, use_signatures = false,
         implicit_representation = implicit_representation,
         truncation_type = truncation_type, quiet = quiet
     )
