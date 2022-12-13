@@ -2,6 +2,7 @@ module Binomials
 
 export Binomial, lattice_generator_binomial
 
+using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Orders
 
@@ -66,6 +67,22 @@ function GBElements.filter(
         end
     end
     return filter
+end
+
+function GBElements.supports(
+    g :: Binomial
+) :: Tuple{FastBitSet, FastBitSet}
+    pos_supp = Int[]
+    neg_supp = Int[]
+    for i in eachindex(g)
+        if g[i] > 0
+            push!(pos_supp, i)
+        elseif i <= g.bounded_end && g[i] < 0
+            push!(neg_supp, i)
+        end
+    end
+    bitset_length = length(g)
+    return FastBitSet(bitset_length, pos_supp), FastBitSet(bitset_length, neg_supp)
 end
 
 function GBElements.is_negative_disjoint(

@@ -348,7 +348,7 @@ function find_reducer(
         #parameter to be skipped, skip it.
         # This is useful in inter-reductions, where the element should not be
         #used to reduce itself.
-        if !isnothing(skipbinomial) && reducer === skipbinomial
+        if !isnothing(skipbinomial) && reducer == skipbinomial
             continue
         end
         stats.reducers_checked += 1

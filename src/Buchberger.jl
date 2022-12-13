@@ -122,14 +122,18 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
                 push!(nontruncated_gens, gen)
             end
         end
+        binomial_gen_set = BinomialSet{T, MonomialOrder}(
+            nontruncated_gens, order, minimization
+        )
+        auto_reduce_once!(binomial_gen_set)
         weight, max_weight = truncation_weight(instance)
         #Initialize the state of the algorithm (no pairs processed yet)
-        state = BuchbergerState(length(nontruncated_gens))
+        state = BuchbergerState(length(binomial_gen_set))
         stats = BuchbergerStats()
         new{T}(
-            BinomialSet{T, MonomialOrder}(nontruncated_gens, order, minimization),
-            state, should_truncate, truncation_type, stats, preallocated, 0,
-            model, vars, constrs, instance, truncated_gens, weight, max_weight
+            binomial_gen_set, state, should_truncate, truncation_type, stats, 
+            preallocated, 0, model, vars, constrs, instance, truncated_gens, 
+            weight, max_weight
         )
     end
 end
@@ -187,7 +191,7 @@ function GBAlgorithms.late_pair_elimination(
     pair :: CriticalPair
 ) :: Bool where {T <: GBElement}
     if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
-                            current_basis(algorithm), algorithm.instance)
+                            current_basis(algorithm))
         increment(algorithm, :eliminated_by_gcd)
         return true
     end
@@ -215,6 +219,7 @@ function GBAlgorithms.quick_truncation(
     algorithm :: BuchbergerAlgorithm{T},
     g :: T
 ) where {T <: GBElement}
+    @show algorithm.truncation_weight algorithm.max_truncation_weight
     return algorithm.truncation_weight' * g > algorithm.max_truncation_weight
 end
 
