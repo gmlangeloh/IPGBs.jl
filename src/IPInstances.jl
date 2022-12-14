@@ -71,6 +71,26 @@ function normalize_ip(
 end
 
 """
+    hnf_lattice_basis(A :: Matrix{Int}) :: Matrix{Int}
+
+    Return a lattice basis for the lattice ker(A) computed using the Upper
+    Hermite Normal Form. The entries of this basis tend to be smaller than
+    those computed directly from kernel(A).
+"""
+function hnf_lattice_basis(A :: Matrix{Int}) :: Matrix{Int}
+    m, n = size(A)
+    #Transpose and append identity matrix, so that the lattice basis appears
+    #as the last few rows / columns of the uhnf.
+    tA = hcat(matrix(ZZ, A'), identity_matrix(ZZ, n))
+    #tA is a n x (m + n) matrix.
+    H = hnf(tA)
+    r = rank(H)
+    #The basis is in the last few rows and columns of H
+    basis = H[(n-r+1):n, (n+1):(n+m)]
+    return Int.(Array(basis))
+end
+
+"""
 Represents an instance of a problem
 
 min C * x
