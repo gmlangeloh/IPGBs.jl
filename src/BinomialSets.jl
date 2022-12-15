@@ -417,6 +417,7 @@ function auto_reduce_once!(
         end
     end
     @debug "Removed elements with auto-reduction: " removed
+    @debug "Basis after auto-reduction: " gb
     return removed, removed_before_index
 end
 

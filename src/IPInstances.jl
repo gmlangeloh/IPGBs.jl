@@ -71,23 +71,38 @@ function normalize_ip(
 end
 
 """
-    hnf_lattice_basis(A :: Matrix{Int}) :: Matrix{Int}
+    hnf_lattice_basis(A :: Matrix{Int})
 
-    Return a lattice basis for the lattice ker(A) computed using the Upper
+    Return a row basis for the lattice ker(A) computed using the Upper
     Hermite Normal Form. The entries of this basis tend to be smaller than
     those computed directly from kernel(A).
 """
-function hnf_lattice_basis(A :: Matrix{Int}) :: Matrix{Int}
+function hnf_lattice_basis(A :: Matrix{Int})
     m, n = size(A)
+    mat_A = matrix(ZZ, transpose(A))
+    r = rank(mat_A)
     #Transpose and append identity matrix, so that the lattice basis appears
     #as the last few rows / columns of the uhnf.
-    tA = hcat(matrix(ZZ, A'), identity_matrix(ZZ, n))
+    tA = hcat(mat_A, identity_matrix(ZZ, n))
     #tA is a n x (m + n) matrix.
     H = hnf(tA)
-    r = rank(H)
     #The basis is in the last few rows and columns of H
-    basis = H[(n-r+1):n, (n+1):(n+m)]
-    return Int.(Array(basis))
+    basis = H[(r+1):n, (m+1):(n+m)]
+    return basis, r #Row basis of the lattice
+end
+
+"""
+    fiber_solution(A :: Matrix{Int}, b :: Vector{Int}) :: Vector{Int}
+
+    A solution to Ax = b, that is, an element of the fiber of right-hand side
+    `b` in the lattice ker(A).
+"""
+function fiber_solution(A :: Matrix{Int}, b :: Vector{Int}) :: Vector{Int}
+    m, n = size(A)
+    mat_A = matrix(ZZ, A)
+    mat_b = matrix(ZZ, m, 1, b)
+    x = solve(mat_A, mat_b)
+    return Int.(reshape(Array(x), n))
 end
 
 """
@@ -182,11 +197,10 @@ struct IPInstance
         #Compute boundedness of variables using the model
         SolverTools.set_jump_objective!(model, :Min, C[1, :])
         #Compute lattice information
-        mat_A = matrix(ZZ, A)
-        mat_b = matrix(ZZ, new_m, 1, b)
-        rnk, basis = kernel(mat_A)
-        basis = transpose(basis) #Put in row form
-        fiber_sol = Int.(reshape(Array(solve(mat_A, mat_b)), new_n))
+        basis, rnk = hnf_lattice_basis(A)
+        #rnk, basis = kernel(matrix(ZZ, A))
+        #basis = transpose(basis)
+        fiber_sol = fiber_solution(A, b)
         #Create the normalized instance
         new(A, b, C, u,
             bounded_end, nonnegative_end, permutation, inverse_perm,
@@ -505,7 +519,10 @@ end
 function lattice_basis_projection(
     instance :: IPInstance
 )
-    return instance.lattice_basis[:, 1:instance.rank]
+    # TODO: I need to guarantee the selected columns are linearly
+    #independent!!!
+    lattice_rank = instance.n - instance.rank
+    return instance.lattice_basis[:, 1:lattice_rank]
 end
 
 """
