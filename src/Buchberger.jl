@@ -219,7 +219,7 @@ function GBAlgorithms.quick_truncation(
     algorithm :: BuchbergerAlgorithm{T},
     g :: T
 ) where {T <: GBElement}
-    return algorithm.truncation_weight' * g > algorithm.max_truncation_weight
+    return weight(g, algorithm.truncation_weight) > algorithm.max_truncation_weight
 end
 
 end

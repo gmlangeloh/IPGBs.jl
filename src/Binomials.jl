@@ -162,6 +162,16 @@ function GBElements.opposite!(
     g.cost = -g.cost
 end
 
+function GBElements.weight(g :: Binomial, w :: Vector{Float64})
+    total_weight = 0.0
+    for i in 1:g.nonnegative_end
+        if g[i] > 0
+            total_weight += g[i] * w[i]
+        end
+    end
+    return total_weight
+end
+
 """
 Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem
 is in the particular form given in Thomas and Weismantel (1997), Section 3.
