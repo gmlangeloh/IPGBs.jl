@@ -14,6 +14,19 @@ function isincluded(
     return true
 end
 
+function diff(
+    gb1 :: Vector{Vector{Int}}, 
+    gb2 :: Vector{Vector{Int}}
+) :: Vector{Vector{Int}}
+    missing_elements = Vector{Int}[]
+    for g in gb1
+        if !(g in gb2)
+            push!(missing_elements, g)
+        end
+    end
+    return missing_elements
+end
+
 function isequal(
     gb1 :: Vector{Vector{Int}},
     gb2 :: Vector{Vector{Int}}
