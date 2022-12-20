@@ -504,14 +504,14 @@ function reduction_factor(
     if i > length(reducer)
         return negative ? -1 : 1
     end
-    factor = Int(floor(binomial[i] / reducer[i]))
+    factor = Int(trunc(binomial[i] / reducer[i]))
     if (!negative && factor == 1) || (negative && factor == -1)
         return factor
     end
     i += 1
     while i <= length(reducer)
         if reducer[i] > 0
-            newfactor = Int(floor(binomial[i] / reducer[i]))
+            newfactor = Int(trunc(binomial[i] / reducer[i]))
             if (!negative && newfactor < factor) ||
                 (negative && newfactor > factor)
                 factor = newfactor

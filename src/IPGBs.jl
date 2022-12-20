@@ -249,11 +249,11 @@ function groebner_basis(
     end
     gb = GBAlgorithms.run(algorithm, quiet = quiet)
     @debug "IPGBs finished, GB:" gb
-    @show length(gb)
-    correct_gb = GBTools.tovector(FourTi2.groebner(instance, markov=markov_basis, project_name="tmp123"))
-    @debug "4ti2 GB: " correct_gb
-    @show length(correct_gb)
-    @show GBTools.diff(correct_gb, gb)
+    #@show length(gb)
+    #correct_gb = GBTools.tovector(FourTi2.groebner(instance, markov=markov_basis, project_name="tmp123"))
+    #@debug "4ti2 GB: " correct_gb
+    #@show length(correct_gb)
+    #@show GBTools.diff(correct_gb, gb)
     return gb
 end
 
