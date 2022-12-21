@@ -188,7 +188,7 @@ function run(
     end
     @debug "Basis before interreduction: " current_basis(algorithm)
     print_algorithm_stats(algorithm, quiet)
-    #tr(bin) = truncate(algorithm, bin)
+    #tr(bin) = quick_truncation(algorithm, bin) || truncate(algorithm, bin)
     #println(is_truncated_groebner_basis(current_basis(algorithm), tr))
     return prepare_gb_output(algorithm)
 end

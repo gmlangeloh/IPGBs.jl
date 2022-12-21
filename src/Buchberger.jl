@@ -158,7 +158,7 @@ function GBAlgorithms.next_pair!(
             #Auto-reduce the basis periodically
             if algorithm.num_iterations % AUTO_REDUCE_FREQ == 0 &&
                 algorithm.num_iterations != 0
-                removed, before_idx = auto_reduce_once!(current_basis(algorithm), i)
+                removed, before_idx = auto_reduce_once!(current_basis(algorithm), index=i)
                 algorithm.stats.removed_by_autoreduction += removed
                 algorithm.state.n -= removed
                 algorithm.state.i -= before_idx
