@@ -184,7 +184,7 @@ function reduce!(
             return false, changed
         end
         while true
-            reducer = find_reducer(
+            reducer, found_reducer = find_reducer(
                 g, gb, tree, skipbinomial=skipbinomial, is_singular=is_singular,
                 negative=negative
             )
@@ -195,7 +195,7 @@ function reduce!(
                 return true, changed
             end
             #No reducer found, terminate search
-            if isnothing(reducer)
+            if !found_reducer
                 if negative
                     return false, changed
                 end
@@ -433,8 +433,8 @@ function minimal_basis!(
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     for i in length(gb):-1:1
         g = gb[i]
-        reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
-        if !isnothing(reducer)
+        _, found_reducer = find_reducer(g, gb, reduction_tree(gb), skipbinomial=g)
+        if found_reducer
             deleteat!(gb, i)
         end
     end
@@ -461,8 +461,8 @@ function reduced_basis!(
         g = gb[i]
         reducing = true
         while reducing
-            h = find_reducer(g, gb, reduction_tree(gb), negative=true)
-            if !isnothing(h)
+            h, found_reducer = find_reducer(g, gb, reduction_tree(gb), negative=true)
+            if found_reducer
                 #The binomial has to be removed from the tree first, otherwise
                 #its filter will already have been changed and it won't be
                 #found in the tree.

@@ -72,17 +72,19 @@ end
 function GBElements.supports(
     g :: Binomial
 ) :: Tuple{FastBitSet, FastBitSet}
-    pos_supp = Int[]
-    neg_supp = Int[]
-    for i in eachindex(g)
-        if g[i] > 0
-            push!(pos_supp, i)
-        elseif i <= g.bounded_end && g[i] < 0
-            push!(neg_supp, i)
-        end
-    end
+    #pos_supp = Int[]
+    #neg_supp = Int[]
+    #for i in eachindex(g)
+    #    if g[i] > 0
+    #        push!(pos_supp, i)
+    #    elseif i <= g.bounded_end && g[i] < 0
+    #        push!(neg_supp, i)
+    #    end
+    #end
     bitset_length = length(g)
-    return FastBitSet(bitset_length, pos_supp), FastBitSet(bitset_length, neg_supp)
+    pos_criterion(x) = x > 0
+    neg_criterion(x) = x < 0
+    return FastBitSet(bitset_length, g, pos_criterion), FastBitSet(bitset_length, g, neg_criterion)
 end
 
 function GBElements.is_negative_disjoint(
@@ -128,6 +130,10 @@ function Base.length(
     g :: Binomial
 ) :: Int
     return length(g.element)
+end
+
+function Base.empty(g :: Binomial)
+    return Binomial(empty(g.element), empty(g.costs), 0, 0)
 end
 
 #

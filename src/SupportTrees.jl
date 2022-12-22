@@ -301,7 +301,7 @@ function find_reducer(
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
     is_singular :: Ref{Bool} = Ref(false)
-) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     return find_reducer(
         g, gb, tree.root, tree.stats, fullfilter=tree.fullfilter,
         skipbinomial=skipbinomial, negative=negative, is_singular=is_singular
@@ -328,17 +328,17 @@ function find_reducer(
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
     is_singular :: Ref{Bool} = Ref(false)
-) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     stats.reduction_steps += 1
     for (i, child) in node.children
         if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
             #Look for reducer recursively in the children of this node
-            reducer = find_reducer(
+            reducer, found_reducer = find_reducer(
                 g, gb, child, stats, fullfilter=fullfilter, skipbinomial=skipbinomial,
                 negative=negative, is_singular=is_singular
             )
-            if !isnothing(reducer) #Found a reducer, return it
-                return reducer
+            if found_reducer
+                return reducer, found_reducer
             end
         end
     end
@@ -356,10 +356,11 @@ function find_reducer(
             g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
             is_singular=is_singular
         )
-            return reducer
+            return reducer, true
         end
     end
-    return nothing
+    #No reducer found.
+    return g, false
 end
 
 end

@@ -146,7 +146,7 @@ function run_algorithm(
     instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary = true)
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
-        instance.A, instance.b, instance.C, instance.u,
+        instance.A, instance.b, instance.C, u=instance.u,
         use_signatures = use_signatures, module_order = module_order,
         implicit_representation = implicit_representation,
         truncation_type = truncation_type, quiet = quiet,

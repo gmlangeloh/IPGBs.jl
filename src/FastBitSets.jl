@@ -21,19 +21,6 @@ const BITS_PER_WORD = 8 * sizeof(Int)
 struct FastBitSet
     data :: Vector{Int}
     words :: Int
-
-    function FastBitSet(
-        vars :: Int,
-        indices :: Vector{Int}
-    )
-        words = Int(ceil(vars / BITS_PER_WORD))
-        data = zeros(Int, words)
-        for i in indices
-            word, index = word_and_index(i)
-            data[word] += 1 << index
-        end
-        new(data, words)
-    end
 end
 
 function Base.show(
@@ -48,6 +35,35 @@ function Base.show(
             print(io, bit)
         end
     end
+end
+
+function FastBitSet(
+    vars :: Int,
+    indices :: Vector{Int}
+)
+    words = Int(ceil(vars / BITS_PER_WORD))
+    data = zeros(Int, words)
+    for i in indices
+        word, index = word_and_index(i)
+        data[word] += 1 << index
+    end
+    return FastBitSet(data, words)
+end
+
+function FastBitSet(
+    vars :: Int, 
+    input_data :: AbstractVector{Int}, 
+    criterion :: Function
+)
+    words = Int(ceil(vars / BITS_PER_WORD))
+    data = zeros(Int, words)
+    for i in eachindex(input_data)
+        if criterion(input_data[i])
+            word, index = word_and_index(i)
+            data[word] += 1 << index
+        end
+    end
+    return FastBitSet(data, words)
 end
 
 FastBitSet(vars :: Int) = FastBitSet(vars, Int[])
