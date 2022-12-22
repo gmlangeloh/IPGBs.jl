@@ -172,7 +172,7 @@ function decomposition(
     return vp, vm
 end
 
-GBElements.cost(g :: GradedBinomial) = g.cost
+GBElements.costs(g :: GradedBinomial) = [g.cost]
 
 """
 Given g = v+ - v-, returns the full form of g including slack variables.

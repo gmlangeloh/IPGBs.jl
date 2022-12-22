@@ -8,7 +8,7 @@ using IPGBs.Orders
 
 mutable struct Binomial <: GBElement
     element :: Vector{Int}
-    cost :: Int
+    costs :: Vector{Int}
     nonnegative_end :: Int #Index of the last non-negative variable of
     #the current IP problem
     bounded_end :: Int
@@ -17,14 +17,14 @@ end
 #By default, all variables are considered non-negative and bounded
 Binomial(b :: Vector{Int}, c :: Int) = Binomial(b, c, length(element), length(element))
 
-GBElements.cost(g :: Binomial) = g.cost
+GBElements.costs(g :: Binomial, :: GBOrder) = g.costs
 GBElements.fullform(g :: Binomial) = g.element
 
 function Base.show(
     io :: IO,
     g :: Binomial
 )
-    print(io, g.element, " : c", g.cost)
+    print(io, g.element, " : c", g.costs)
 end
 
 function Base.:-(
@@ -33,8 +33,8 @@ function Base.:-(
 ) :: Binomial
     @assert g.nonnegative_end == h.nonnegative_end
     new_element = g.element - h.element
-    new_cost = g.cost - h.cost
-    return Binomial(new_element, new_cost, g.nonnegative_end, g.bounded_end)
+    new_costs = g.costs - h.costs
+    return Binomial(new_element, new_costs, g.nonnegative_end, g.bounded_end)
 end
 
 """
@@ -47,13 +47,13 @@ function GBElements.minus(
 ) :: Binomial
     @assert g.nonnegative_end == h.nonnegative_end
     result .= g.element .- h.element
-    return Binomial(result, g.cost - h.cost, g.nonnegative_end, g.bounded_end)
+    return Binomial(result, g.costs - h.costs, g.nonnegative_end, g.bounded_end)
 end
 
 function Base.copy(
     g :: Binomial
 ) :: Binomial
-    return Binomial(copy(g.element), g.cost, g.nonnegative_end, g.bounded_end)
+    return Binomial(copy(g.element), g.costs, g.nonnegative_end, g.bounded_end)
 end
 
 function GBElements.filter(
@@ -149,7 +149,7 @@ function GBElements.reduce!(
     reduced_to_zero = GBElements.reduce!(g.element, h.element, factor, negative=negative)
     #For efficiency, don't do reorientation when there was a zero-reduction
     if !reduced_to_zero || negative 
-        g.cost -= factor * h.cost
+        g.costs .-= factor * h.costs
         orientate!(g, order)
     end
     return reduced_to_zero
@@ -159,7 +159,7 @@ function GBElements.opposite!(
     g :: Binomial
 )
     g.element .= .-g.element
-    g.cost = -g.cost
+    g.costs .= .-g.costs
 end
 
 function GBElements.weight(g :: Binomial, w :: Vector{Float64})
@@ -202,7 +202,7 @@ function lattice_generator_binomial(
         @assert ndims(c) == 2
         cost = c[1, i]
     end
-    generator = Binomial(g, cost)
+    generator = Binomial(g, [cost])
     #The problem may be in minimization form, or have negative costs
     #Thus b may have negative cost, in that case we need to change its orientation
     orientate!(generator, order)

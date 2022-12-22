@@ -24,7 +24,6 @@ abstract type GBElement <: AbstractVector{Int} end
 # Hard contract: a GBElement must implement at least the following functions.
 #
 
-cost(:: AbstractVector{Int}) :: Int = error("Not implemented.")
 fullform(:: GBElement) :: Vector{Int} = error("Not implemented.")
 minus(:: Vector{Int}, :: GBElement, :: GBElement) = error("Not implemented.")
 weight(:: GBElement, :: Vector{Float64}) = error("Not implemented")
@@ -35,6 +34,8 @@ weight(:: GBElement, :: Vector{Float64}) = error("Not implemented")
 
 has_signature(:: Type{<: AbstractVector{Int}}) = false
 is_implicit(:: Type{<: AbstractVector{Int}}) = false
+
+costs(v :: AbstractVector{Int}, o :: GBOrder) = order_costs(o, v)
 
 """
 Turns a vector `v` into a GBElement of type `S`. Currently, Binomials are the
@@ -47,8 +48,8 @@ function to_gbelement(
     bounded_end :: Int,
     S :: DataType,
 ) where {T <: GBOrder}
-    c = Int(round(order_cost(order, v)))
-    b = S(v, c, nonnegative_end, bounded_end)
+    costs = round.(Int, order_costs(order, v))
+    b = S(v, costs, nonnegative_end, bounded_end)
     orientate!(b, order)
     return b
 end
@@ -115,24 +116,13 @@ function is_zero(
     return true
 end
 
-function opposite!(
-    g :: T
-) where {T <: AbstractVector{Int}}
-    for i in eachindex(g)
-        g[i] = -g[i]
-    end
-end
+opposite!(g :: T) where {T <: AbstractVector{Int}} = g .= .-g
 
 function orientate!(
     g :: T,
     order :: GBOrder
 ) where {T <: AbstractVector{Int}}
-    c = 0.0
-    if hasfield(T, :cost)
-        c = g.cost
-    else
-        c = order_cost(order, g)
-    end
+    c = costs(g, order)
     if is_inverted(order, g, c)
         GBElements.opposite!(g)
     end

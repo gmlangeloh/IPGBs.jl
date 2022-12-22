@@ -143,7 +143,7 @@ end
 
 SigPoly{T}(p :: T, s :: Signature) where {T} = SigPoly{T}(p, s, siglead(p, s))
 
-GBElements.cost(g :: SigPoly{T}) where {T} = GBElements.cost(g.polynomial)
+GBElements.costs(g :: SigPoly{T}) where {T} = GBElements.costs(g.polynomial)
 GBElements.fullform(g :: SigPoly{T}) where {T} = GBElements.fullform(g.polynomial)
 
 GBElements.has_signature(:: Type{<: SigPoly}) = true

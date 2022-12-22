@@ -1,6 +1,6 @@
 module Orders
 
-export GBOrder, MonomialOrder, is_inverted, order_cost
+export GBOrder, MonomialOrder, is_inverted, order_costs
 
 import LinearAlgebra: I
 
@@ -16,7 +16,7 @@ ModuleMonomialOrder in case of Signature-based algorithms.
 abstract type GBOrder <: Base.Ordering end
 
 is_inverted(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
-order_cost(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
+order_costs(:: GBOrder, :: AbstractVector{Int}) = error("Not implemented.")
 
 """
     tiebreak(C :: Matrix{Float64}) :: Matrix{Float64}
@@ -123,8 +123,7 @@ mutable struct MonomialOrder <: GBOrder
     cost_matrix :: Array{Float64, 2}
     tiebreaker :: Symbol
     is_minimization :: Bool
-
-    MonomialOrder(c, tie, min) = new(c, tie, min)
+    num_costs :: Int
 end
 
 function MonomialOrder(
@@ -134,12 +133,13 @@ function MonomialOrder(
     is_minimization::Bool,
     num_vars :: Union{Nothing, Int} = nothing
 )
+    num_costs = size(costs, 1)
     max_vars = size(A, 2)
     if !isnothing(num_vars)
         max_vars = num_vars
     end
     return MonomialOrder(normalize_order(costs, A, b, max_vars), :invlex,
-                         is_minimization)
+                         is_minimization, num_costs)
 end
 
 MonomialOrder(C :: Matrix{S}, A, b, min, nvars = nothing) where {S <: Real} =
@@ -167,17 +167,21 @@ function lex_order(
 end
 
 """
-    order_cost(order :: MonomialOrder, v :: AbstractVector{Int})
+    order_costs(
+    order :: MonomialOrder,
+    v :: AbstractVector{Int}
+) :: Vector{Int}
 
 The cost of some vector according to the cost matrix of `order`.
 
 This is the vector weighted by the first column of the cost matrix.
 """
-function order_cost(
+function order_costs(
     order :: MonomialOrder,
     v :: AbstractVector{Int}
-)
-    return order.cost_matrix[:, 1]' * v
+) :: Vector{Int}
+    return [ round(Int, order.cost_matrix[:, j]' * v) 
+        for j in 1:order.num_costs]
 end
 
 Base.length(o :: MonomialOrder) = size(o.cost_matrix, 2)
@@ -290,7 +294,7 @@ end
     is_inverted(
     order :: MonomialOrder,
     v :: T,
-    cost :: Real
+    costs :: Vector{Int}
 ) :: Bool where {T <: AbstractVector{Int}}
 
 Efficiently return whether v's leading and trailing terms are inverted.
@@ -298,15 +302,16 @@ Efficiently return whether v's leading and trailing terms are inverted.
 function is_inverted(
     order :: MonomialOrder,
     v :: T,
-    cost :: Real
+    costs :: Vector{Int}
 ) :: Bool where {T <: AbstractVector{Int}}
-    # TODO: Make this efficient but still compatible with 4ti2
-    return is_inverted_generic(order, v)
-    if cost < 0
-        return invert_maximization(order, true)
-    elseif cost > 0
-        return invert_maximization(order, false)
-    elseif order.tiebreaker == :invlex
+    for c in costs
+        if c < 0
+            return invert_maximization(order, true)
+        elseif c > 0
+            return invert_maximization(order, false)
+        end
+    end
+    if order.tiebreaker == :invlex
         return is_inverted_invlex(order, v)
     end
     return is_inverted_generic(order, v)

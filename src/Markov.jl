@@ -218,14 +218,8 @@ function next(
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
-        markov2 = GBAlgorithms.run(alg, quiet = true)
-        # TODO: Fix and cleanup. In the end, I should not call 4ti2 here!
-        proj_name = "tmp" * string(perm_i)
-        correct_gb = groebner(state.projection, markov=state.markov, project_name=proj_name)
-        markov = GBTools.tovector(correct_gb)
-        @debug "Correct Markov basis computed by 4ti2: $(markov)"
-        markov = markov2
-        @debug "New Markov Basis obtained through Buchberger" markov2
+        markov = GBAlgorithms.run(alg, quiet = true)
+        @debug "New Markov Basis obtained through Buchberger" markov
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
         @debug "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
