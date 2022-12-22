@@ -196,15 +196,17 @@ function Base.cmp(
     minimization = order.is_minimization ? 1 : 1
     for i in 1:length(order)
         #Compute o' * (v1 - v2) without allocations
-        s = 0
+        s = 0.0
         for j in 1:length(v1)
             s += order[i, j] * (v1[j] - v2[j])
         end
-        if s < 0
+        if isapprox(s, 0.0, atol=1e-8)
+            continue
+        elseif s < 0.0
             return -1 * minimization
-        elseif s > 0
+        elseif s > 0.0
             return 1 * minimization
-        end #s == 0, tie. Try next vector in order
+        end
     end
     return 0 #tied completely, v1 == v2.
 end
@@ -245,13 +247,16 @@ function is_inverted_generic(
     v :: T
 ) :: Bool where {T <: AbstractVector{Int}}
     for i in 1:length(order)
-        s = 0
+        s = 0.0
         for j in 1:length(v)
             s += order[i, j] * v[j]
         end
-        if s < 0
+        if isapprox(s, 0.0, atol=1e-8)
+            #Avoids numeric issues
+            continue
+        elseif s < 0.0
             return invert_maximization(order, true)
-        elseif s > 0
+        elseif s > 0.0
             return invert_maximization(order, false)
         end
     end
@@ -282,7 +287,11 @@ function is_inverted_invlex(
 end
 
 """
-    is_inverted(order :: MonomialOrder, v :: T, cost :: Int) :: Bool where {T <: AbstractVector{Int}}
+    is_inverted(
+    order :: MonomialOrder,
+    v :: T,
+    cost :: Real
+) :: Bool where {T <: AbstractVector{Int}}
 
 Efficiently return whether v's leading and trailing terms are inverted.
 """
@@ -291,6 +300,8 @@ function is_inverted(
     v :: T,
     cost :: Real
 ) :: Bool where {T <: AbstractVector{Int}}
+    # TODO: Make this efficient but still compatible with 4ti2
+    return is_inverted_generic(order, v)
     if cost < 0
         return invert_maximization(order, true)
     elseif cost > 0
