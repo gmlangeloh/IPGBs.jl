@@ -5,7 +5,7 @@ TODO: make GBElements a consistent interface
 """
 module GBElements
 #TODO: this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -35,6 +35,10 @@ weight(:: GBElement, :: Vector{Float64}) = error("Not implemented")
 has_signature(:: Type{<: AbstractVector{Int}}) = false
 is_implicit(:: Type{<: AbstractVector{Int}}) = false
 
+data(v :: AbstractVector{Int}) = v
+element(v :: AbstractVector{Int}) = v
+nonnegative(v :: AbstractVector{Int}) = v
+bounded(v :: AbstractVector{Int}) = v
 costs(v :: AbstractVector{Int}, o :: GBOrder) = order_costs(o, v)
 
 """
@@ -44,12 +48,10 @@ only subtype supported.
 function to_gbelement(
     v :: Vector{Int},
     order :: T,
-    nonnegative_end :: Int,
-    bounded_end :: Int,
     S :: DataType,
 ) where {T <: GBOrder}
     costs = round.(Int, order_costs(order, v))
-    b = S(v, costs, nonnegative_end, bounded_end)
+    b = S([v; costs])
     orientate!(b, order)
     return b
 end
@@ -75,8 +77,8 @@ Computes the leading term of this GBElement as a vector.
 function leading_term(
     g :: T
 ) :: Vector{Int} where {T <: AbstractVector{Int}}
-    lt = zeros(Int, length(g))
-    for i in eachindex(g)
+    lt = zeros(Int, length(element(g)))
+    for i in eachindex(element(g))
         if g[i] > 0
             lt[i] = g[i]
         end
@@ -94,7 +96,7 @@ function head(
     g :: GBElement
 ) :: Vector{Int}
     head = Int[]
-    for i in eachindex(g)
+    for i in eachindex(element(g))
         if g[i] > 0
             push!(head, i)
         end
@@ -122,8 +124,8 @@ function orientate!(
     g :: T,
     order :: GBOrder
 ) where {T <: AbstractVector{Int}}
-    c = costs(g, order)
-    if is_inverted(order, g, c)
+    cs = costs(g, order)
+    if is_inverted(order, element(g), cs)
         GBElements.opposite!(g)
     end
 end
@@ -133,7 +135,7 @@ function degrees(
     A :: Array{Int, 2}
 ) :: Tuple{Vector{Int}, Vector{Int}} where {T <: AbstractVector{Int}}
     #Get the positive and negative parts of g
-    n = length(g)
+    n = length(element(g))
     positive_g = zeros(Int, n)
     negative_g = zeros(Int, n)
     for i in 1:n
@@ -185,14 +187,14 @@ function supports(
 ) :: Tuple{FastBitSet, FastBitSet}
     pos_supp = Int[]
     neg_supp = Int[]
-    for i in eachindex(g)
+    for i in eachindex(element(g))
         if g[i] > 0
             push!(pos_supp, i)
         elseif g[i] < 0
             push!(neg_supp, i)
         end
     end
-    bitset_length = length(g)
+    bitset_length = length(element(g))
     return FastBitSet(bitset_length, pos_supp), FastBitSet(bitset_length, neg_supp)
 end
 
@@ -270,7 +272,7 @@ function is_negative_disjoint(
     negative :: Bool = false
 ) :: Bool where {T <: AbstractVector{Int}}
     sign = negative ? -1 : 1
-    for i in eachindex(g)
+    for i in eachindex(bounded(g))
         if sign * g[i] < 0 && h[i] < 0
             return false
         end
@@ -285,7 +287,7 @@ function le_upperbound(
     v :: T,
     u :: Vector{Union{Int, Nothing}}
 ) :: Bool where {T <: AbstractVector{Int}}
-    for i in eachindex(v)
+    for i in eachindex(element(v))
         if isnothing(u[i])
             continue
         elseif v[i] > 0 && v[i] > u[i]
@@ -304,7 +306,7 @@ function le_coordinatewise(
     v1 :: Vector{Int},
     v2 :: Vector{Int}
 ) :: Bool
-    return all(i -> v1[i] <= v2[i], keys(v1))
+    return all(i -> v1[i] <= v2[i], keys(element(v1)))
 end
 
 """
@@ -372,7 +374,7 @@ function filter(
     fullfilter :: Bool = false
 ) :: Vector{Int} where {T <: AbstractVector{Int}}
     filter = Int[]
-    for i in eachindex(binomial)
+    for i in eachindex(nonnegative(binomial))
         if binomial[i] > 0 || (fullfilter && binomial[i] != 0)
             push!(filter, i)
         end
@@ -401,8 +403,7 @@ function reduces(
     reducer :: T,
     gb :: S;
     fullfilter :: Bool = true,
-    negative :: Bool = false,
-    is_singular :: Ref{Bool} = Ref(false)
+    negative :: Bool = false
 ) :: Bool where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     sign :: Int = negative ? -1 : 1
     if fullfilter
@@ -438,7 +439,7 @@ function reduces(
         if singular_top_reducible(g, reducer_sig)
             #We set this to true to signal the support tree to stop looking for
             #reducers
-            is_singular[] = true
+            #is_singular[] = true
             return true #This stops the search. The current reducer won't matter
         end
         #3. Check if signature-reducible. This means reducer_sig < sig(g)
@@ -463,7 +464,7 @@ function monomial_quotient(
     binomial :: T,
     reducer :: T
 ) :: Vector{Int} where {T <: GBElement}
-    n = length(reducer)
+    n = length(element(reducer))
     quotient = zeros(Int, n)
     for i in head(binomial)
         quotient[i] = binomial[i] - reducer[i]
@@ -488,10 +489,11 @@ function reduction_factor(
     negative :: Bool = false
 ) :: Int where {T <: AbstractVector{Int}}
     i = 1
-    while i <= length(reducer) && reducer[i] <= 0
+    n = length(element(reducer))
+    while i <= n && reducer[i] <= 0
         i += 1
     end
-    if i > length(reducer)
+    if i > n
         return negative ? -1 : 1
     end
     factor = Int(trunc(binomial[i] / reducer[i]))
@@ -499,7 +501,7 @@ function reduction_factor(
         return factor
     end
     i += 1
-    while i <= length(reducer)
+    while i <= n
         if reducer[i] > 0
             newfactor = Int(trunc(binomial[i] / reducer[i]))
             if (!negative && newfactor < factor) ||
@@ -534,6 +536,7 @@ function reduce!(
     return reduced_to_zero
 end
 
+#TODO: Optimize! Why is there no vectorization here? This is a mess!
 function reduce!(
     binomial :: T,
     reducer :: T,

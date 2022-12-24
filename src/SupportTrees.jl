@@ -300,11 +300,10 @@ function find_reducer(
     tree :: SupportTree{T};
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
-    is_singular :: Ref{Bool} = Ref(false)
 ) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     return find_reducer(
         g, gb, tree.root, tree.stats, fullfilter=tree.fullfilter,
-        skipbinomial=skipbinomial, negative=negative, is_singular=is_singular
+        skipbinomial=skipbinomial, negative=negative
     )
 end
 
@@ -326,8 +325,7 @@ function find_reducer(
     stats :: TreeStats;
     fullfilter :: Bool = false,
     skipbinomial :: Union{T, Nothing} = nothing,
-    negative :: Bool = false,
-    is_singular :: Ref{Bool} = Ref(false)
+    negative :: Bool = false
 ) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     stats.reduction_steps += 1
     for (i, child) in node.children
@@ -335,7 +333,7 @@ function find_reducer(
             #Look for reducer recursively in the children of this node
             reducer, found_reducer = find_reducer(
                 g, gb, child, stats, fullfilter=fullfilter, skipbinomial=skipbinomial,
-                negative=negative, is_singular=is_singular
+                negative=negative
             )
             if found_reducer
                 return reducer, found_reducer
@@ -353,8 +351,7 @@ function find_reducer(
         end
         stats.reducers_checked += 1
         if GBElements.reduces(
-            g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
-            is_singular=is_singular
+            g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative
         )
             return reducer, true
         end

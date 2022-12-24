@@ -174,7 +174,6 @@ function reduce!(
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing
 ) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
-    is_singular = Ref{Bool}(false)
     changed = false
     #Reduce both the leading and trailing terms, leading first
     for negative in (false, true)
@@ -185,15 +184,15 @@ function reduce!(
         end
         while true
             reducer, found_reducer = find_reducer(
-                g, gb, tree, skipbinomial=skipbinomial, is_singular=is_singular,
+                g, gb, tree, skipbinomial=skipbinomial,
                 negative=negative
             )
             #g has a singular signature, so it reduces to zero
             #We can ignore the reducer and just say `g` reduces to zero
             #if haskey(params, "is_singular") && params["is_singular"]
-            if is_singular[]
-                return true, changed
-            end
+            #if is_singular[]
+            #    return true, changed
+            #end
             #No reducer found, terminate search
             if !found_reducer
                 if negative

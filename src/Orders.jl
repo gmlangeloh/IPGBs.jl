@@ -302,7 +302,7 @@ Efficiently return whether v's leading and trailing terms are inverted.
 function is_inverted(
     order :: MonomialOrder,
     v :: T,
-    costs :: Vector{Int}
+    costs :: AbstractVector{Int}
 ) :: Bool where {T <: AbstractVector{Int}}
     for c in costs
         if c < 0

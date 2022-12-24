@@ -86,9 +86,10 @@ function hnf_lattice_basis(A :: Matrix{Int})
     tA = hcat(mat_A, identity_matrix(ZZ, n))
     #tA is a n x (m + n) matrix.
     #hnf_cohen is often slightly faster than hnf
-    H = hnf_cohen(tA)
+    I = identity_matrix(tA, n)
+    AbstractAlgebra.hnf_cohen!(tA, I)
     #The basis is in the last few rows and columns of H
-    basis = H[(r+1):n, (m+1):(n+m)]
+    basis = tA[(r+1):n, (m+1):(n+m)]
     return basis, r #Row basis of the lattice
 end
 
