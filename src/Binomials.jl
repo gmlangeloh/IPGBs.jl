@@ -69,15 +69,6 @@ function Base.copy(
     return Binomial(copy(g.data))
 end
 
-function GBElements.supports(
-    g :: Binomial
-) :: Tuple{FastBitSet, FastBitSet}
-    bitset_length = length(element(g))
-    pos_criterion(x) = x > 0
-    neg_criterion(x) = x < 0
-    return FastBitSet(bitset_length, element(g), pos_criterion), FastBitSet(bitset_length, element(g), neg_criterion)
-end
-
 #
 # Implementation of the AbstractVector interface for Binomials
 #
