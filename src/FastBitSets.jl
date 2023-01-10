@@ -2,6 +2,9 @@
 Specialized module for faster bitsets in the context of GBs / IP.
 """
 module FastBitSets
+
+using StaticArrays
+
 export FastBitSet, disjoint, BitTriangle, add_row!
 
 
@@ -12,6 +15,7 @@ function disjoint(b1 :: BitVector, b2 :: BitVector)
 end
 
 const BITS_PER_WORD = 8 * sizeof(Int)
+const MAX_SVECTOR_SIZE = 3
 
 #
 # Fast (uni-dimensional) bitsets that are useful mainly when we know their
@@ -19,7 +23,7 @@ const BITS_PER_WORD = 8 * sizeof(Int)
 #
 
 struct FastBitSet
-    data :: Vector{Int}
+    data :: MVector{MAX_SVECTOR_SIZE,Int}
     words :: Int
 end
 
@@ -42,7 +46,8 @@ function FastBitSet(
     indices :: Vector{Int}
 )
     words = Int(ceil(vars / BITS_PER_WORD))
-    data = zeros(Int, words)
+    @assert words <= MAX_SVECTOR_SIZE
+    data = zeros(MVector{MAX_SVECTOR_SIZE,Int})
     for i in indices
         word, index = word_and_index(i)
         data[word] += 1 << index
@@ -56,7 +61,8 @@ function FastBitSet(
     criterion :: Function
 )
     words = Int(ceil(vars / BITS_PER_WORD))
-    data = zeros(Int, words)
+    @assert words <= MAX_SVECTOR_SIZE
+    data = zeros(MVector{MAX_SVECTOR_SIZE, Int})
     for i in eachindex(input_data)
         if criterion(input_data[i])
             word, index = word_and_index(i)
@@ -133,13 +139,9 @@ end
 function disjoint(
     bitset1 :: FastBitSet,
     bitset2 :: FastBitSet,
-    max_index :: Union{Int, Nothing} = nothing
 ) :: Bool
     @assert length(bitset1) == length(bitset2)
-    if isnothing(max_index)
-        max_index = length(bitset1)
-    end
-    return all(iszero(bitset1.data[i] & bitset2.data[i]) for i in 1:max_index)
+    return all(iszero(bitset1.data[i] & bitset2.data[i]) for i in eachindex(bitset1.data))
 end
 
 #

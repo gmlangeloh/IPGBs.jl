@@ -255,9 +255,6 @@ Compute a Markov basis of `instance` using the project-and-lift algorithm.
 
 Truncation is done with respect to `truncation_type`. If `truncation_type` is None, then
 a full Markov basis is computed instead.
-
-TODO: I probably could make projections more efficient. But at least
-this way they are very simple to implement...
 """
 function project_and_lift(
     instance::IPInstance;

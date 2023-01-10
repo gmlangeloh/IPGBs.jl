@@ -14,6 +14,7 @@ include("./MonomialHeaps.jl")
 include("./FastComparator.jl")
 include("./GBElements.jl")
 include("./SupportTrees.jl")
+include("./SupportMatrixTrees.jl")
 include("./Binomials.jl")
 include("./GradedBinomials.jl")
 

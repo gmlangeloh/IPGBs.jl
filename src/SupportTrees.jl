@@ -78,11 +78,8 @@ mutable struct SupportTree{T <: AbstractVector{Int}}
     fullfilter :: Bool
     stats :: TreeStats
 
-    #For efficiency of the find_reducer_iter function
-    node_stack :: Vector{Tuple{Int, SupportNode{T}}}
-
     SupportTree{T}(fullfilter) where {T <: AbstractVector{Int}} = begin
-        new(SupportNode{T}(), 0, 1, fullfilter, TreeStats(), Vector(undef, 2))
+        new(SupportNode{T}(), 0, 1, fullfilter, TreeStats())
     end
 end
 
@@ -149,7 +146,6 @@ function addbinomial!(
         end
     end
     tree.depth = max(tree.depth, depth)
-    resize!(tree.node_stack, tree.depth + 1)
     tree.size += 1
 end
 
