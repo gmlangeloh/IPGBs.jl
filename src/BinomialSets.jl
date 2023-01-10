@@ -9,7 +9,8 @@ using IPGBs.FastBitSets
 using IPGBs.IPInstances
 using IPGBs.Orders
 using IPGBs.GBElements
-using IPGBs.SupportMatrixTrees
+using IPGBs.SupportTrees
+#using IPGBs.SupportMatrixTrees
 
 using IPGBs.Binomials
 
@@ -23,7 +24,7 @@ in addition to GBElements.
 struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     basis :: Vector{T}
     order :: S
-    reduction_tree :: SupportMatrixTree{T}
+    reduction_tree :: SupportTree{T}
     minimization_form :: Bool #TODO: maybe this should be part of the order?
 
     #We store the supports here instead of on the elements themselves to avoid
@@ -33,8 +34,8 @@ struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     negative_supports :: Vector{FastBitSet}
 
     function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
-        #tree = support_tree(basis, fullfilter=is_implicit(T))
-        tree = SupportMatrixTree(basis)
+        tree = support_tree(basis, fullfilter=is_implicit(T))
+        #tree = SupportMatrixTree(basis)
         pos_supps, neg_supps = GBElements.supports(basis)
         new{T, S}(
             basis, order, tree, min, pos_supps, neg_supps
@@ -171,7 +172,7 @@ should be set to `nothing` in practical runs.
 function reduce!(
     g :: T,
     gb :: S,
-    tree :: SupportMatrixTree{T};
+    tree :: SupportTree{T};
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing
 ) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
