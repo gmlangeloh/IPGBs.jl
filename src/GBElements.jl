@@ -196,7 +196,7 @@ function degree_reducible(
     g :: T,
     h :: T;
     negative :: Bool = false
-) :: Bool where {T <: GBElement}
+) :: Bool where {T <: AbstractVector{Int}}
     return true
 end
 

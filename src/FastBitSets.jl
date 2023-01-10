@@ -139,13 +139,9 @@ function disjoint(
     if isnothing(max_index)
         max_index = length(bitset1)
     end
-    for i in 1:max_index
-        if bitset1.data[i] & bitset2.data[i] != 0
-            return false
-        end
-    end
-    return true
+    return all(iszero(bitset1.data[i] & bitset2.data[i]) for i in 1:max_index)
 end
+
 #
 # Bit triangles offering O(1) access to binary data relative to a pair (i, j)
 #

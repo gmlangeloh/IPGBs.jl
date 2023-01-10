@@ -244,53 +244,6 @@ function enumerate_reducers!(
 end
 
 """
-Finds a reducer of `g` in `tree` by searching the tree iteratively, instead of
-recursively. It serves as an alternative to find_reducer, although the performance
-is currently nearly equivalent.
-"""
-function find_reducer_iter(
-    g :: T,
-    gb :: S,
-    tree :: SupportTree{T};
-    skipbinomial :: Union{T, Nothing} = nothing,
-    negative :: Bool = false,
-    is_singular :: Ref{Bool} = Ref(false)
-) :: Union{T, Nothing} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
-    node_stack = tree.node_stack
-    stack_index = 1
-    node_stack[stack_index] = (1, tree.root)
-    #push!(node_stack, (1, tree.root))
-    while stack_index >= 1 #!isempty(node_stack)
-        child_index, current_node = node_stack[stack_index] #pop!(node_stack)
-        stack_index -= 1
-        if child_index <= length(current_node.children)
-            stack_index += 1
-            node_stack[stack_index] = (child_index + 1, current_node)
-            #push!(node_stack, (child_index + 1, current_node))
-            i, child = current_node.children[child_index]
-            if g[i] > 0 || negative && g[i] < 0 || (tree.fullfilter && g[i] != 0)
-                #push!(node_stack, (1, child))
-                stack_index += 1
-                node_stack[stack_index] = (1, child)
-            end
-        else #Check whether this node contains a reducer
-            for reducer in current_node.binomial_list
-                if !isnothing(skipbinomial) && reducer === skipbinomial
-                    continue
-                end
-                if GBElements.reduces(
-                    g, current_node.filter, reducer, gb, fullfilter=tree.fullfilter,
-                    negative=negative, is_singular=is_singular
-                )
-                    return reducer
-                end
-            end
-        end
-    end
-    return nothing
-end
-
-"""
 Checks whether `g` is reducible by some element of `gb` and, if so, returns
 a reducer. Otherwise, returns `nothing`.
 """
@@ -301,9 +254,11 @@ function find_reducer(
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false,
 ) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    #The fullfilter parameter was removed as it affects performance and
+    #it was only useful when T == GradedBinomial.
     return find_reducer(
-        g, gb, tree.root, tree.stats, fullfilter=tree.fullfilter,
-        skipbinomial=skipbinomial, negative=negative
+        g, gb, tree.root, tree.stats, skipbinomial=skipbinomial, 
+        negative=negative
     )
 end
 
@@ -323,16 +278,16 @@ function find_reducer(
     gb :: S,
     node :: SupportNode{T},
     stats :: TreeStats;
-    fullfilter :: Bool = false,
     skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false
 ) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     stats.reduction_steps += 1
+    sign = negative ? -1 : 1
     for (i, child) in node.children
-        if g[i] > 0 || (negative && g[i] < 0) || (fullfilter && g[i] != 0)
+        if sign * g[i] > 0
             #Look for reducer recursively in the children of this node
             reducer, found_reducer = find_reducer(
-                g, gb, child, stats, fullfilter=fullfilter, skipbinomial=skipbinomial,
+                g, gb, child, stats, skipbinomial=skipbinomial,
                 negative=negative
             )
             if found_reducer
@@ -351,7 +306,7 @@ function find_reducer(
         end
         stats.reducers_checked += 1
         if GBElements.reduces(
-            g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative
+            g, node.filter, reducer, gb, negative=negative
         )
             return reducer, true
         end

@@ -9,6 +9,8 @@ using JuMP
 using IPGBs
 using IPGBs.SolverTools
 
+const AlgebraInt = AbstractAlgebra.Integers{Int}()
+
 """
     normalize_ip(A :: Matrix{Int}, b :: Vector{Int}, c :: Matrix{T}, u :: Vector{<: Union{Int, Nothing}}, nonnegative :: Vector{Bool}; ...) where {T <: Real}
 
@@ -79,15 +81,17 @@ end
 """
 function hnf_lattice_basis(A :: Matrix{Int})
     m, n = size(A)
-    mat_A = matrix(ZZ, transpose(A))
+    mat_A = matrix(AlgebraInt, transpose(A))
     r = rank(mat_A)
     #Transpose and append identity matrix, so that the lattice basis appears
     #as the last few rows / columns of the uhnf.
-    tA = hcat(mat_A, identity_matrix(ZZ, n))
+    tA = hcat(mat_A, identity_matrix(AlgebraInt, n))
     #tA is a n x (m + n) matrix.
     #hnf_cohen is often slightly faster than hnf
     I = identity_matrix(tA, n)
-    AbstractAlgebra.hnf_cohen!(tA, I)
+    #Even though there are apparently no guarantees, running hnf_kb! over 64-bit
+    #ints does work. Running hnf_cohen! here instead doesn't, though.
+    AbstractAlgebra.hnf_kb!(tA, I)
     #The basis is in the last few rows and columns of H
     basis = tA[(r+1):n, (m+1):(n+m)]
     return basis, r #Row basis of the lattice
@@ -101,8 +105,8 @@ end
 """
 function fiber_solution(A :: Matrix{Int}, b :: Vector{Int}) :: Vector{Int}
     m, n = size(A)
-    mat_A = matrix(ZZ, A)
-    mat_b = matrix(ZZ, m, 1, b)
+    mat_A = matrix(AlgebraInt, A)
+    mat_b = matrix(AlgebraInt, m, 1, b)
     x = solve(mat_A, mat_b)
     return Int.(reshape(Array(x), n))
 end
@@ -148,7 +152,7 @@ struct IPInstance
     model_cons :: Vector{JuMP.ConstraintRef} #TODO: not a concrete type, fix this
 
     #Lattice-related information
-    lattice_basis :: Generic.MatSpaceElem{BigInt} #Row basis
+    lattice_basis :: Generic.MatSpaceElem{Int} #Row basis
     rank :: Int
     fiber_solution :: Vector{Int} #v such that Av = b. Not necessarily non-negative.
     originally_bounded :: Vector{Bool}
@@ -200,8 +204,6 @@ struct IPInstance
         SolverTools.set_jump_objective!(model, :Min, C[1, :])
         #Compute lattice information
         basis, rnk = hnf_lattice_basis(A)
-        #rnk, basis = kernel(matrix(ZZ, A))
-        #basis = transpose(basis)
         fiber_sol = fiber_solution(A, b)
         #Create the normalized instance
         new(A, b, C, u,
@@ -538,8 +540,8 @@ constraints.
 function initial_solution(
     instance :: IPInstance
 ) :: Vector{Int}
-    mat_A = matrix(ZZ, instance.A)
-    mat_b = matrix(ZZ, length(instance.b), 1, instance.b)
+    mat_A = matrix(AlgebraInt, instance.A)
+    mat_b = matrix(AlgebraInt, length(instance.b), 1, instance.b)
     x = AbstractAlgebra.solve(mat_A, mat_b)
     return reshape(convert.(Int, Array(x)), size(instance.A, 2))
 end
@@ -556,10 +558,10 @@ function lift_vector(
 ) :: Vector{Int}
     #Find a lifted vector to full variables
     col_basis = transpose(lattice_basis_projection(instance))
-    coefs = AbstractAlgebra.solve(col_basis, matrix(ZZ, length(v), 1, v))
+    coefs = AbstractAlgebra.solve(col_basis, matrix(AlgebraInt, length(v), 1, v))
     full_col_basis = transpose(instance.lattice_basis)
     res = full_col_basis * coefs
-    return Int.(reshape(Array(res), length(res)))
+    return reshape(Array(res), length(res))
 end
 
 function truncation_weight(
