@@ -376,53 +376,57 @@ function reduces(
     filter :: Vector{Int},
     reducer :: T,
     gb :: S;
-    fullfilter :: Bool = true,
     negative :: Bool = false
 ) :: Bool where {P <: AbstractVector{Int}, T <: AbstractVector{Int}, S <: AbstractVector{T}}
     sign :: Int = negative ? -1 : 1
-    if fullfilter
-        for i in filter
-            if sign * g[i] * reducer[i] < 0 #Different signs, doesn't divide
-                return false
-            elseif abs(g[i]) < abs(reducer[i]) #reducer doesn't divide
-                return false
-            end
-        end
-        #Checks the truncation criterion of Thomas and Weismantel
-        #This is only relevant because certain variables are implicit in this
-        #representation and so this check is necessary to guarantee these variables
-        #are compatible for division
-        if !degree_reducible(reducer, g, negative=negative)
-            return false
-        end
-    else
-        for i in filter
-            if sign * g[i] < reducer[i]
-                return false
-            end
-        end
-    end
-    #This is used in signature-based algorithms. Non-signature algorithms just
-    #skip this part
-    if has_signature(P)
-        #1. Compute the reduction factor, for efficiency. It will be used in all
-        #of the following tests
-        quotient = monomial_quotient(g, reducer)
-        reducer_sig = quotient * reducer.signature
-        #2. Check if singular. If so, we need to stop looking for reducers
-        if singular_top_reducible(g, reducer_sig)
-            #We set this to true to signal the support tree to stop looking for
-            #reducers
-            #is_singular[] = true
-            return true #This stops the search. The current reducer won't matter
-        end
-        #3. Check if signature-reducible. This means reducer_sig < sig(g)
-        if !signature_reducible(g, reducer_sig, gb)
-            #In this case, we cannot s-reduce g by reducer, but we should keep
-            #looking for reducers of g
+    for i in filter
+        if sign * g[i] < reducer[i]
             return false
         end
     end
+    #if fullfilter
+    #    for i in filter
+    #        if sign * g[i] * reducer[i] < 0 #Different signs, doesn't divide
+    #            return false
+    #        elseif abs(g[i]) < abs(reducer[i]) #reducer doesn't divide
+    #            return false
+    #        end
+    #    end
+    #    #Checks the truncation criterion of Thomas and Weismantel
+    #    #This is only relevant because certain variables are implicit in this
+    #    #representation and so this check is necessary to guarantee these variables
+    #    #are compatible for division
+    #    if !degree_reducible(reducer, g, negative=negative)
+    #        return false
+    #    end
+    #else
+    #    for i in filter
+    #        if sign * g[i] < reducer[i]
+    #            return false
+    #        end
+    #    end
+    #end
+    ##This is used in signature-based algorithms. Non-signature algorithms just
+    ##skip this part
+    #if has_signature(P)
+    #    #1. Compute the reduction factor, for efficiency. It will be used in all
+    #    #of the following tests
+    #    quotient = monomial_quotient(g, reducer)
+    #    reducer_sig = quotient * reducer.signature
+    #    #2. Check if singular. If so, we need to stop looking for reducers
+    #    if singular_top_reducible(g, reducer_sig)
+    #        #We set this to true to signal the support tree to stop looking for
+    #        #reducers
+    #        #is_singular[] = true
+    #        return true #This stops the search. The current reducer won't matter
+    #    end
+    #    #3. Check if signature-reducible. This means reducer_sig < sig(g)
+    #    if !signature_reducible(g, reducer_sig, gb)
+    #        #In this case, we cannot s-reduce g by reducer, but we should keep
+    #        #looking for reducers of g
+    #        return false
+    #    end
+    #end
     return true
 end
 
