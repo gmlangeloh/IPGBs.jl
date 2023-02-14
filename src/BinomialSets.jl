@@ -153,7 +153,10 @@ function reduce!(
     bs :: BinomialSet{T, S};
     skipbinomial :: Union{T, Nothing} = nothing
 ) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: GBOrder}
-    return reduce!(g, bs, reduction_tree(bs), skipbinomial=skipbinomial)
+    return reduce!(
+        g, bs, reduction_tree(bs), skipbinomial=skipbinomial, 
+        is_monomial_reduction=is_monomial(g)
+    )
 end
 
 """
@@ -174,7 +177,8 @@ function reduce!(
     gb :: S,
     tree :: SupportTree{T};
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
-    skipbinomial :: Union{T, Nothing} = nothing
+    skipbinomial :: Union{T, Nothing} = nothing,
+    is_monomial_reduction :: Bool = false
 ) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     changed = false
     #Reduce both the leading and trailing terms, leading first
@@ -216,7 +220,7 @@ function reduce!(
                 return true, changed
             end
             #Now apply the reduction and check if it is a zero reduction
-            if has_order(gb)
+            if has_order(gb) && !is_monomial_reduction
                 reduced_to_zero = GBElements.reduce!(
                     g, reducer, order(gb), negative=negative
                 )

@@ -5,7 +5,7 @@ TODO: make GBElements a consistent interface
 """
 module GBElements
 #TODO: this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative, is_monomial
 
 using IPGBs.FastBitSets
 using IPGBs.Orders
@@ -40,6 +40,8 @@ element(v :: AbstractVector{Int}) = v
 nonnegative(v :: AbstractVector{Int}) = v
 bounded(v :: AbstractVector{Int}) = v
 costs(v :: AbstractVector{Int}, o :: GBOrder) = order_costs(o, v)
+
+is_monomial(g :: AbstractVector{Int}) = all(gi >= 0 for gi in g)
 
 """
 Turns a vector `v` into a GBElement of type `S`. Currently, Binomials are the
