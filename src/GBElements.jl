@@ -42,6 +42,7 @@ bounded(v :: AbstractVector{Int}) = v
 costs(v :: AbstractVector{Int}, o :: GBOrder) = order_costs(o, v)
 
 is_monomial(g :: AbstractVector{Int}) = all(gi >= 0 for gi in g)
+reduces(g :: AbstractVector{Int}, h :: AbstractVector{Int}) = all(g .<= h)
 
 """
 Turns a vector `v` into a GBElement of type `S`. Currently, Binomials are the
