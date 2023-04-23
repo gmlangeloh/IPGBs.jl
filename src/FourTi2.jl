@@ -7,6 +7,7 @@ module FourTi2
 export minimize, groebner, normalform, markov, groebnernf, graver
 
 using DelimitedFiles
+using JuMP
 using LinearAlgebra
 
 using IPGBs.GBTools
@@ -235,6 +236,13 @@ function groebner(
         instance.A, int_objective, nonnegative=nonnegative, markov=markov,
         truncation_sol=init_sol, project_name=project_name
     )
+end
+
+function groebner(
+    model :: JuMP.Model;
+    project_name :: String = "tmp"
+)
+    return groebner(IPInstance(model), project_name=project_name)
 end
 
 """

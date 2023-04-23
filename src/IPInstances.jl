@@ -7,6 +7,7 @@ using AbstractAlgebra
 using JuMP
 
 using IPGBs
+using IPGBs.GBTools
 using IPGBs.SolverTools
 
 const AlgebraInt = AbstractAlgebra.Integers{Int}()
@@ -428,7 +429,7 @@ function IPInstance(model::JuMP.Model)
         end
     end
     #Build upper bound vector
-    u = fill(typemax(Int), size(A, 2))
+    u = fill(nothing, size(A, 2))
     for (var, ub) in upper_bounds
         u[var] = ub
     end
@@ -458,6 +459,8 @@ function integer_objective(
     end
     return integer_C
 end
+
+has_slacks(instance :: IPInstance) = GBTools.has_slacks(instance.A)
 
 function has_variable_bound_constraints(instance :: IPInstance) :: Bool
     cols_not_slacks = instance.n - instance.m

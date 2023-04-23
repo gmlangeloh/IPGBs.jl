@@ -2,6 +2,22 @@ module GBTools
 
 using LinearAlgebra: I
 
+function has_slacks(A :: Matrix{Int}) :: Bool
+    m, n = size(A)
+    found_slack = fill(false, m)
+    slack_indices = Int[]
+    for i in 1:m
+        for j in (m+1):n
+            if A[i, j] == 1
+                found_slack[i] = true
+                push!(slack_indices, j)
+                break
+            end
+        end
+    end
+    return all(found_slack) && (length(slack_indices) == length(unique(slack_indices)))
+end
+
 function isincluded(
     gb1 :: Vector{Vector{Int}},
     gb2 :: Vector{Vector{Int}}

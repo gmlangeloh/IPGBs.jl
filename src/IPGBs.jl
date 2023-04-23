@@ -31,6 +31,7 @@ include("./Markov.jl")
 include("./StandardDecomposition.jl")
 
 using .GBAlgorithms
+using .GBTools
 using .IPInstances
 using .Markov
 import .Buchberger: BuchbergerAlgorithm
@@ -54,7 +55,8 @@ function use_simple_truncation(
 )::Bool
     m, n = size(A)
     return all(A[i, j] >= 0 for j in 1:n for i in 1:m) &&
-           all(b[i] >= 0 for i in 1:m)
+           all(b[i] >= 0 for i in 1:m) &&
+           GBTools.has_slacks(A)
 end
 
 function parse_truncation(
@@ -138,6 +140,7 @@ function groebner_basis(
     minimization::Bool = true
 )::Vector{Vector{Int}}
     markov = markov_basis(instance)
+    @show markov
     return groebner_basis(
         markov, instance,
         use_signatures = use_signatures,

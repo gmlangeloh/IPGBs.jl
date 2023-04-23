@@ -286,6 +286,7 @@ function simple_markov(
     @debug "Computing Markov basis using the Simple Markov algorithm"
     #Check whether the hypotheses hold
     @assert IPInstances.nonnegative_data_only(instance)
+    @assert IPInstances.has_slacks(instance)
     #Build "trivial" Markov basis
     #Assumes there are upper bound constraints on the variables
     has_bounds = IPInstances.has_variable_bound_constraints(instance)
@@ -325,7 +326,7 @@ function markov_basis(
 )::Vector{Vector{Int}}
     @debug "Starting to compute Markov basis for " instance
     if algorithm == :Any
-        if IPInstances.nonnegative_data_only(instance)
+        if IPInstances.nonnegative_data_only(instance) && IPInstances.has_slacks(instance)
             #The Simple algorithm may be used, so use it.
             algorithm = :Simple
         else
