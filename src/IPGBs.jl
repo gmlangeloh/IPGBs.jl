@@ -4,10 +4,7 @@ module IPGBs
 export groebner_basis
 
 include("./Globals.jl")
-include("./SolverTools.jl")
 include("./FastBitSets.jl")
-include("./GBTools.jl")
-include("./IPInstances.jl")
 include("./Statistics.jl")
 include("./Orders.jl")
 include("./MonomialHeaps.jl")
@@ -31,8 +28,6 @@ include("./Markov.jl")
 include("./StandardDecomposition.jl")
 
 using .GBAlgorithms
-using .GBTools
-using .IPInstances
 using .Markov
 import .Buchberger: BuchbergerAlgorithm
 import .SignatureAlgorithms: SignatureAlgorithm
@@ -41,6 +36,8 @@ import .GradedBinomials: GradedBinomial
 
 using JuMP
 using Random
+using MIPMatrixTools.GBTools
+using MIPMatrixTools.IPInstances
 
 """
 Simple truncation works when the data in A, b are all non-negative.

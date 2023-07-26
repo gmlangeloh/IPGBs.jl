@@ -7,9 +7,10 @@ module GBElements
 #TODO: this is way too long, clean it up or at least break it into more exports
 export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative, is_monomial
 
+using MIPMatrixTools.SolverTools
+
 using IPGBs.FastBitSets
 using IPGBs.Orders
-using IPGBs.SolverTools
 
 using JuMP
 

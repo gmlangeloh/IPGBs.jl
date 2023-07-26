@@ -12,16 +12,17 @@ export markov_basis, lex_groebner_basis
 
 using AbstractAlgebra
 
+using MIPMatrixTools.GBTools
+using MIPMatrixTools.IPInstances
+
 using IPGBs.Binomials
 using IPGBs.BinomialSets
 using IPGBs.Buchberger
 using IPGBs.GBAlgorithms
 using IPGBs.GBElements
-using IPGBs.IPInstances
 using IPGBs.Orders
 
 using IPGBs.FourTi2
-using IPGBs.GBTools
 
 """
     normalize_hnf!(H :: Generic.MatSpaceElem{T})

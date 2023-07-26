@@ -4,10 +4,11 @@ export GBOrder, MonomialOrder, is_inverted, order_costs
 
 import LinearAlgebra: I
 
+using MIPMatrixTools.GBTools
+using MIPMatrixTools.IPInstances
+using MIPMatrixTools.SolverTools
+
 using IPGBs
-using IPGBs.GBTools
-using IPGBs.IPInstances
-using IPGBs.SolverTools
 
 """
 This is specialized by MonomialOrder in case of Buchberger's algorithm and by

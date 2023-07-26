@@ -2,9 +2,10 @@ module Binomials
 
 export initialize_binomials, Binomial, lattice_generator_binomial
 
+using MIPMatrixTools.IPInstances
+
 using IPGBs.FastBitSets
 using IPGBs.GBElements
-using IPGBs.IPInstances
 using IPGBs.Orders
 
 element_end :: Int = 0
