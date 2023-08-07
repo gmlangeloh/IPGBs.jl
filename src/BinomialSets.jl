@@ -64,6 +64,13 @@ function BinomialSet(
     return BinomialSet{T, MonomialOrder}(basis, order, is_minimization)
 end
 
+function BinomialSet(
+    basis :: Vector{T},
+    ip :: IPInstance
+) where {T <: AbstractVector{Int}}
+    return BinomialSet(basis, ip.C, ip.A, ip.b)
+end
+
 """
 Changes the ordering of `bs` to a monomial order given by the matrix
 `new_order`.
