@@ -261,49 +261,49 @@ function sbinomial(
     return r
 end
 
-"""
-Returns true iff the i-th and j-th vectors of `bs` have disjoint negative
-bounded components.
-
-This is essentially 4ti2's cancellation criterion.
-"""
-function is_negative_disjoint(
-    i :: Int,
-    j :: Int,
-    bs :: BinomialSet{T, S},
-    instance :: IPInstance
-) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
-    u = bs[i]
-    v = bs[j]
-    for k in 1:instance.bounded_end
-        if u[k] < 0 && v[k] < 0
-            return false
-        end
-    end
-    return true
-end
-
-"""
-Returns true iff the i-th and j-th vectors of `bs` have disjoint positive
-non-negative components.
-
-This is essentially the GCD criterion.
-"""
-function is_positive_disjoint(
-    i :: Int,
-    j :: Int,
-    bs :: BinomialSet{T, S},
-    instance :: IPInstance
-) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
-    u = bs[i]
-    v = bs[j]
-    for k in 1:instance.nonnegative_end
-        if u[k] > 0 && v[k] > 0
-            return false
-        end
-    end
-    return true
-end
+#"""
+#Returns true iff the i-th and j-th vectors of `bs` have disjoint negative
+#bounded components.
+#
+#This is essentially 4ti2's cancellation criterion.
+#"""
+#function is_negative_disjoint(
+#    i :: Int,
+#    j :: Int,
+#    bs :: BinomialSet{T, S},
+#    instance :: IPInstance
+#) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+#    u = bs[i]
+#    v = bs[j]
+#    for k in 1:instance.bounded_end
+#        if u[k] < 0 && v[k] < 0
+#            return false
+#        end
+#    end
+#    return true
+#end
+#
+#"""
+#Returns true iff the i-th and j-th vectors of `bs` have disjoint positive
+#non-negative components.
+#
+#This is essentially the GCD criterion.
+#"""
+#function is_positive_disjoint(
+#    i :: Int,
+#    j :: Int,
+#    bs :: BinomialSet{T, S},
+#    instance :: IPInstance
+#) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+#    u = bs[i]
+#    v = bs[j]
+#    for k in 1:instance.nonnegative_end
+#        if u[k] > 0 && v[k] > 0
+#            return false
+#        end
+#    end
+#    return true
+#end
 
 """
 Returns true if (i, j) should be discarded.
@@ -319,20 +319,44 @@ lattices?) Either way, if the negative supports are not disjoint (= GCD of
 trailing terms is not 1) then the pair may be discarded. This applies
 specifically to the bounded components (= variables) of the problem.
 """
+#function is_support_reducible(
+#    i :: Int,
+#    j :: Int,
+#    bs :: BinomialSet{T, S}
+#) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+#    neg_sup = bs.negative_supports
+#    pos_sup = bs.positive_supports
+#    if is_minimization(bs)
+#        return !disjoint(neg_sup[i], neg_sup[j]) ||
+#            disjoint(pos_sup[i], pos_sup[j])
+#    end
+#    #Maximization problem
+#    return disjoint(neg_sup[i], neg_sup[j]) ||
+#        !disjoint(pos_sup[i], pos_sup[j])
+#end
+
 function is_support_reducible(
     i :: Int,
     j :: Int,
-    bs :: BinomialSet{T, S},
+    bs :: BinomialSet{T, S}
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
-    neg_sup = bs.negative_supports
-    pos_sup = bs.positive_supports
-    if is_minimization(bs)
-        return !disjoint(neg_sup[i], neg_sup[j]) ||
-            disjoint(pos_sup[i], pos_sup[j])
+    g1 = bs[i]
+    g2 = bs[j]
+    disjoint_pos_supp = true
+    for k in eachindex(nonnegative(g1))
+        if g1[k] > 0 && g2[k] > 0
+            disjoint_pos_supp = false
+            break
+        end
     end
-    #Maximization problem
-    return disjoint(neg_sup[i], neg_sup[j]) ||
-        !disjoint(pos_sup[i], pos_sup[j])
+    disjoint_neg_supp = true
+    for k in eachindex(bounded(g1))
+        if g1[k] < 0 && g2[k] < 0
+            disjoint_neg_supp = false
+            break
+        end
+    end
+    return !disjoint_neg_supp || disjoint_pos_supp
 end
 
 """
