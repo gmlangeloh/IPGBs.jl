@@ -137,7 +137,6 @@ function groebner_basis(
     minimization::Bool = true
 )::Vector{Vector{Int}}
     markov = markov_basis(instance)
-    @show markov
     return groebner_basis(
         markov, instance,
         use_signatures = use_signatures,
