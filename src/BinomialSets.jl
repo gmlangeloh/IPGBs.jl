@@ -403,6 +403,8 @@ function auto_reduce_once!(
     return removed, removed_before_index
 end
 
+#TODO: After everything works, rename and set this version as default.
+#It's clearer.
 function auto_reduce_correct(
     gb :: BinomialSet{T, S};
     current_index :: Int = 0
@@ -414,6 +416,10 @@ function auto_reduce_correct(
         g = copy(gb[i])
         reduced_to_zero, changed = reduce!(g, gb, skipbinomial=gb[i])
         if reduced_to_zero || changed
+            @debug("Autorreduced binomial", original=gb[i], 
+                result=(reduced_to_zero ? 0 : g),
+                reduced_to_zero, changed
+            )
             deleteat!(gb, i)
         end
         if reduced_to_zero

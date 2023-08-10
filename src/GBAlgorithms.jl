@@ -169,45 +169,64 @@ function run(
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
     @debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
-    @show Binomials.bounded_end
-    IPGBs.initialize_parameters(auto_reduce_freq=5, info=true)
+    @info "Starting GB algorithm with Markov basis of size " length(current_basis(algorithm))
+    IPGBs.initialize_parameters(auto_reduce_freq=5, debug=true)
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
-        #if pair.i == 4 && pair.j == 2
-        #    @show current_basis(algorithm)[pair.i] current_basis(algorithm)[pair.j]
-        #    @show late_pair_elimination(algorithm, pair)
-        #    sbin = sbinomial(algorithm, pair)
-        #    @show sbin
-        #    @show quick_truncation(algorithm, sbin)
-        #    reduced_to_zero, _ = reduce!(algorithm, sbin)
-        #    @show sbin reduced_to_zero
-        #    @show truncate(algorithm, sbin)
-        #end
         if late_pair_elimination(algorithm, pair)
-            #Pair elimination succeeded, skip this S-pair
+            @debug("Eliminated by GCD / cancellation", pair.i, pair.j,
+                element_i=current_basis(algorithm)[pair.i], 
+                element_j=current_basis(algorithm)[pair.j],
+                binomial=sbinomial(algorithm, pair)
+            )
             continue
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, pair)
         if quick_truncation(algorithm, binomial)
+            @debug("Eliminated by quick truncation", pair.i, pair.j,
+                element_i=current_basis(algorithm)[pair.i], 
+                element_j=current_basis(algorithm)[pair.j],
+                binomial=binomial
+            )
             continue
         end
         reduced_to_zero, _ = reduce!(algorithm, binomial)
-        if !reduced_to_zero && !truncate(algorithm, binomial)
-            update!(algorithm, binomial, pair)
-        elseif reduced_to_zero #Update syzygies in case this makes sense
+        if !reduced_to_zero 
+            #First we check reduction to zero, then truncation.
+            #This is more efficient because relatively few elements are 
+            #truncated when compared to the number of zero reductions
+            if !truncate(algorithm, binomial)
+                @debug("Added to basis", pair.i, pair.j,
+                    element_i=current_basis(algorithm)[pair.i], 
+                    element_j=current_basis(algorithm)[pair.j],
+                    binomial=binomial
+                )
+                update!(algorithm, binomial, pair)
+            else
+                @debug("Eliminated by truncation", pair.i, pair.j,
+                    element_i=current_basis(algorithm)[pair.i], 
+                    element_j=current_basis(algorithm)[pair.j],
+                    binomial=binomial
+                )
+            end
+        else
+            @debug("Reduction to zero", pair.i, pair.j,
+                element_i=current_basis(algorithm)[pair.i], 
+                element_j=current_basis(algorithm)[pair.j],
+                binomial=sbinomial(algorithm, pair)
+            )
             process_zero_reduction!(algorithm, binomial, pair)
         end
     end
-    @debug "Basis before interreduction: " current_basis(algorithm)
     print_algorithm_stats(algorithm, quiet)
-    @debug begin
+    @info begin
         tr(bin) = quick_truncation(algorithm, bin) || truncate(algorithm, bin)
         ans = is_truncated_groebner_basis(current_basis(algorithm), tr)
-        "Truncated GB? " * string(ans)
+        "Is this a truncated GB? " * string(ans)
     end
     return prepare_gb_output(algorithm)
 end
