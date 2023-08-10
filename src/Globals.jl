@@ -20,6 +20,9 @@ function initialize_parameters(;
         loglevel = DEBUG ? Logging.Debug : Logging.Info
         logger = SimpleLogger(stderr, loglevel)
         global_logger(logger)
+    else
+        logger = SimpleLogger(stderr)
+        global_logger(logger)
     end
 end
 

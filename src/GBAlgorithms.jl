@@ -170,7 +170,8 @@ function run(
     #Main loop: process all relevant S-pairs
     @debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
     @info "Starting GB algorithm with Markov basis of size " length(current_basis(algorithm))
-    IPGBs.initialize_parameters(auto_reduce_freq=5, debug=true)
+    #TODO: Move parameter initialization elsewhere!!! (IPGBs.jl)
+    IPGBs.initialize_parameters(auto_reduce_freq=2500, debug=false, info=false)
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.

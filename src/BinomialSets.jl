@@ -369,43 +369,7 @@ function fourti2_form(
     return [ sign * fullform(g) for g in bs ]
 end
 
-"""
-Reduces each element of the GB by the previous elements.
-"""
 function auto_reduce_once!(
-    gb :: BinomialSet{T, S};
-    index :: Int = 0
-) :: Tuple{Int, Int} where {T <: AbstractVector{Int}, S <: GBOrder}
-    removed = 0
-    removed_before_index = 0
-    for i in length(gb):-1:1
-        g = copy(gb[i]) #We reduce a copy of the element, otherwise, if it
-        #is changed by reduction, it will stay in the reduction tree later
-        reduced_to_zero, changed = reduce!(g, gb, skipbinomial=gb[i])
-        if reduced_to_zero || changed
-            deleteat!(gb, i)
-        end
-        if reduced_to_zero
-            removed += 1
-            if i < index
-                removed_before_index += 1
-            end
-        elseif changed
-            #After modification, the element has to be added again to
-            #the basis in order to update the reduction tree
-            #The reduced element should be put back into its original
-            #position, in order to guarantee that the relevant S-binomials
-            #will be computed exactly once.
-            insert!(gb, i, g)
-        end
-    end
-    @debug "Removed elements with auto-reduction: " removed
-    return removed, removed_before_index
-end
-
-#TODO: After everything works, rename and set this version as default.
-#It's clearer.
-function auto_reduce_correct(
     gb :: BinomialSet{T, S};
     current_index :: Int = 0
 ) :: Tuple{Int, Int} where {T <: AbstractVector{Int}, S <: GBOrder}
@@ -413,9 +377,14 @@ function auto_reduce_correct(
     removed_before_index = 0
     i = length(gb)
     while i >= 1
-        g = copy(gb[i])
+        g = copy(gb[i]) #We reduce a copy of the element, otherwise, if it
+        #is changed by reduction, it will stay in the reduction tree later
         reduced_to_zero, changed = reduce!(g, gb, skipbinomial=gb[i])
         if reduced_to_zero || changed
+            if i < current_index
+                removed_before_index += 1
+                current_index -= 1
+            end
             @debug("Autorreduced binomial", original=gb[i], 
                 result=(reduced_to_zero ? 0 : g),
                 reduced_to_zero, changed
@@ -424,10 +393,6 @@ function auto_reduce_correct(
         end
         if reduced_to_zero
             removed += 1
-            if i < current_index
-                removed_before_index += 1
-                current_index -= 1
-            end
         elseif changed
             push!(gb, g)
         end

@@ -154,7 +154,7 @@ function GBAlgorithms.next_pair!(
     if algorithm.state.j == algorithm.state.i - 1
         algorithm.num_iterations += 1
         if IPGBs.should_auto_reduce(algorithm.num_iterations)
-            removed, before_idx = BinomialSets.auto_reduce_correct(current_basis(algorithm), current_index=algorithm.state.i+1)
+            removed, before_idx = auto_reduce_once!(current_basis(algorithm), current_index=algorithm.state.i+1)
             algorithm.stats.removed_by_autoreduction += removed
             algorithm.state.n -= removed
             algorithm.state.i -= before_idx
