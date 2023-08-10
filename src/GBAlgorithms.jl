@@ -148,7 +148,7 @@ function print_algorithm_stats(
     algorithm :: GBAlgorithm,
     quiet :: Bool
 )
-    @debug "GB Algorithm stats:" stats(algorithm)
+    @info "GB Algorithm stats:" stats(algorithm)
     if !quiet
         println(stats(algorithm))
         #This is kind of a hack but works
@@ -170,7 +170,7 @@ function run(
     #Main loop: process all relevant S-pairs
     @debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
     @show Binomials.bounded_end
-    IPGBs.initialize_parameters(auto_reduce_freq=5, debug=true)
+    IPGBs.initialize_parameters(auto_reduce_freq=5, info=true)
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.

@@ -6,15 +6,19 @@ const EPSILON = 0.0001
 #4ti2 uses 2500 here.
 AUTO_REDUCE_FREQ :: Int = 0
 DEBUG :: Bool = false
+INFO :: Bool = false
 
 function initialize_parameters(;
     auto_reduce_freq = 2500,
-    debug = false
+    debug = false,
+    info = false,
 )
     global AUTO_REDUCE_FREQ = auto_reduce_freq
     global DEBUG = debug
-    if DEBUG
-        logger = SimpleLogger(stderr, Logging.Debug)
+    global INFO = info
+    if DEBUG || INFO
+        loglevel = DEBUG ? Logging.Debug : Logging.Info
+        logger = SimpleLogger(stderr, loglevel)
         global_logger(logger)
     end
 end

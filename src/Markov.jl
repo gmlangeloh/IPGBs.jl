@@ -214,16 +214,16 @@ function next(
     markov = state.markov
     if isempty(u) #i is bounded in projection
         #Compute a GB in the adequate order
-        @debug "Lifting $perm_i in bounded case, applying Buchberger's algorithm"
+        @info "Lifting in bounded case, applying Buchberger's algorithm" perm_i length(state.markov)
         update_objective!(state.projection, perm_i)
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
         markov = GBAlgorithms.run(alg, quiet = true)
-        @debug "New Markov Basis obtained through Buchberger" markov
+        @info "New Markov basis obtained through Buchberger" length(markov)
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
-        @debug "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
+        @info "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
         push!(markov, u)
     end
     #Finished lifting i, remove it from sigma
