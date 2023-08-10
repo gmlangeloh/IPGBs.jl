@@ -8,6 +8,7 @@ using JuMP
 using MIPMatrixTools.GBTools
 using MIPMatrixTools.IPInstances
 
+using IPGBs
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.Orders
@@ -155,6 +156,8 @@ function print_algorithm_stats(
     end
 end
 
+using IPGBs.Binomials
+
 """
     run(algorithm :: GBAlgorithm, quiet :: Bool) :: Vector{Vector{Int}}
 
@@ -166,11 +169,23 @@ function run(
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
     @debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
+    @show Binomials.bounded_end
+    IPGBs.initialize_parameters(auto_reduce_freq=5, debug=true)
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
+        #if pair.i == 4 && pair.j == 2
+        #    @show current_basis(algorithm)[pair.i] current_basis(algorithm)[pair.j]
+        #    @show late_pair_elimination(algorithm, pair)
+        #    sbin = sbinomial(algorithm, pair)
+        #    @show sbin
+        #    @show quick_truncation(algorithm, sbin)
+        #    reduced_to_zero, _ = reduce!(algorithm, sbin)
+        #    @show sbin reduced_to_zero
+        #    @show truncate(algorithm, sbin)
+        #end
         if late_pair_elimination(algorithm, pair)
             #Pair elimination succeeded, skip this S-pair
             continue
@@ -189,8 +204,11 @@ function run(
     end
     @debug "Basis before interreduction: " current_basis(algorithm)
     print_algorithm_stats(algorithm, quiet)
-    #tr(bin) = quick_truncation(algorithm, bin) || truncate(algorithm, bin)
-    #println(is_truncated_groebner_basis(current_basis(algorithm), tr))
+    @debug begin
+        tr(bin) = quick_truncation(algorithm, bin) || truncate(algorithm, bin)
+        ans = is_truncated_groebner_basis(current_basis(algorithm), tr)
+        "Truncated GB? " * string(ans)
+    end
     return prepare_gb_output(algorithm)
 end
 
