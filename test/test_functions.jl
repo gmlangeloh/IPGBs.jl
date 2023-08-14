@@ -134,7 +134,7 @@ function run_algorithm(
     seed = 0,
     setseed = true,
     module_order = :ltpot,
-    use_signatures = true,
+    use_signatures = false,
     implicit_representation = false,
     truncation_type = :Heuristic,
     quiet = false,

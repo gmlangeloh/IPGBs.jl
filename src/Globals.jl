@@ -21,7 +21,7 @@ function initialize_parameters(;
         logger = SimpleLogger(stderr, loglevel)
         global_logger(logger)
     else
-        logger = SimpleLogger(stderr)
+        logger = NullLogger()
         global_logger(logger)
     end
 end

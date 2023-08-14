@@ -225,7 +225,6 @@ function reduce!(
                 end
                 break
             end
-            changed = true
             #Found some reducer, add it to histogram if one is available
             if !isnothing(reduction_count)
                 for i in 1:length(gb)
@@ -236,9 +235,17 @@ function reduce!(
                 end
             end
             if !GBElements.is_negative_disjoint(g, reducer, negative=negative)
+                @debug(
+                    "Found reducer but it is not negative disjoint",
+                    g, reducer, negative
+                )
                 return true, changed
             end
             #Now apply the reduction and check if it is a zero reduction
+            @debug(
+                "Reducing g by reducer", g, reducer, negative
+            )
+            changed = true
             if has_order(gb) && !is_monomial_reduction
                 reduced_to_zero = GBElements.reduce!(
                     g, reducer, order(gb), negative=negative
@@ -248,6 +255,7 @@ function reduce!(
                     g, reducer, negative=negative
                 )
             end
+            @debug("Reduced g", result=g, reduced_to_zero)
             if reduced_to_zero
                 return true, changed
             end

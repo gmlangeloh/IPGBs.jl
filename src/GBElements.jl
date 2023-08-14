@@ -471,7 +471,7 @@ function reduction_factor(
     negative :: Bool = false
 ) :: Int where {T <: AbstractVector{Int}}
     i = 1
-    n = length(element(reducer))
+    n = length(nonnegative(reducer))
     while i <= n && reducer[i] <= 0
         i += 1
     end

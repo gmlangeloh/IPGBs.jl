@@ -110,6 +110,11 @@ function groebner_basis(
             push!(u, nothing)
         end
     end
+    initialize_parameters(
+        auto_reduce_freq = 2500,
+        debug = false,
+        info = false
+    )
     instance = IPInstance(A, b, C, u, apply_normalization=normalize_ip)
     markov = markov_basis(instance)
     return groebner_basis(
