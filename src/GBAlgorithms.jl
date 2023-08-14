@@ -182,11 +182,12 @@ function run(
             break
         end
         if late_pair_elimination(algorithm, pair)
-            @debug("Eliminated by GCD / cancellation", pair.i, pair.j,
-                element_i=current_basis(algorithm)[pair.i], 
-                element_j=current_basis(algorithm)[pair.j],
-                binomial=sbinomial(algorithm, pair)
-            )
+            #Everything becomes very slow with this on
+            #@debug("Eliminated by GCD / cancellation", pair.i, pair.j,
+            #    element_i=current_basis(algorithm)[pair.i], 
+            #    element_j=current_basis(algorithm)[pair.j],
+            #    binomial=sbinomial(algorithm, pair)
+            #)
             continue
         end
         #Generate S-pair, reduce it and add to basis if necessary

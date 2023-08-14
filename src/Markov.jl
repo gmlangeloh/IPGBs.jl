@@ -266,7 +266,8 @@ function project_and_lift(
     while !is_finished(state)
         l = length(state.sigma)
         @debug "Starting iteration with $l variables left to lift: " state.sigma
-        state = next(state, truncation_type = truncation_type)
+        @time state = next(state, truncation_type = truncation_type)
+        println(length(state.markov))
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
     return state.markov
