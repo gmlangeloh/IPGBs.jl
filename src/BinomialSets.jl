@@ -220,16 +220,16 @@ function reduce!(
                 end
             end
             if !GBElements.is_negative_disjoint(g, reducer, negative=negative)
-                @debug(
-                    "Found reducer but it is not negative disjoint",
-                    g, reducer, negative
-                )
+                #@debug(
+                #    "Found reducer but it is not negative disjoint",
+                #    g, reducer, negative
+                #)
                 return true, changed
             end
             #Now apply the reduction and check if it is a zero reduction
-            @debug(
-                "Reducing g by reducer", g, reducer, negative
-            )
+            #@debug(
+            #    "Reducing g by reducer", g, reducer, negative
+            #)
             changed = true
             if has_order(gb) && !is_monomial_reduction
                 reduced_to_zero = GBElements.reduce!(
@@ -240,7 +240,7 @@ function reduce!(
                     g, reducer, negative=negative
                 )
             end
-            @debug("Reduced g", result=g, reduced_to_zero)
+            #@debug("Reduced g", result=g, reduced_to_zero)
             if reduced_to_zero
                 return true, changed
             end
@@ -385,6 +385,9 @@ function auto_reduce_once!(
         if reduced_to_zero
             removed += 1
         elseif changed
+            #Elements have to be readded so that their S-pairs are
+            #recomputed. Otherwise, the cancellation criterion may
+            #break things.
             push!(gb, g)
         end
         i -= 1

@@ -14,6 +14,9 @@ bounded_end :: Int = 0 #Index of the last bounded variable of the current IP pro
 cost_start :: Int = 0 #Index of the first cost value
 cost_end :: Int = 0 #Index of the last cost value
 
+EMPTY_FILTER :: Vector{Int} = Int[]
+EMPTY_BITSET :: FastBitSet = FastBitSet(0)
+
 function initialize_binomials(instance :: IPInstance, order :: MonomialOrder)
     global element_end = instance.n
     global nonnegative_end = instance.nonnegative_end
@@ -39,10 +42,10 @@ mutable struct Binomial <: GBElement
     function Binomial(v :: Vector{Int})
         #By default, we do not compute the supports. They are computed lazily.
         #Only binomials added to a GB need them.
-        pos_filter = Int[]
-        neg_filter = Int[]
-        pos_supp = FastBitSet(element_end)
-        neg_supp = FastBitSet(element_end)
+        pos_filter = EMPTY_FILTER
+        neg_filter = EMPTY_FILTER
+        pos_supp = EMPTY_BITSET
+        neg_supp = EMPTY_BITSET
         new(v, false, pos_supp, neg_supp, pos_filter, neg_filter)
     end
 end
