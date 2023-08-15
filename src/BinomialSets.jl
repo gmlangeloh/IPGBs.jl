@@ -27,19 +27,10 @@ struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     reduction_tree :: SupportTree{T}
     minimization_form :: Bool #TODO: maybe this should be part of the order?
 
-    #We store the supports here instead of on the elements themselves to avoid
-    #having to compute them unnecessarily or having to compute them after creating
-    #elements and then updating these elements.
-    positive_supports :: Vector{FastBitSet}
-    negative_supports :: Vector{FastBitSet}
-
     function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
         tree = support_tree(basis, fullfilter=is_implicit(T))
-        #tree = SupportMatrixTree(basis)
-        pos_supps, neg_supps = GBElements.supports(basis)
-        new{T, S}(
-            basis, order, tree, min, pos_supps, neg_supps
-        )
+        GBElements.compute_supports.(basis)
+        new{T, S}(basis, order, tree, min)
     end
 end
 
@@ -130,9 +121,7 @@ function Base.push!(
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     push!(bs.basis, g)
     addbinomial!(bs.reduction_tree, bs[length(bs)])
-    p, n = GBElements.supports(g)
-    push!(bs.positive_supports, p)
-    push!(bs.negative_supports, n)
+    GBElements.compute_supports(g)
 end
 
 function Base.insert!(
@@ -142,9 +131,7 @@ function Base.insert!(
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     insert!(bs.basis, i, g)
     addbinomial!(bs.reduction_tree, g)
-    p, n = GBElements.supports(g)
-    insert!(bs.positive_supports, i, p)
-    insert!(bs.negative_supports, i, n)
+    GBElements.compute_supports(g)
 end
 
 function Base.deleteat!(
@@ -154,8 +141,6 @@ function Base.deleteat!(
     deleted_elem = bs[i]
     removebinomial!(reduction_tree(bs), deleted_elem)
     deleteat!(bs.basis, i)
-    deleteat!(bs.positive_supports, i)
-    deleteat!(bs.negative_supports, i)
 end
 
 #
@@ -300,15 +285,13 @@ function is_support_reducible(
     j :: Int,
     bs :: BinomialSet{T, S}
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
-    neg_sup = bs.negative_supports
-    pos_sup = bs.positive_supports
     if is_minimization(bs)
-        return !disjoint(neg_sup[i], neg_sup[j]) ||
-            disjoint(pos_sup[i], pos_sup[j])
+        return !disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
+            disjoint(positive_support(bs[i]), positive_support(bs[j]))
     end
     #Maximization problem
-    return disjoint(neg_sup[i], neg_sup[j]) ||
-        !disjoint(pos_sup[i], pos_sup[j])
+    return disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
+        !disjoint(positive_support(bs[i]), positive_support(bs[j]))
 end
 
 """

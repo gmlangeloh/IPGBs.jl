@@ -22,11 +22,29 @@ function initialize_binomials(instance :: IPInstance, order :: MonomialOrder)
     global cost_end = instance.n + order.num_costs
 end
 
-struct Binomial <: GBElement
+mutable struct Binomial <: GBElement
     #A binomial with costs. Costs are stored in the same vector for efficiency.
     #Data from indices cost_start to cost_end are the costs, data up to
     #element_end are the binomial's entries.
     data :: Vector{Int}
+
+    #The following fields are used to efficiently obtain the indices
+    #of non-zero entries of the binomial.
+    computed_supports :: Bool
+    positive_support :: FastBitSet
+    negative_support :: FastBitSet
+    positive_filter :: Vector{Int}
+    negative_filter :: Vector{Int}
+
+    function Binomial(v :: Vector{Int})
+        #By default, we do not compute the supports. They are computed lazily.
+        #Only binomials added to a GB need them.
+        pos_filter = Int[]
+        neg_filter = Int[]
+        pos_supp = FastBitSet(element_end)
+        neg_supp = FastBitSet(element_end)
+        new(v, false, pos_supp, neg_supp, pos_filter, neg_filter)
+    end
 end
 
 GBElements.data(g :: Binomial) = g.data
@@ -118,6 +136,23 @@ function GBElements.weight(g :: Binomial, w :: Vector{Float64})
     end
     return total_weight
 end
+
+function GBElements.compute_supports(g :: Binomial)
+    if g.computed_supports
+        return
+    end
+    pos_supp, neg_supp, pos_filter, neg_filter = GBElements.supports(g)
+    g.positive_support = pos_supp
+    g.negative_support = neg_supp
+    g.positive_filter = pos_filter
+    g.negative_filter = neg_filter
+    g.computed_supports = true
+end
+
+GBElements.positive_support(g :: Binomial) = g.positive_support
+GBElements.negative_support(g :: Binomial) = g.negative_support
+GBElements.positive_filter(g :: Binomial) = g.positive_filter
+GBElements.negative_filter(g :: Binomial) = g.negative_filter
 
 """
 Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem

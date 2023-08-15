@@ -5,7 +5,8 @@ TODO: make GBElements a consistent interface
 """
 module GBElements
 #TODO: this is way too long, clean it up or at least break it into more exports
-export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative, is_monomial
+export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative, is_monomial,
+positive_support, negative_support, positive_filter, negative_filter
 
 using MIPMatrixTools.SolverTools
 
@@ -41,6 +42,7 @@ element(v :: AbstractVector{Int}) = v
 nonnegative(v :: AbstractVector{Int}) = v
 bounded(v :: AbstractVector{Int}) = v
 costs(v :: AbstractVector{Int}, o :: GBOrder) = order_costs(o, v)
+compute_supports(:: AbstractVector{Int}) = return
 
 is_monomial(g :: AbstractVector{Int}) = all(gi >= 0 for gi in g)
 reduces(g :: AbstractVector{Int}, h :: AbstractVector{Int}) = all(g .<= h)
@@ -158,7 +160,7 @@ Computes bitsets with positive and negative supports of `g`.
 """
 function supports(
     g :: AbstractVector{Int}
-) :: Tuple{FastBitSet, FastBitSet}
+) :: Tuple{FastBitSet, FastBitSet, Vector{Int}, Vector{Int}}
     pos_supp = Int[]
     neg_supp = Int[]
     for i in eachindex(nonnegative(g))
@@ -173,24 +175,16 @@ function supports(
     end
     pos_bitset_length = length(nonnegative(g))
     neg_bitset_length = length(bounded(g))
-    return FastBitSet(pos_bitset_length, pos_supp), FastBitSet(neg_bitset_length, neg_supp)
+    return FastBitSet(pos_bitset_length, pos_supp), 
+        FastBitSet(neg_bitset_length, neg_supp),
+        pos_supp,
+        neg_supp
 end
 
-"""
-Computes bitsets with positive and negative supports of every element in `B`.
-"""
-function supports(
-    B :: Vector{T}
-) :: Tuple{Vector{FastBitSet}, Vector{FastBitSet}} where {T <: AbstractVector{Int}}
-    pos_supps = FastBitSet[]
-    neg_supps = FastBitSet[]
-    for g in B
-        p, n = supports(g)
-        push!(pos_supps, p)
-        push!(neg_supps, n)
-    end
-    return pos_supps, neg_supps
-end
+positive_support(g :: AbstractVector{Int}) = supports(g)[1]
+negative_support(g :: AbstractVector{Int}) = supports(g)[2]
+positive_filter(g :: AbstractVector{Int}) = supports(g)[3]
+negative_filter(g :: AbstractVector{Int}) = supports(g)[4]
 
 """
 This is only relevant when we consider the implicit representation of binomials.
@@ -250,8 +244,8 @@ function is_negative_disjoint(
     negative :: Bool = false
 ) :: Bool where {T <: AbstractVector{Int}}
     sign = negative ? -1 : 1
-    for i in eachindex(bounded(g))
-        if sign * g[i] < 0 && h[i] < 0
+    for i in negative_filter(h)
+        if sign * g[i] < 0 #&& h[i] < 0
             return false
         end
     end
