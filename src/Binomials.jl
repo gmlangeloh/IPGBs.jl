@@ -13,6 +13,7 @@ nonnegative_end :: Int = 0 #Index of the last non-negative variable of the curre
 bounded_end :: Int = 0 #Index of the last bounded variable of the current IP problem
 cost_start :: Int = 0 #Index of the first cost value
 cost_end :: Int = 0 #Index of the last cost value
+binary_variables :: Vector{Bool} #1 if the variable is binary in the IP
 
 EMPTY_FILTER :: Vector{Int} = Int[]
 EMPTY_BITSET :: FastBitSet = FastBitSet(0)
@@ -23,6 +24,7 @@ function initialize_binomials(instance :: IPInstance, order :: MonomialOrder)
     global bounded_end = instance.bounded_end
     global cost_start = instance.n + 1
     global cost_end = instance.n + order.num_costs
+    global binary_variables = instance.binaries
 end
 
 mutable struct Binomial <: GBElement
@@ -39,6 +41,9 @@ mutable struct Binomial <: GBElement
     positive_filter :: Vector{Int}
     negative_filter :: Vector{Int}
 
+    positive_binaries :: FastBitSet
+    negative_binaries :: FastBitSet
+
     function Binomial(v :: Vector{Int})
         #By default, we do not compute the supports. They are computed lazily.
         #Only binomials added to a GB need them.
@@ -46,7 +51,11 @@ mutable struct Binomial <: GBElement
         neg_filter = EMPTY_FILTER
         pos_supp = EMPTY_BITSET
         neg_supp = EMPTY_BITSET
-        new(v, false, pos_supp, neg_supp, pos_filter, neg_filter)
+        pos_binaries = EMPTY_BITSET
+        neg_binaries = EMPTY_BITSET
+        new(v, false, pos_supp, neg_supp, pos_filter, neg_filter,
+            pos_binaries, neg_binaries
+        )
     end
 end
 
@@ -57,6 +66,22 @@ GBElements.costs(g :: Binomial) = @views g.data[cost_start:cost_end]
 GBElements.nonnegative(g :: Binomial) = @views g.data[1:nonnegative_end]
 GBElements.bounded(g :: Binomial) = @views g.data[1:bounded_end]
 GBElements.fullform(g :: Binomial) = @views g.data[1:element_end]
+
+function compute_binaries(g :: Binomial)
+    pos_bin = Int[]
+    neg_bin = Int[]
+    for i in eachindex(element(g))
+        if binary_variables[i]
+            if g[i] > 0
+                push!(pos_bin, i)
+            elseif g[i] < 0
+                push!(neg_bin, i)
+            end
+        end
+    end
+    g.positive_binaries = FastBitSet(length(element(g)), pos_bin)
+    g.negative_binaries = FastBitSet(length(element(g)), neg_bin)
+end
 
 function Base.show(
     io :: IO,
