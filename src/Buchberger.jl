@@ -153,7 +153,7 @@ function GBAlgorithms.next_pair!(
     #then check whether we should auto-reduce the basis for efficiency
     if algorithm.state.j == algorithm.state.i - 1
         algorithm.num_iterations += 1
-        if IPGBs.should_auto_reduce(algorithm.num_iterations)
+        if IPGBs.should_auto_reduce(algorithm.num_iterations, length(current_basis(algorithm)))
             removed, before_idx = auto_reduce_once!(current_basis(algorithm), current_index=algorithm.state.i+1)
             algorithm.stats.removed_by_autoreduction += removed
             algorithm.state.n -= removed

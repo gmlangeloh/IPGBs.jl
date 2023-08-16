@@ -173,6 +173,7 @@ function run(
     #TODO: Move parameter initialization elsewhere!!! (IPGBs.jl)
     IPGBs.initialize_parameters(
         auto_reduce_freq = 2500,
+        auto_reduce_type = IPGBs.FIXED_ITERATIONS,
         debug = false,
         info = false
     )
