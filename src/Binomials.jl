@@ -13,10 +13,10 @@ nonnegative_end :: Int = 0 #Index of the last non-negative variable of the curre
 bounded_end :: Int = 0 #Index of the last bounded variable of the current IP problem
 cost_start :: Int = 0 #Index of the first cost value
 cost_end :: Int = 0 #Index of the last cost value
-binary_variables :: Vector{Bool} #1 if the variable is binary in the IP
+binary_variables :: Vector{Bool} = Bool[] #1 if the variable is binary in the IP
 
-EMPTY_FILTER :: Vector{Int} = Int[]
-EMPTY_BITSET :: FastBitSet = FastBitSet(0)
+const EMPTY_FILTER :: Vector{Int} = Int[]
+const EMPTY_BITSET :: FastBitSet = FastBitSet(0)
 
 function initialize_binomials(instance :: IPInstance, order :: MonomialOrder)
     global element_end = instance.n
@@ -66,22 +66,6 @@ GBElements.costs(g :: Binomial) = @views g.data[cost_start:cost_end]
 GBElements.nonnegative(g :: Binomial) = @views g.data[1:nonnegative_end]
 GBElements.bounded(g :: Binomial) = @views g.data[1:bounded_end]
 GBElements.fullform(g :: Binomial) = @views g.data[1:element_end]
-
-function compute_binaries(g :: Binomial)
-    pos_bin = Int[]
-    neg_bin = Int[]
-    for i in eachindex(element(g))
-        if binary_variables[i]
-            if g[i] > 0
-                push!(pos_bin, i)
-            elseif g[i] < 0
-                push!(neg_bin, i)
-            end
-        end
-    end
-    g.positive_binaries = FastBitSet(length(element(g)), pos_bin)
-    g.negative_binaries = FastBitSet(length(element(g)), neg_bin)
-end
 
 function Base.show(
     io :: IO,
@@ -177,10 +161,28 @@ function GBElements.compute_supports(g :: Binomial)
     g.computed_supports = true
 end
 
+function GBElements.compute_binaries(g :: Binomial)
+    pos_bin = Int[]
+    neg_bin = Int[]
+    for i in eachindex(element(g))
+        if binary_variables[i]
+            if g[i] > 0
+                push!(pos_bin, i)
+            elseif g[i] < 0
+                push!(neg_bin, i)
+            end
+        end
+    end
+    g.positive_binaries = FastBitSet(length(element(g)), pos_bin)
+    g.negative_binaries = FastBitSet(length(element(g)), neg_bin)
+end
+
 GBElements.positive_support(g :: Binomial) = g.positive_support
 GBElements.negative_support(g :: Binomial) = g.negative_support
 GBElements.positive_filter(g :: Binomial) = g.positive_filter
 GBElements.negative_filter(g :: Binomial) = g.negative_filter
+GBElements.positive_binaries(g :: Binomial) = g.positive_binaries
+GBElements.negative_binaries(g :: Binomial) = g.negative_binaries
 
 """
 Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem

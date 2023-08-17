@@ -74,7 +74,7 @@ end
 
 FastBitSet(vars :: Int) = FastBitSet(vars, Int[])
 
-word_and_index(i :: Int) = Int(ceil(i / BITS_PER_WORD)), i % BITS_PER_WORD
+word_and_index(i :: Int) = ceil(Int, i / BITS_PER_WORD), i % BITS_PER_WORD
 
 #
 # Implementation of the AbstractVector interface

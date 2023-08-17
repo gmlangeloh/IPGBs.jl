@@ -30,6 +30,7 @@ struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
         tree = support_tree(basis, fullfilter=is_implicit(T))
         GBElements.compute_supports.(basis)
+        GBElements.compute_binaries.(basis)
         new{T, S}(basis, order, tree, min)
     end
 end
@@ -122,6 +123,7 @@ function Base.push!(
     push!(bs.basis, g)
     addbinomial!(bs.reduction_tree, bs[length(bs)])
     GBElements.compute_supports(g)
+    GBElements.compute_binaries(g)
 end
 
 function Base.insert!(
@@ -132,6 +134,7 @@ function Base.insert!(
     insert!(bs.basis, i, g)
     addbinomial!(bs.reduction_tree, g)
     GBElements.compute_supports(g)
+    GBElements.compute_binaries(g)
 end
 
 function Base.deleteat!(
@@ -279,19 +282,27 @@ Criterion 2 is specific to homogeneous ideals (or just ideals coming from
 lattices?) Either way, if the negative supports are not disjoint (= GCD of
 trailing terms is not 1) then the pair may be discarded. This applies
 specifically to the bounded components (= variables) of the problem.
+
+I also added new criteria for binary variables. In this case, a pair
+(i, j) may be discarded if the positive binaries of i are disjoint from
+the negative binaries of j, and vice-versa. This is because in these cases
+the pair will generate some binomial with 2 or -2 in some coordinate.
+These are never necessary in a Gröbner basis.
 """
 function is_support_reducible(
     i :: Int,
     j :: Int,
     bs :: BinomialSet{T, S}
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
-    if is_minimization(bs)
-        return !disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
-            disjoint(positive_support(bs[i]), positive_support(bs[j]))
-    end
+    #if is_minimization(bs)
+    return !disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
+        disjoint(positive_support(bs[i]), positive_support(bs[j])) ||
+        !disjoint(positive_binaries(bs[i]), negative_binaries(bs[j])) ||
+        !disjoint(negative_binaries(bs[i]), positive_binaries(bs[j]))
+    #end
     #Maximization problem
-    return disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
-        !disjoint(positive_support(bs[i]), positive_support(bs[j]))
+    #return disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
+    #    !disjoint(positive_support(bs[i]), positive_support(bs[j]))
 end
 
 """

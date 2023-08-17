@@ -6,7 +6,7 @@ TODO: make GBElements a consistent interface
 module GBElements
 #TODO: this is way too long, clean it up or at least break it into more exports
 export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, cost, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative, is_monomial,
-positive_support, negative_support, positive_filter, negative_filter
+positive_support, negative_support, positive_filter, negative_filter, positive_binaries, negative_binaries
 
 using MIPMatrixTools.SolverTools
 
@@ -43,6 +43,7 @@ nonnegative(v :: AbstractVector{Int}) = v
 bounded(v :: AbstractVector{Int}) = v
 costs(v :: AbstractVector{Int}, o :: GBOrder) = order_costs(o, v)
 compute_supports(:: AbstractVector{Int}) = return
+compute_binaries(:: AbstractVector{Int}) = return
 
 is_monomial(g :: AbstractVector{Int}) = all(gi >= 0 for gi in g)
 reduces(g :: AbstractVector{Int}, h :: AbstractVector{Int}) = all(g .<= h)
@@ -185,6 +186,10 @@ positive_support(g :: AbstractVector{Int}) = supports(g)[1]
 negative_support(g :: AbstractVector{Int}) = supports(g)[2]
 positive_filter(g :: AbstractVector{Int}) = supports(g)[3]
 negative_filter(g :: AbstractVector{Int}) = supports(g)[4]
+
+const EMPTY_BITSET :: FastBitSet = FastBitSet(0)
+positive_binaries(:: AbstractVector{Int}) = EMPTY_BITSET
+negative_binaries(:: AbstractVector{Int}) = EMPTY_BITSET
 
 """
 This is only relevant when we consider the implicit representation of binomials.
