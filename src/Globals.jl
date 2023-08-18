@@ -15,15 +15,18 @@ AUTO_RED_FREQ :: Float64 = 0
 AUTO_RED_TYPE :: AUTO_REDUCTION_TYPE = NONE
 DEBUG :: Bool = false
 INFO :: Bool = false
+CACHE_TREE_SIZE :: Int = 100
 
 function initialize_parameters(;
     auto_reduce_freq = 2500,
     auto_reduce_type = FIXED_ITERATIONS,
+    cache_tree_size = 100,
     debug = false,
     info = false,
 )
     global AUTO_RED_FREQ = auto_reduce_freq
     global AUTO_RED_TYPE = auto_reduce_type
+    global CACHE_TREE_SIZE = cache_tree_size
     global DEBUG = debug
     global INFO = info
     if DEBUG || INFO

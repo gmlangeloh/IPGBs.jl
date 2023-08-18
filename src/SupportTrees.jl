@@ -311,4 +311,38 @@ function find_reducer(
     return g, false
 end
 
+mutable struct CacheTree{T <: AbstractVector{Int}}
+    tree :: SupportTree{T}
+    fifo_cache :: Vector{T}
+    in_cache :: Vector{Bool}
+    max_cache_size :: Int
+    cache_misses :: Int
+
+    function CacheTree{T}(gb_size :: Int; fullfilter :: Bool = false) where {T <: AbstractVector{Int}}
+        tree = support_tree(T[], fullfilter=fullfilter)
+        max_cache_size = IPGBs.CACHE_TREE_SIZE
+        fifo_cache = T[]
+        in_cache = fill(false, gb_size)
+        return new(tree, fifo_cache, in_cache, max_cache_size, 0)
+    end
+end
+
+in_cache(i :: Int, cache :: CacheTree{T}) where {T <: AbstractVector{Int}} = cache.in_cache[i]
+
+function update_cache!(
+    cache :: CacheTree{T},
+    binomial :: T
+) where {T <: AbstractVector{Int}}
+    #TODO: Figure out how to get the index, it's probably important
+    if in_cache(binomial.index, cache)
+        return
+    end
+    if length(cache.fifo_cache) == cache.max_cache_size
+        removebinomial!(cache.tree, popfirst!(cache.fifo_cache))
+    end
+    addbinomial!(cache.tree, binomial)
+    push!(cache.fifo_cache, binomial)
+    cache.in_cache[binomial.index] = true
+end
+
 end
