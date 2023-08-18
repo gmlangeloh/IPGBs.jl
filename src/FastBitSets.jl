@@ -140,8 +140,7 @@ function disjoint(
     bitset1 :: FastBitSet,
     bitset2 :: FastBitSet,
 ) :: Bool
-    @assert length(bitset1) == length(bitset2)
-    return all(iszero(bitset1.data[i] & bitset2.data[i]) for i in eachindex(bitset1.data))
+    return all(iszero((&).(bitset1.data, bitset2.data)))
 end
 
 #
