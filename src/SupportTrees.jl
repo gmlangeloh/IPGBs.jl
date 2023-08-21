@@ -4,11 +4,17 @@ binomial sets for efficient reductions. Called SupportTrees in reference
 to Roune and Stillman (2012).
 """
 module SupportTrees
-export SupportTree, find_reducer, support_tree, addbinomial!,
-    removebinomial!, enumerate_reducers, find_reducer_iter
+export ReductionTree, SupportTree, CacheTree, find_reducer, support_tree, add_binomial!,
+    remove_binomial!, enumerate_reducers, find_reducer_iter
 
+
+using LRUCache
+
+using IPGBs
 using IPGBs.GBElements
 using IPGBs.Statistics
+
+abstract type ReductionTree{T} end
 
 mutable struct TreeStats <: GBStats
     reduction_steps :: Int #Number of calls to find_reducer (recursive)
@@ -71,7 +77,7 @@ binomials are considered to be in the filter for reduction. This is useful to
 implement the specialized truncated GB algorithm described in Thomas and
 Weismantel, Section 3.
 """
-mutable struct SupportTree{T <: AbstractVector{Int}}
+mutable struct SupportTree{T <: AbstractVector{Int}} <: ReductionTree{T}
     root :: SupportNode{T}
     size :: Int
     depth :: Int #This is useful to know how balanced the tree is
@@ -95,13 +101,13 @@ end
 Puts references to the elements of `gb` in a reduction tree, so that one may
 easily find whether a given binomial can be reduced by `gb`.
 """
-function support_tree(
+function SupportTree{T}(
     gb :: S;
     fullfilter :: Bool = false
-) :: SupportTree{T} where { T <: AbstractVector{Int}, S <: AbstractVector{T}}
+) where { T <: AbstractVector{Int}, S <: AbstractVector{T}}
     tree = SupportTree{T}(fullfilter)
-    for i in eachindex(gb)
-        addbinomial!(tree, gb[i])
+    for g in gb
+        add_binomial!(tree, g)
     end
     return tree
 end
@@ -115,7 +121,7 @@ If there is already a node in the tree at level i labeled by the i-th index
 in the filter of binomial, move to the subtree defined by that node.
 Otherwise, create such a node.
 """
-function addbinomial!(
+function add_binomial!(
     tree :: SupportTree{T},
     binomial :: T
 ) where {T <: AbstractVector{Int}}
@@ -155,7 +161,7 @@ removes it from the corresponding binomial_list.
 
 If `binomial` is not in `tree`, nothing will happen.
 """
-function removebinomial!(
+function remove_binomial!(
     tree :: SupportTree{T},
     binomial :: T
 ) where {T <: AbstractVector{Int}}
@@ -311,38 +317,102 @@ function find_reducer(
     return g, false
 end
 
-mutable struct CacheTree{T <: AbstractVector{Int}}
-    tree :: SupportTree{T}
-    fifo_cache :: Vector{T}
-    in_cache :: Vector{Bool}
+mutable struct CacheTree{T <: AbstractVector{Int}} <: ReductionTree{T}
+    cache_tree :: SupportTree{T}
+    full_tree :: SupportTree{T}
+    lru :: LRU{T, Bool}
     max_cache_size :: Int
     cache_misses :: Int
+    last_evicted :: Vector{T}
 
-    function CacheTree{T}(gb_size :: Int; fullfilter :: Bool = false) where {T <: AbstractVector{Int}}
-        tree = support_tree(T[], fullfilter=fullfilter)
+    function CacheTree{T}(fullfilter :: Bool = false) where {T <: AbstractVector{Int}}
+        cache = SupportTree{T}(fullfilter)
+        tree = SupportTree{T}(fullfilter)
         max_cache_size = IPGBs.CACHE_TREE_SIZE
-        fifo_cache = T[]
-        in_cache = fill(false, gb_size)
-        return new(tree, fifo_cache, in_cache, max_cache_size, 0)
+        last_evicted = T[]
+        recover_binomial(binomial, val) = push!(last_evicted, binomial)
+        lru = LRU{T, Bool}(maxsize=max_cache_size, finalizer=recover_binomial)
+        return new(cache, tree, lru, max_cache_size, 0, last_evicted)
     end
 end
 
-in_cache(i :: Int, cache :: CacheTree{T}) where {T <: AbstractVector{Int}} = cache.in_cache[i]
+function CacheTree{T}(
+    gb :: S; 
+    fullfilter :: Bool = false
+) where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    tree = CacheTree{T}(fullfilter)
+    for g in gb
+        add_binomial!(tree, g)
+    end
+    return tree
+end
 
-function update_cache!(
-    cache :: CacheTree{T},
+function add_binomial!(
+    tree :: CacheTree{T}, 
     binomial :: T
 ) where {T <: AbstractVector{Int}}
-    #TODO: Figure out how to get the index, it's probably important
-    if in_cache(binomial.index, cache)
-        return
+    add_binomial!(tree.full_tree, binomial)
+    if length(tree.lru) < tree.max_cache_size
+        tree.lru[binomial] = true
+        add_binomial!(tree.cache_tree, binomial)
     end
-    if length(cache.fifo_cache) == cache.max_cache_size
-        removebinomial!(cache.tree, popfirst!(cache.fifo_cache))
+end
+
+function remove_binomial!(
+    tree :: CacheTree{T}, 
+    binomial :: T
+) where {T <: AbstractVector{Int}}
+    if haskey(tree.lru, binomial)
+        delete!(tree.lru, binomial)
+        remove_binomial!(tree.cache_tree, binomial)
     end
-    addbinomial!(cache.tree, binomial)
-    push!(cache.fifo_cache, binomial)
-    cache.in_cache[binomial.index] = true
+    remove_binomial!(tree.full_tree, binomial)
+end
+
+function update_cache!(
+    tree :: CacheTree{T}, 
+    binomial :: T
+) where {T <: AbstractVector{Int}}
+    if !haskey(tree.lru, binomial)
+        tree.cache_misses += 1
+        tree.lru[binomial] = true
+        #If the cache is full, adding the new element to lru will evict
+        #a previous element and put it in last_removed. This element has
+        #to be removed from the cache_tree as well.
+        if !isempty(tree.last_evicted)
+            evicted = pop!(tree.last_evicted)
+            remove_binomial!(tree.cache_tree, evicted)
+        end
+        add_binomial!(tree.cache_tree, binomial)
+    end
+end
+
+function find_reducer(
+    g :: T, 
+    gb :: S, 
+    tree :: CacheTree{T}; 
+    skipbinomial :: Union{T, Nothing} = nothing, 
+    negative :: Bool = false
+) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
+    #First search for some reducer for binomial in the cache. If it isn't 
+    #found there, look for it in the full tree. If it's found in the full 
+    #tree, that's a cache miss, so update the cache with the reducer.
+    reducer, found_cache_reducer = find_reducer(
+        g, gb, tree.cache_tree, skipbinomial=skipbinomial, negative=negative
+    )
+    if found_cache_reducer
+        #Update the number of times the reducer was hit in the cache.
+        _ = get(tree.lru, reducer, false)
+        return reducer, true
+    end
+    reducer, found_reducer = find_reducer(
+        g, gb, tree.full_tree, skipbinomial=skipbinomial, negative=negative
+    )
+    if found_reducer
+        update_cache!(tree, reducer)
+        return reducer, true
+    end
+    return g, false
 end
 
 end

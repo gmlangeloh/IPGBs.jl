@@ -76,7 +76,7 @@ function add_signature!(
     new_signature :: Signature,
     index :: Union{Int, Nothing} = nothing
 )
-    addbinomial!(signatures.signatures[new_signature.index], new_signature)
+    add_binomial!(signatures.signatures[new_signature.index], new_signature)
     if !isnothing(index)
         signatures.basis_indices[new_signature] = index
     end

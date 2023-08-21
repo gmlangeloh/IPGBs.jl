@@ -24,16 +24,14 @@ in addition to GBElements.
 struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     basis :: Vector{T}
     order :: S
-    cache_tree :: SupportTree{T}
-    reduction_tree :: SupportTree{T}
+    reduction_tree :: CacheTree{T}
     minimization_form :: Bool #TODO: maybe this should be part of the order?
 
     function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
-        cache = support_tree(T[], fullfilter=is_implicit(T))
-        tree = support_tree(basis, fullfilter=is_implicit(T))
+        tree = CacheTree{T}(basis, fullfilter=is_implicit(T))
         GBElements.compute_supports.(basis)
         GBElements.compute_binaries.(basis)
-        new{T, S}(basis, order, cache, tree, min)
+        new{T, S}(basis, order, tree, min)
     end
 end
 
@@ -123,7 +121,7 @@ function Base.push!(
     g :: T
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     push!(bs.basis, g)
-    addbinomial!(bs.reduction_tree, bs[length(bs)])
+    add_binomial!(bs.reduction_tree, bs[length(bs)])
     GBElements.compute_supports(g)
     GBElements.compute_binaries(g)
 end
@@ -134,7 +132,7 @@ function Base.insert!(
     g :: T
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     insert!(bs.basis, i, g)
-    addbinomial!(bs.reduction_tree, g)
+    add_binomial!(bs.reduction_tree, g)
     GBElements.compute_supports(g)
     GBElements.compute_binaries(g)
 end
@@ -144,7 +142,7 @@ function Base.deleteat!(
     i :: Int
 ) where {T <: AbstractVector{Int}, S <: GBOrder}
     deleted_elem = bs[i]
-    removebinomial!(reduction_tree(bs), deleted_elem)
+    remove_binomial!(reduction_tree(bs), deleted_elem)
     deleteat!(bs.basis, i)
 end
 
@@ -184,7 +182,7 @@ should be set to `nothing` in practical runs.
 function reduce!(
     g :: T,
     gb :: S,
-    tree :: SupportTree{T};
+    tree :: ReductionTree{T};
     reduction_count :: Union{Vector{Int}, Nothing} = nothing,
     skipbinomial :: Union{T, Nothing} = nothing,
     is_monomial_reduction :: Bool = false
@@ -453,7 +451,7 @@ function reduced_basis!(
                 #The binomial has to be removed from the tree first, otherwise
                 #its filter will already have been changed and it won't be
                 #found in the tree.
-                SupportTrees.removebinomial!(gb.reduction_tree, g)
+                SupportTrees.remove_binomial!(gb.reduction_tree, g)
                 GBElements.reduce!(g, h, order(gb), negative=true)
                 SupportTrees.addbinomial!(gb.reduction_tree, g)
             else

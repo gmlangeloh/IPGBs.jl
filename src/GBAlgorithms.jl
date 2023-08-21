@@ -152,7 +152,7 @@ function print_algorithm_stats(
     if !quiet
         println(stats(algorithm))
         #This is kind of a hack but works
-        println(current_basis(algorithm).reduction_tree.stats)
+        #println(current_basis(algorithm).reduction_tree.stats)
     end
 end
 
@@ -174,6 +174,7 @@ function run(
     IPGBs.initialize_parameters(
         auto_reduce_freq = 2500,
         auto_reduce_type = IPGBs.FIXED_ITERATIONS,
+        cache_tree_size = 500,
         debug = false,
         info = false
     )
