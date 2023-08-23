@@ -317,6 +317,14 @@ function find_reducer(
     return g, false
 end
 
+#TODO: Fix the performance of these cache trees. The issue is likely that
+#removing an element from the cache_tree keeps many useless internal nodes.
+#As most elements are used for reductions at least once, in time the cache
+#tree will have the same structure as the full tree, only with fewer
+#elements. Thus, searching it will not be efficient, and at that point
+#it's better to just ignore it.
+# A possible fix is to rebuild this cache tree periodically, or to adjust
+#remove_binomial! to remove useless internal nodes.
 mutable struct CacheTree{T <: AbstractVector{Int}} <: ReductionTree{T}
     cache_tree :: SupportTree{T}
     full_tree :: SupportTree{T}

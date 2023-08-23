@@ -24,11 +24,11 @@ in addition to GBElements.
 struct BinomialSet{T <: AbstractVector{Int}, S <: GBOrder} <: AbstractVector{T}
     basis :: Vector{T}
     order :: S
-    reduction_tree :: CacheTree{T}
+    reduction_tree :: SupportTree{T}
     minimization_form :: Bool #TODO: maybe this should be part of the order?
 
     function BinomialSet{T, S}(basis :: Vector{T}, order :: S, min :: Bool) where {T, S}
-        tree = CacheTree{T}(basis, fullfilter=is_implicit(T))
+        tree = SupportTree{T}(basis, fullfilter=is_implicit(T))
         GBElements.compute_supports.(basis)
         GBElements.compute_binaries.(basis)
         new{T, S}(basis, order, tree, min)
