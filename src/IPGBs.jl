@@ -5,6 +5,7 @@ export groebner_basis
 
 include("./Globals.jl")
 include("./FastBitSets.jl")
+include("./FastestBitSets.jl")
 include("./Statistics.jl")
 include("./Orders.jl")
 include("./MonomialHeaps.jl")
