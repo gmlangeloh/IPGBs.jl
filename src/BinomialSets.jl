@@ -453,7 +453,7 @@ function reduced_basis!(
                 #found in the tree.
                 SupportTrees.remove_binomial!(gb.reduction_tree, g)
                 GBElements.reduce!(g, h, order(gb), negative=true)
-                SupportTrees.addbinomial!(gb.reduction_tree, g)
+                SupportTrees.add_binomial!(gb.reduction_tree, g)
             else
                 reducing = false
             end
