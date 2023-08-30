@@ -156,8 +156,6 @@ function print_algorithm_stats(
     end
 end
 
-using IPGBs.Binomials
-
 """
     run(algorithm :: GBAlgorithm, quiet :: Bool) :: Vector{Vector{Int}}
 

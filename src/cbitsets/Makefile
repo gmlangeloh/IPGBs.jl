@@ -1,2 +1,2 @@
 all:
-	gcc -Wall -fPIC -shared -Iinclude -lm -o cbitsets.so src/cbitsets.c
+	gcc -Wall -O3 -fPIC -shared -Iinclude -lm -o cbitsets.so src/cbitsets.c

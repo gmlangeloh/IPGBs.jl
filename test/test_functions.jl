@@ -138,12 +138,13 @@ function run_algorithm(
     implicit_representation = false,
     truncation_type = :Heuristic,
     quiet = false,
-    minimization = true
+    minimization = true,
+    binary=true
 )
     if setseed
         Random.seed!(seed)
     end
-    instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary = true)
+    instance = MultiObjectiveInstances.Knapsack.knapsack_A(n, binary = binary)
     #My results
     gb, time, _, _, _ = @timed groebner_basis(
         instance.A, instance.b, instance.C, u=instance.u,
