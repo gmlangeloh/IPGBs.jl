@@ -1,22 +1,37 @@
-using MultiObjectiveInstances.Knapsack
 using IPGBs
 using IPGBs.IPInstances
 using IPGBs.Markov
 import IPGBs.FourTi2
 
-knapsack = knapsack_A(5, format="4ti2", binary=true)
-u = Union{Int, Nothing}[]
-for i in 1:size(knapsack.A, 2)
-    if i == 6 #Slack variable has no upper bound
-        push!(u, nothing)
-    else
-        push!(u, 1)
+using JuMP
+using Random
+using GLPK
+
+function generate_random_instance(n :: Int, m :: Int, coef_range :: Int)
+    Random.seed!(0)
+    feasible = false
+    instance = nothing
+    while !feasible
+        A = rand(-coef_range:coef_range, m, n)
+        b = rand((-2*coef_range):(2*coef_range), m)
+        C = rand(-coef_range:coef_range, n)
+
+        model = Model(GLPK.Optimizer)
+        @variable(model, x[1:n] >= 0, Int)
+        @constraint(model, A*x .<= b)
+        @objective(model, Max, C' * x)
+        instance = IPInstance(model)
+        optimize!(model)
+        feasible = termination_status(model) == MOI.OPTIMAL 
     end
+    return instance
 end
-instance = IPInstances.IPInstance(
-    knapsack.A, knapsack.b, knapsack.C, u, apply_normalization=false,
-    invert_objective=false)
-fourti2_markov = IPGBs.FourTi2.markov(instance.A, instance.C, nonnegative=fill(true, size(instance.A, 2)))
-@show fourti2_markov
-mbasis = Markov.project_and_lift(instance)
-@show mbasis
+
+function run_random_instance(n :: Int, m :: Int, coef_range :: Int = 10)
+    instance = generate_random_instance(n, m, coef_range)
+    println("Solving instance with n = $n, m = $m, coef_range = $coef_range")
+    println("Instance: ", instance)
+    println("Solving with IPGBs")
+    gb = groebner_basis(instance)
+    println("GB size:", length(gb))
+end
