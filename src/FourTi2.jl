@@ -353,6 +353,17 @@ function markov(
     return markov_basis
 end
 
+function markov(
+    instance :: IPInstance;
+    project_name :: String = "tmp"
+)
+    nonnegative = IPInstances.nonnegative_variables(instance)
+    int_objective = IPInstances.integer_objective(instance)
+    init_sol = IPInstances.initial_solution(instance)
+    return markov(instance.A, int_objective, nonnegative=nonnegative, 
+        truncation_sol=init_sol, project_name=project_name)
+end
+
 """
 Calls 4ti2's graver command.
 
