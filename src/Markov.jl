@@ -164,6 +164,12 @@ struct ProjectAndLiftState
     markov::Vector{Vector{Int}} #Current (partial) Markov basis
 end
 
+function Base.show(io :: IO, state :: ProjectAndLiftState)
+    print(io, "Project-and-Lift State for instance: ", state.instance, "\n")
+    print(io, "σ = ", state.sigma, "\n")
+    print(io, "Markov = ", state.markov, "\n")
+end
+
 """
     initialize_project_and_lift(instance :: IPInstance)
 
@@ -224,7 +230,9 @@ function next(
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
         @info "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
-        push!(markov, u)
+        if !(u in markov)
+            push!(markov, u)
+        end
     end
     #Finished lifting i, remove it from sigma
     i_index = findfirst(isequal(i), state.sigma)
