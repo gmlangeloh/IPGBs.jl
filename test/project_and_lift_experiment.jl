@@ -1,6 +1,7 @@
 using IPGBs
 using IPGBs.IPInstances
 using IPGBs.Markov
+using IPGBs.GBTools
 import IPGBs.FourTi2
 
 using JuMP
@@ -48,5 +49,6 @@ function run_random_instance(n :: Int, m :: Int, coef_range :: Int = 10)
     gb2 = FourTi2.groebner(instance)
     println("GB size:", size(gb2, 1))
     println(gb2)
-    println("Is equal? ", length(gb) == size(gb2, 1))
+    println("Is equal size? ", length(gb) == size(gb2, 1))
+    println("Is equal? ", GBTools.isequal(gb, [gb2[i, :] for i in 1:size(gb2, 1)]))
 end
