@@ -202,6 +202,40 @@ function initialize_project_and_lift(
 end
 
 """
+    can_lift(markov :: Vector{Vector{Int}}, i :: Int)
+
+    Return true if the variable indexed by `i` can be immediately lifted given
+    the current Markov basis `markov`.
+
+    This happens when there is no element in `markov` with a positive coefficient.
+"""
+function can_lift(markov :: Vector{Vector{Int}}, i :: Int)
+    for v in markov
+        if v[i] > 0
+            return false
+        end
+    end
+    return true
+end
+
+function lift_variables!(
+    markov :: Vector{Vector{Int}}, 
+    sigma :: Vector{Int},
+    nonnegative :: Vector{Bool}
+)
+    i = 1
+    while i <= length(sigma)
+        variable = sigma[i]
+        if can_lift(markov, variable)
+            nonnegative[variable] = true
+            deleteat!(sigma, i)
+        else
+            i += 1
+        end
+    end
+end
+
+"""
     next(state :: ProjectAndLiftState; truncation_type :: Symbol) :: ProjectAndLiftState
 
 Run a single iteration of the project-and-lift algorithm over `state`, returning the new
@@ -226,6 +260,7 @@ function next(
             state.markov, state.projection, truncation_type = truncation_type
         )
         markov = GBAlgorithms.run(alg, quiet = true)
+        lift_variables!(markov, state.sigma, state.nonnegative)
         @info "New Markov basis obtained through Buchberger" length(markov)
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
@@ -233,11 +268,11 @@ function next(
         if !(u in markov)
             push!(markov, u)
         end
+        i_index = findfirst(isequal(i), state.sigma)
+        deleteat!(state.sigma, i_index)
+        state.nonnegative[i] = true
     end
     #Finished lifting i, remove it from sigma
-    i_index = findfirst(isequal(i), state.sigma)
-    deleteat!(state.sigma, i_index)
-    state.nonnegative[i] = true
     projection = nonnegativity_relaxation(state.instance, state.nonnegative)
     #Truncate the Markov basis
     markov = truncate_markov(markov, state.instance, truncation_type)
