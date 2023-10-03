@@ -112,6 +112,11 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
             @debug "Truncating generating set with algorithm: $(truncation_type)"
         end
         for gen in generating_set
+            if is_zero(gen)
+               nontruncated_gens = [gen] 
+               truncated_gens = T[]
+               break
+            end
             truncated = GBElements.truncate(
                 gen, instance.A, instance.b, instance.u, model, constrs,
                 should_truncate, truncation_type

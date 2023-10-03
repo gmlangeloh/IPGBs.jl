@@ -213,7 +213,7 @@ function groebner(
     end
     #Run 4ti2
     quiet_opt = quiet ? "-q" : ""
-    cmd = `groebner $quiet_opt $truncation_opt $project_name`
+    cmd = `groebner -parb $quiet_opt $truncation_opt $project_name`
     run(cmd)
 
     out_file = project_name * ".gro"
@@ -343,7 +343,7 @@ function markov(
         truncation_opt = "--truncation=ip"
     end
     #Run 4ti2
-    cmd = `markov -q $truncation_opt $project_name`
+    cmd = `markov -parb --generation=project-and-lift $truncation_opt $project_name`
     run(cmd)
 
     out_file = project_name * ".mar"

@@ -446,7 +446,7 @@ function reduced_basis!(
         g = gb[i]
         reducing = true
         while reducing
-            h, found_reducer = find_reducer(g, gb, reduction_tree(gb), negative=true)
+            h, found_reducer = find_reducer(g, gb, reduction_tree(gb), negative=true, skipbinomial=g)
             if found_reducer
                 #The binomial has to be removed from the tree first, otherwise
                 #its filter will already have been changed and it won't be
