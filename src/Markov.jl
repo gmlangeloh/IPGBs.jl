@@ -83,52 +83,6 @@ function is_normalized_hnf(
 end
 
 """
-    group_relaxation_markov(instance::IPInstance)
-
-Compute a Markov basis of the group relaxation of `instance`, returning this basis in
-matrix form and its rank.
-
-The computation is done using the Hermite Normal Form algorithm.
-"""
-function group_relaxation_markov(instance::IPInstance)
-    basis = IPInstances.lattice_basis_projection(instance)
-    uhnf_basis = hnf(basis)
-    normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
-    return uhnf_basis, rank(uhnf_basis)
-end
-
-"""
-    lex_groebner_basis(instance :: IPInstance) :: BinomialSet
-
-Compute a lex Gröbner basis of `instance` using the HNF algorithm.
-
-It is assumed the toric ideal of `instance.A` is zero-dimensional, i.e. that
-the lattice optimization problem given by `instance` is of rank n.
-"""
-function lex_groebner_basis(
-    instance::IPInstance
-)::BinomialSet
-    uhnf_basis, _ = group_relaxation_markov(instance)
-    monomial_order = Orders.lex_order(instance.nonnegative_end)
-    gb_vectors = Vector{Int}[]
-    try
-        #Convert lex GB elements to Vector{Int}
-        gb_vectors = [
-            reshape(Int.(Array(uhnf_basis[i, :])), ncols(uhnf_basis))
-            for i in 1:nrows(uhnf_basis)
-        ]
-    catch e
-        if isa(e, InexactError)
-            error("Overflow in lex GB conversion.")
-        else
-            error("Unknown issue in converting lex GB to Vector{Int}.")
-        end
-    end
-    lex_gb = BinomialSet(gb_vectors, monomial_order)
-    return lex_gb
-end
-
-"""
     truncate_markov(markov :: Vector{Vector{Int}}, instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
 
 Compute a subset of `markov` including only vectors which shouldn't be truncated
@@ -181,19 +135,20 @@ The group relaxation Markov basis is obtained through the Hermite Normal Form al
 function initialize_project_and_lift(
     instance::IPInstance
 )::ProjectAndLiftState
-    hnf_basis, rnk = group_relaxation_markov(instance)
+    basis, sigma = IPInstances.lattice_basis_projection(instance)
+    uhnf_basis = hnf(basis)
+    normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
     #Now, the first `rank` columns of hnf_basis should be LI
     #and thus a Markov basis of the corresponding projection
-    sigma = Vector(rnk+1:instance.n)
     nonnegative = nonnegative_vars(instance)
     for s in sigma
         nonnegative[s] = false
     end
     #This is a Markov basis of the projected problem
     markov = Vector{Int}[]
-    for row in eachrow(Array(hnf_basis))
+    for row in eachrow(Array(uhnf_basis))
         v = Vector{Int}(row)
-        push!(markov, lift_vector(v, instance))
+        push!(markov, lift_vector(v, basis, instance))
     end
     projection = nonnegativity_relaxation(instance, nonnegative)
     @debug "Group relaxation Markov Basis: " markov
@@ -256,6 +211,10 @@ function next(
         #Compute a GB in the adequate order
         @info "Lifting in bounded case, applying Buchberger's algorithm" perm_i length(state.markov)
         update_objective!(state.projection, perm_i)
+        println("MB before running Buchberger")
+        for m in state.markov
+            println(m)
+        end
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
@@ -267,6 +226,7 @@ function next(
         @info "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
         if !(u in markov)
             push!(markov, u)
+            println("Added: ", u)
         end
         i_index = findfirst(isequal(i), state.sigma)
         deleteat!(state.sigma, i_index)
@@ -306,12 +266,17 @@ function project_and_lift(
 )::Vector{Vector{Int}}
     @debug "Initializing Project-and-lift"
     state = initialize_project_and_lift(instance)
+    println("INITIALIZING, FIRST MRKOV")
+    for m in state.markov
+        println(m)
+    end
     while !is_finished(state)
         l = length(state.sigma)
         @debug "Starting iteration with $l variables left to lift: " state.sigma
         state = next(state, truncation_type = truncation_type)
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
+    @show state.markov
     return state.markov
 end
 
