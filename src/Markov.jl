@@ -110,12 +110,22 @@ end
 
 minimum_lifting(sigma) = minimum(sigma)
 
+"""
+    State of the project-and-lift algorithm representing the relevant
+    information during a specific iteration.
+    `instance`: the original IPInstance being solved
+    `sigma`: the remaining unlifted variables (original indexing, following `instance`)
+    `nonnegative`: the variables that have nonnegative constraints (original indexing)
+    `projection`: IPInstance representing the problem with the non-negativity of
+    the sigma variables relaxed
+    `markov`: current partial Markov basis (indexed by the permuted variables)
+"""
 struct ProjectAndLiftState
-    instance::IPInstance #Instance being solved by P&L
-    sigma::Vector{Int} #List of variables that still have to be lifted
-    nonnegative::Vector{Bool} #Whether each variable is nonnegative at this state
-    projection::IPInstance #Current projected lattice problem
-    markov::Vector{Vector{Int}} #Current (partial) Markov basis
+    instance::IPInstance
+    sigma::Vector{Int}
+    nonnegative::Vector{Bool}
+    projection::IPInstance
+    markov::Vector{Vector{Int}}
 end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
@@ -151,9 +161,12 @@ function initialize_project_and_lift(
         push!(markov, lift_vector(v, basis, instance))
     end
     projection = nonnegativity_relaxation(instance, nonnegative)
+    @show projection.permutation
+    @show projection.inverse_permutation
+    permuted_markov = IPInstances.apply_permutation(markov, projection.permutation)
     @debug "Group relaxation Markov Basis: " markov
     @debug "Variables to lift: " sigma
-    return ProjectAndLiftState(instance, sigma, nonnegative, projection, markov)
+    return ProjectAndLiftState(instance, sigma, nonnegative, projection, permuted_markov)
 end
 
 """
@@ -176,12 +189,15 @@ end
 function lift_variables!(
     markov :: Vector{Vector{Int}}, 
     sigma :: Vector{Int},
-    nonnegative :: Vector{Bool}
+    nonnegative :: Vector{Bool},
+    permutation :: Vector{Int}
 )
+    #TODO: Bug: Markov is permuted here, sigma is the original var order.
+    #So I need to adapt this
     i = 1
     while i <= length(sigma)
         variable = sigma[i]
-        if can_lift(markov, variable)
+        if can_lift(markov, permutation[variable])
             nonnegative[variable] = true
             deleteat!(sigma, i)
         else
@@ -204,35 +220,33 @@ function next(
     truncation_type::Symbol = :None
 )::ProjectAndLiftState
     i = minimum_lifting(state.sigma) #Pick some variable to lift
-    perm_i = state.projection.permutation[i] #This is the index of i in projection
-    u = unboundedness_proof(state.projection, state.nonnegative, perm_i)
+    #TODO: Check if this permutation is correct. Something is still pretty broken.
+    perm_i = state.projection.inverse_permutation[i] #This is the index of i in projection
+    u = unboundedness_proof(state.projection, perm_i)
     markov = state.markov
     if isempty(u) #i is bounded in projection
-        #Compute a GB in the adequate order
+        #Compute a GB in the adequate monomial order
         @info "Lifting in bounded case, applying Buchberger's algorithm" perm_i length(state.markov)
         update_objective!(state.projection, perm_i)
-        println("MB before running Buchberger")
-        for m in state.markov
-            println(m)
-        end
         alg = BuchbergerAlgorithm(
             state.markov, state.projection, truncation_type = truncation_type
         )
         markov = GBAlgorithms.run(alg, quiet = true)
-        lift_variables!(markov, state.sigma, state.nonnegative)
+        lift_variables!(markov, state.sigma, state.nonnegative, state.projection.inverse_permutation)
         @info "New Markov basis obtained through Buchberger" length(markov)
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
         @info "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
         if !(u in markov)
             push!(markov, u)
-            println("Added: ", u)
         end
         i_index = findfirst(isequal(i), state.sigma)
         deleteat!(state.sigma, i_index)
         state.nonnegative[i] = true
     end
-    #Finished lifting i, remove it from sigma
+    #TODO: Here, nonnegative is indexed by the permuted indices. So we need to permute them
+    #back for stuff to work correctly. I'll probably have to permute Markov again as well
+    @show state.nonnegative
     projection = nonnegativity_relaxation(state.instance, state.nonnegative)
     #Truncate the Markov basis
     markov = truncate_markov(markov, state.instance, truncation_type)
@@ -266,13 +280,8 @@ function project_and_lift(
 )::Vector{Vector{Int}}
     @debug "Initializing Project-and-lift"
     state = initialize_project_and_lift(instance)
-    println("INITIALIZING, FIRST MRKOV")
-    for m in state.markov
-        println(m)
-    end
     while !is_finished(state)
-        l = length(state.sigma)
-        @debug "Starting iteration with $l variables left to lift: " state.sigma
+        @debug "Starting iteration with $l variables left to lift: " length(state.sigma)
         state = next(state, truncation_type = truncation_type)
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
