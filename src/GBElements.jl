@@ -351,6 +351,7 @@ function filter(
     fullfilter :: Bool = false
 ) :: Vector{Int} where {T <: AbstractVector{Int}}
     filter = Int[]
+    @show nonnegative(binomial)
     for i in eachindex(nonnegative(binomial))
         if binomial[i] > 0 || (fullfilter && binomial[i] != 0)
             push!(filter, i)

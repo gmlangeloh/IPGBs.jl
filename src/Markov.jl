@@ -116,7 +116,7 @@ minimum_lifting(sigma) = minimum(sigma)
     `instance`: the original IPInstance being solved
     `sigma`: the remaining unlifted variables (original indexing, following `instance`)
     `nonnegative`: the variables that have nonnegative constraints (original indexing)
-    `projection`: IPInstance representing the problem with the non-negativity of
+    `relaxation`: IPInstance representing the problem with the non-negativity of
     the sigma variables relaxed
     `markov`: current partial Markov basis (indexed by the permuted variables)
 """
@@ -124,7 +124,7 @@ struct ProjectAndLiftState
     instance::IPInstance
     sigma::Vector{Int}
     nonnegative::Vector{Bool}
-    projection::IPInstance
+    relaxation::IPInstance
     markov::Vector{Vector{Int}}
 end
 
@@ -160,13 +160,13 @@ function initialize_project_and_lift(
         v = Vector{Int}(row)
         push!(markov, lift_vector(v, basis, instance))
     end
-    projection = nonnegativity_relaxation(instance, nonnegative)
-    @show projection.permutation
-    @show projection.inverse_permutation
-    permuted_markov = IPInstances.apply_permutation(markov, projection.permutation)
+    relaxation = nonnegativity_relaxation(instance, nonnegative)
+    @show relaxation.permutation
+    @show relaxation.inverse_permutation
+    permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
     @debug "Group relaxation Markov Basis: " markov
     @debug "Variables to lift: " sigma
-    return ProjectAndLiftState(instance, sigma, nonnegative, projection, permuted_markov)
+    return ProjectAndLiftState(instance, sigma, nonnegative, relaxation, permuted_markov)
 end
 
 """
@@ -220,19 +220,22 @@ function next(
     truncation_type::Symbol = :None
 )::ProjectAndLiftState
     i = minimum_lifting(state.sigma) #Pick some variable to lift
-    #TODO: Check if this permutation is correct. Something is still pretty broken.
-    perm_i = state.projection.inverse_permutation[i] #This is the index of i in projection
-    u = unboundedness_proof(state.projection, perm_i)
+    perm_i = state.relaxation.inverse_permutation[i] #This is the index of i in projection
+    u = unboundedness_proof(state.relaxation, perm_i)
     markov = state.markov
     if isempty(u) #i is bounded in projection
         #Compute a GB in the adequate monomial order
         @info "Lifting in bounded case, applying Buchberger's algorithm" perm_i length(state.markov)
-        update_objective!(state.projection, perm_i)
+        proj_sigma = state.relaxation.inverse_permutation[state.sigma]
+        update_objective!(state.relaxation, perm_i, proj_sigma)
+        proj_relaxation = projection(state.relaxation, proj_sigma)
+        proj_markov = project_vector.(state.markov, proj_sigma)
         alg = BuchbergerAlgorithm(
-            state.markov, state.projection, truncation_type = truncation_type
+            proj_markov, proj_relaxation, truncation_type = truncation_type
         )
         markov = GBAlgorithms.run(alg, quiet = true)
-        lift_variables!(markov, state.sigma, state.nonnegative, state.projection.inverse_permutation)
+        #TODO: Lift the Markov basis back up here!!!
+        lift_variables!(markov, state.sigma, state.nonnegative, state.relaxation.inverse_permutation)
         @info "New Markov basis obtained through Buchberger" length(markov)
     else
         #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
@@ -247,11 +250,11 @@ function next(
     #TODO: Here, nonnegative is indexed by the permuted indices. So we need to permute them
     #back for stuff to work correctly. I'll probably have to permute Markov again as well
     @show state.nonnegative
-    projection = nonnegativity_relaxation(state.instance, state.nonnegative)
+    relaxation = nonnegativity_relaxation(state.instance, state.nonnegative)
     #Truncate the Markov basis
     markov = truncate_markov(markov, state.instance, truncation_type)
     return ProjectAndLiftState(
-        state.instance, state.sigma, state.nonnegative, projection, markov
+        state.instance, state.sigma, state.nonnegative, relaxation, markov
     )
 end
 
