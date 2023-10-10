@@ -211,17 +211,26 @@ end
 
 
 """
-function bounded_case(s :: ProjectAndLiftState, i :: Int)
+function bounded_case(
+    s :: ProjectAndLiftState, 
+    i :: Int;
+    completion :: Symbol = :Buchberger,
+    truncation_type :: Symbol = :None
+)
     #Compute a GB in the adequate monomial order
     @info "P&L bounded case" i length(s.markov)
     proj_sigma = s.relaxation.inverse_permutation[s.sigma]
     update_objective!(s.relaxation, i, proj_sigma)
-    proj_relaxation = projection(s.relaxation, proj_sigma)
-    proj_markov = project_vector.(s.markov, proj_sigma)
-    alg = BuchbergerAlgorithm(
-        proj_markov, proj_relaxation, truncation_type = truncation_type
-    )
-    markov = GBAlgorithms.run(alg, quiet = true)
+    #proj_relaxation = projection(s.relaxation, proj_sigma)
+    #proj_markov = project_vector.(s.markov, proj_sigma)
+    if completion == :Buchberger
+        alg = BuchbergerAlgorithm(
+            s.markov, s.relaxation, truncation_type=truncation_type
+        )
+        markov = GBAlgorithms.run(alg, quiet = true)
+    elseif completion == :FourTi2
+        markov = FourTi2.groebner(s.relaxation, markov=s.markov)
+    end
     #TODO: Lift the Markov basis back up here!!!
     lift_variables!(markov, s.sigma, s.nonnegative, s.relaxation.inverse_permutation)
     @info "Markov size after lifting: " length(markov)
@@ -255,13 +264,17 @@ program or a Gröbner Basis computation.
 """
 function next(
     s::ProjectAndLiftState;
+    completion :: Symbol = :Buchberger,
     truncation_type::Symbol = :None
 )::ProjectAndLiftState
     i = minimum_lifting(s.sigma) #Pick some variable to lift
     relaxation_i = s.relaxation.inverse_permutation[i] #This is the index of i in projection
     u = unboundedness_proof(s.relaxation, relaxation_i)
     if isempty(u)
-        markov = bounded_case(s, relaxation_i)
+        markov = bounded_case(
+            s, relaxation_i, completion=completion,
+            truncation_type=truncation_type
+        )
     else
         markov = unbounded_case(s, u)
     end
@@ -296,13 +309,14 @@ a full Markov basis is computed instead.
 """
 function project_and_lift(
     instance::IPInstance;
+    completion :: Symbol = :FourTi2,
     truncation_type::Symbol = :None
 )::Vector{Vector{Int}}
     @debug "Initializing Project-and-lift"
     state = initialize_project_and_lift(instance)
     while !is_finished(state)
         @debug "Starting iteration with $l variables left to lift: " length(state.sigma)
-        state = next(state, truncation_type = truncation_type)
+        state = next(state, completion=completion, truncation_type=truncation_type)
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
     @show state.markov

@@ -213,7 +213,7 @@ function groebner(
     end
     #Run 4ti2
     quiet_opt = quiet ? "-q" : ""
-    cmd = `groebner -parb $quiet_opt $truncation_opt $project_name`
+    cmd = `groebner -parb $truncation_opt $project_name`
     run(cmd)
 
     out_file = project_name * ".gro"

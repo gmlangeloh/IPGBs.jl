@@ -50,5 +50,5 @@ function run_random_instance(n :: Int, m :: Int, coef_range :: Int = 10)
     println("GB size:", size(gb2, 1))
     println(gb2)
     println("Is equal size? ", length(gb) == size(gb2, 1))
-    println("Is equal? ", GBTools.isequal(gb, [gb2[i, :] for i in 1:size(gb2, 1)]))
+    println("Is equal? ", GBTools.isequal(gb, [gb2[i, :] for i in axes(gb2, 1)]))
 end

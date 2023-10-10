@@ -236,10 +236,7 @@ function enumerate_reducers!(
         if !isnothing(skipbinomial) && (reducer === skipbinomial || isequal(reducer, skipbinomial))
             continue
         end
-        if GBElements.reduces(
-            g, node.filter, reducer, gb, fullfilter=fullfilter, negative=negative,
-            is_singular=is_singular
-        )
+        if GBElements.reduces(g, node.filter, reducer, gb, negative=negative)
             push!(reducers, reducer)
         end
     end
