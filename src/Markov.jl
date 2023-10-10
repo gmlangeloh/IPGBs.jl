@@ -235,7 +235,7 @@ function bounded_case(
         )
         markov = GBAlgorithms.run(alg, quiet = true)
     elseif completion == :FourTi2
-        markov = FourTi2.groebner(s.relaxation, markov=s.markov)
+        markov = GBTools.tovector(FourTi2.groebner(s.relaxation, markov=s.markov))
     end
     #TODO: Lift the Markov basis back up here!!!
     lift_variables!(markov, s.sigma, s.nonnegative, s.relaxation.inverse_permutation)
