@@ -8,7 +8,7 @@ Two methods are implemented:
 """
 module Markov
 
-export markov_basis, lex_groebner_basis
+export markov_basis
 
 using AbstractAlgebra
 
@@ -207,7 +207,12 @@ function lift_variables!(
 end
 
 """
-    bounded_case(s :: ProjectAndLiftState)
+    bounded_case(
+    s :: ProjectAndLiftState, 
+    i :: Int;
+    completion :: Symbol = :Buchberger,
+    truncation_type :: Symbol = :None
+) :: Vector{Vector{Int}}
 
 
 """
@@ -216,11 +221,12 @@ function bounded_case(
     i :: Int;
     completion :: Symbol = :Buchberger,
     truncation_type :: Symbol = :None
-)
+) :: Vector{Vector{Int}}
     #Compute a GB in the adequate monomial order
     @info "P&L bounded case" i length(s.markov)
     proj_sigma = s.relaxation.inverse_permutation[s.sigma]
     update_objective!(s.relaxation, i, proj_sigma)
+    IPInstances.linear_relaxation_status(s.relaxation)
     #proj_relaxation = projection(s.relaxation, proj_sigma)
     #proj_markov = project_vector.(s.markov, proj_sigma)
     if completion == :Buchberger
@@ -234,15 +240,15 @@ function bounded_case(
     #TODO: Lift the Markov basis back up here!!!
     lift_variables!(markov, s.sigma, s.nonnegative, s.relaxation.inverse_permutation)
     @info "Markov size after lifting: " length(markov)
+    return markov
 end
 
 """
-    unbounded_case(s :: ProjectAndLiftState, ray :: Vector{Int})
+    unbounded_case(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) :: Vector{Vector{Int}}
 
 
 """
-function unbounded_case(s :: ProjectAndLiftState, ray :: Vector{Int})
-    #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
+function unbounded_case(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) :: Vector{Vector{Int}}
     @info "P&L unbounded case" ray
     if !(ray in s.markov)
         push!(s.markov, ray)
@@ -276,7 +282,7 @@ function next(
             truncation_type=truncation_type
         )
     else
-        markov = unbounded_case(s, u)
+        markov = unbounded_case(s, relaxation_i, u)
     end
     #TODO: Here, nonnegative is indexed by the permuted indices. So we need to permute them
     #back for stuff to work correctly. I'll probably have to permute Markov again as well
@@ -315,7 +321,7 @@ function project_and_lift(
     @debug "Initializing Project-and-lift"
     state = initialize_project_and_lift(instance)
     while !is_finished(state)
-        @debug "Starting iteration with $l variables left to lift: " length(state.sigma)
+        @debug "Starting iteration with $(length(state.sigma)) variables left to lift: "
         state = next(state, completion=completion, truncation_type=truncation_type)
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
