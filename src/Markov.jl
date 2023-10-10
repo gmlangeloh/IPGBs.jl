@@ -207,6 +207,44 @@ function lift_variables!(
 end
 
 """
+    bounded_case(s :: ProjectAndLiftState)
+
+
+"""
+function bounded_case(s :: ProjectAndLiftState, i :: Int)
+    #Compute a GB in the adequate monomial order
+    @info "P&L bounded case" i length(s.markov)
+    proj_sigma = s.relaxation.inverse_permutation[s.sigma]
+    update_objective!(s.relaxation, i, proj_sigma)
+    proj_relaxation = projection(s.relaxation, proj_sigma)
+    proj_markov = project_vector.(s.markov, proj_sigma)
+    alg = BuchbergerAlgorithm(
+        proj_markov, proj_relaxation, truncation_type = truncation_type
+    )
+    markov = GBAlgorithms.run(alg, quiet = true)
+    #TODO: Lift the Markov basis back up here!!!
+    lift_variables!(markov, s.sigma, s.nonnegative, s.relaxation.inverse_permutation)
+    @info "Markov size after lifting: " length(markov)
+end
+
+"""
+    unbounded_case(s :: ProjectAndLiftState, ray :: Vector{Int})
+
+
+"""
+function unbounded_case(s :: ProjectAndLiftState, ray :: Vector{Int})
+    #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
+    @info "P&L unbounded case" ray
+    if !(ray in s.markov)
+        push!(s.markov, ray)
+    end
+    i_index = findfirst(isequal(i), s.sigma)
+    deleteat!(s.sigma, i_index)
+    s.nonnegative[i] = true
+    return s.markov
+end
+
+"""
     next(state :: ProjectAndLiftState; truncation_type :: Symbol) :: ProjectAndLiftState
 
 Run a single iteration of the project-and-lift algorithm over `state`, returning the new
@@ -216,45 +254,24 @@ One iteration involves lifting a previously unlifted variable, either through a 
 program or a Gröbner Basis computation.
 """
 function next(
-    state::ProjectAndLiftState;
+    s::ProjectAndLiftState;
     truncation_type::Symbol = :None
 )::ProjectAndLiftState
-    i = minimum_lifting(state.sigma) #Pick some variable to lift
-    perm_i = state.relaxation.inverse_permutation[i] #This is the index of i in projection
-    u = unboundedness_proof(state.relaxation, perm_i)
-    markov = state.markov
-    if isempty(u) #i is bounded in projection
-        #Compute a GB in the adequate monomial order
-        @info "Lifting in bounded case, applying Buchberger's algorithm" perm_i length(state.markov)
-        proj_sigma = state.relaxation.inverse_permutation[state.sigma]
-        update_objective!(state.relaxation, perm_i, proj_sigma)
-        proj_relaxation = projection(state.relaxation, proj_sigma)
-        proj_markov = project_vector.(state.markov, proj_sigma)
-        alg = BuchbergerAlgorithm(
-            proj_markov, proj_relaxation, truncation_type = truncation_type
-        )
-        markov = GBAlgorithms.run(alg, quiet = true)
-        #TODO: Lift the Markov basis back up here!!!
-        lift_variables!(markov, state.sigma, state.nonnegative, state.relaxation.inverse_permutation)
-        @info "New Markov basis obtained through Buchberger" length(markov)
+    i = minimum_lifting(s.sigma) #Pick some variable to lift
+    relaxation_i = s.relaxation.inverse_permutation[i] #This is the index of i in projection
+    u = unboundedness_proof(s.relaxation, relaxation_i)
+    if isempty(u)
+        markov = bounded_case(s, relaxation_i)
     else
-        #u in ker(A) with u_i > 0 and u_{sigma_bar} >= 0
-        @info "Lifting $perm_i in unbounded case, add corresponding unbounded ray to the Markov Basis" u
-        if !(u in markov)
-            push!(markov, u)
-        end
-        i_index = findfirst(isequal(i), state.sigma)
-        deleteat!(state.sigma, i_index)
-        state.nonnegative[i] = true
+        markov = unbounded_case(s, u)
     end
     #TODO: Here, nonnegative is indexed by the permuted indices. So we need to permute them
     #back for stuff to work correctly. I'll probably have to permute Markov again as well
-    @show state.nonnegative
-    relaxation = nonnegativity_relaxation(state.instance, state.nonnegative)
+    relaxation = nonnegativity_relaxation(s.instance, s.nonnegative)
     #Truncate the Markov basis
-    markov = truncate_markov(markov, state.instance, truncation_type)
+    markov = truncate_markov(markov, s.instance, truncation_type)
     return ProjectAndLiftState(
-        state.instance, state.sigma, state.nonnegative, relaxation, markov
+        s.instance, s.sigma, s.nonnegative, relaxation, markov
     )
 end
 
