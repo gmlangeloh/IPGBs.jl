@@ -192,11 +192,10 @@ function lift_variables!(
     nonnegative :: Vector{Bool},
     permutation :: Vector{Int}
 )
-    #TODO: Bug: Markov is permuted here, sigma is the original var order.
-    #So I need to adapt this
     i = 1
     while i <= length(sigma)
         variable = sigma[i]
+        #Markov is permuted here, so we need to take that into account
         if can_lift(markov, permutation[variable])
             nonnegative[variable] = true
             deleteat!(sigma, i)
@@ -216,7 +215,7 @@ end
 
 
 """
-function bounded_case(
+function lift_bounded(
     s :: ProjectAndLiftState, 
     i :: Int;
     completion :: Symbol = :Buchberger,
@@ -226,7 +225,6 @@ function bounded_case(
     @info "P&L bounded case" i length(s.markov)
     proj_sigma = s.relaxation.inverse_permutation[s.sigma]
     update_objective!(s.relaxation, i, proj_sigma)
-    IPInstances.linear_relaxation_status(s.relaxation)
     #proj_relaxation = projection(s.relaxation, proj_sigma)
     #proj_markov = project_vector.(s.markov, proj_sigma)
     if completion == :Buchberger
@@ -236,8 +234,9 @@ function bounded_case(
         markov = GBAlgorithms.run(alg, quiet = true)
     elseif completion == :FourTi2
         markov = GBTools.tovector(FourTi2.groebner(s.relaxation, markov=s.markov))
+    else
+        error("Unknown completion algorithm: $completion")
     end
-    #TODO: Lift the Markov basis back up here!!!
     lift_variables!(markov, s.sigma, s.nonnegative, s.relaxation.inverse_permutation)
     @info "Markov size after lifting: " length(markov)
     return markov
@@ -248,7 +247,7 @@ end
 
 
 """
-function unbounded_case(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) :: Vector{Vector{Int}}
+function lift_unbounded(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) :: Vector{Vector{Int}}
     @info "P&L unbounded case" ray
     if !(ray in s.markov)
         push!(s.markov, ray)
@@ -275,20 +274,24 @@ function next(
 )::ProjectAndLiftState
     i = minimum_lifting(s.sigma) #Pick some variable to lift
     relaxation_i = s.relaxation.inverse_permutation[i] #This is the index of i in projection
-    u = unboundedness_proof(s.relaxation, relaxation_i)
-    if isempty(u)
-        markov = bounded_case(
+    ray = unboundedness_proof(s.relaxation, relaxation_i)
+    if isempty(ray)
+        markov = lift_bounded(
             s, relaxation_i, completion=completion,
             truncation_type=truncation_type
         )
     else
-        markov = unbounded_case(s, relaxation_i, u)
+        markov = lift_unbounded(s, i, ray)
     end
-    #TODO: Here, nonnegative is indexed by the permuted indices. So we need to permute them
-    #back for stuff to work correctly. I'll probably have to permute Markov again as well
-    relaxation = nonnegativity_relaxation(s.instance, s.nonnegative)
-    #Truncate the Markov basis
+    #markov needs to be permuted to match the order of variables in the new
+    #group relaxation. To do this, we first put it back to the original variable
+    #order and then apply the permutation of the relaxation
+    markov = IPInstances.apply_permutation(markov, s.relaxation.inverse_permutation)
+    #truncate while in the original variable order, it's easier
     markov = truncate_markov(markov, s.instance, truncation_type)
+    relaxation = nonnegativity_relaxation(s.instance, s.nonnegative)
+    markov = IPInstances.apply_permutation(markov, relaxation.permutation)
+    #Truncate the Markov basis
     return ProjectAndLiftState(
         s.instance, s.sigma, s.nonnegative, relaxation, markov
     )
@@ -325,7 +328,6 @@ function project_and_lift(
         state = next(state, completion=completion, truncation_type=truncation_type)
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
-    @show state.markov
     return state.markov
 end
 

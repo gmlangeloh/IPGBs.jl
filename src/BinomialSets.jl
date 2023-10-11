@@ -375,9 +375,6 @@ function auto_reduce_once!(
     gb :: BinomialSet{T, S};
     current_index :: Int = 0
 ) :: Tuple{Int, Int} where {T <: AbstractVector{Int}, S <: GBOrder}
-    for g in gb
-        println(g)
-    end
     removed = 0
     removed_before_index = 0
     i = length(gb)
