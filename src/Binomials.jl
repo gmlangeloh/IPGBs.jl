@@ -184,46 +184,4 @@ GBElements.negative_filter(g :: Binomial) = g.negative_filter
 GBElements.positive_binaries(g :: Binomial) = g.positive_binaries
 GBElements.negative_binaries(g :: Binomial) = g.negative_binaries
 
-"""
-Computes a Markov basis of `A` with `c` as cost matrix. This assumes the problem
-is in the particular form given in Thomas and Weismantel (1997), Section 3.
-"""
-function lattice_generator_binomial(
-    i :: Int,
-    A :: Array{Int, 2},
-    b :: Vector{Int},
-    c :: Array{Float64},
-    u :: Vector{Int},
-    order :: GBOrder;
-    check_truncation :: Bool = true
-) :: Union{Binomial, Nothing}
-    #This assumes inequality + binary constraints
-    #It is enough for my current experiments, but I should generalize this
-    #The current matrix A has n + m rows, 2n + m cols. So n = cols - rows
-    n = size(A, 2) - size(A, 1)
-    m = size(A, 1) - n
-    v = zeros(Int, n)
-    v[i] = 1
-    r = zeros(Int, n)
-    r[i] = -1
-    s = -copy(A[1:m, i])
-    if ndims(c) == 1
-        cost = c[i]
-    else #c is two-dimensional
-        @assert ndims(c) == 2
-        cost = c[1, i]
-    end
-    g = vcat(v, s, r, [cost])
-    generator = Binomial(g)
-    #The problem may be in minimization form, or have negative costs
-    #Thus b may have negative cost, in that case we need to change its orientation
-    orientate!(generator, order)
-    #Check whether the Binomial should be truncated. If it should, just
-    #return nothing instead
-    if !check_truncation || simple_truncation(generator, A, b, u)
-        return generator
-    end
-    return nothing
-end
-
 end

@@ -161,8 +161,6 @@ function initialize_project_and_lift(
         push!(markov, lift_vector(v, basis, instance))
     end
     relaxation = nonnegativity_relaxation(instance, nonnegative)
-    @show relaxation.permutation
-    @show relaxation.inverse_permutation
     permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
     @debug "Group relaxation Markov Basis: " markov
     @debug "Variables to lift: " sigma
@@ -318,7 +316,7 @@ a full Markov basis is computed instead.
 """
 function project_and_lift(
     instance::IPInstance;
-    completion :: Symbol = :FourTi2,
+    completion :: Symbol = :Buchberger,
     truncation_type::Symbol = :None
 )::Vector{Vector{Int}}
     @debug "Initializing Project-and-lift"

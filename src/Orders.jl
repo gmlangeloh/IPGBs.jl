@@ -87,7 +87,13 @@ function projection_order(
 end
 
 """
-    normalize_order(C :: Matrix{Float64}, A :: Matrix{Int}, b :: Vector{Int}, num_vars :: Int)
+    normalize_order(
+    C::Matrix{Float64},
+    A::Matrix{Int},
+    b::Vector{Int},
+    num_vars::Int,
+    unbounded::Vector{Bool}
+)::Tuple{Matrix{Float64}, Int}
 
 Return a cost matrix in column-major form giving the same monomial order as `C`
 using only the first num_vars variables.
@@ -98,20 +104,29 @@ function normalize_order(
     C::Matrix{Float64},
     A::Matrix{Int},
     b::Vector{Int},
-    num_vars::Int
-)::Matrix{Float64}
+    num_vars::Int,
+    unbounded::Vector{Bool}
+)::Tuple{Matrix{Float64}, Int}
     cost_matrix = zeros(Float64, num_vars, num_vars)
+    #Add cost vector bounding the unbounded components
+    old_C = copy(C)
+    cost_rows = 1
+    if any(unbounded)
+        unbnd_row = [ unbounded[i] ? 1.0 : 0.0 for i in 1:size(C, 2) ]
+        old_C = [old_C; unbnd_row']
+        cost_rows = 2
+    end
     if num_vars == size(A, 2)
-        cost_matrix = tiebreak(C)
+        cost_matrix = tiebreak(old_C)
         positive_first_row!(cost_matrix, A, b)
     else
         #Compute order projected into the first num_vars
-        proj = projection_order(C, A, b, num_vars)
+        proj = projection_order(old_C, A, b, num_vars)
         cost_matrix = tiebreak(proj)
     end
     #Store the transpose to exploit the fact Julia stores matrices
     #in column-major form. This helps performance of cmp and lt.
-    return cost_matrix'
+    return cost_matrix', cost_rows
 end
 
 """
@@ -131,16 +146,16 @@ function MonomialOrder(
     costs::Matrix{Float64},
     A::Matrix{Int},
     b::Vector{Int},
+    unbounded::Vector{Bool},
     is_minimization::Bool,
     num_vars :: Union{Nothing, Int} = nothing
 )
-    num_costs = size(costs, 1)
     max_vars = size(A, 2)
     if !isnothing(num_vars)
         max_vars = num_vars
     end
-    return MonomialOrder(normalize_order(costs, A, b, max_vars), :invlex,
-                         is_minimization, num_costs)
+    C, num_costs = normalize_order(costs, A, b, max_vars, unbounded)
+    return MonomialOrder(C, :invlex, is_minimization, num_costs)
 end
 
 MonomialOrder(C :: Matrix{S}, A, b, min, nvars = nothing) where {S <: Real} =

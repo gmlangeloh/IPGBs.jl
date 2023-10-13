@@ -95,7 +95,10 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     )
         @assert !isempty(markov)
         #Build order and generating set
-        order = MonomialOrder(instance.C, instance.A, instance.b, minimization)
+        order = MonomialOrder(
+            instance.C, instance.A, instance.b, 
+            unbounded_variables(instance), minimization
+        )
         initialize_binomials(instance, order)
         generating_set = [to_gbelement(m, order, T) for m in markov]
         preallocated = Vector{Int}(undef, length(generating_set[1]))

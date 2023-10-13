@@ -139,7 +139,6 @@ function prepare_gb_output(
     reintroduce_truncated!(algorithm)
     reduced_basis!(current_basis(algorithm))
     output = fourti2_form(current_basis(algorithm))
-    output = IPInstances.original_variable_order(output, algorithm.instance)
     sort!(output)
     return output
 end
