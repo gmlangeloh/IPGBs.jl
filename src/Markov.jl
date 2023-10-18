@@ -274,12 +274,25 @@ function next(
     relaxation_i = s.relaxation.inverse_permutation[i] #This is the index of i in projection
     ray = unboundedness_proof(s.relaxation, relaxation_i)
     if isempty(ray)
+        println("BOUNDED CASE")
+        @show i relaxation_i
         markov = lift_bounded(
             s, relaxation_i, completion=completion,
             truncation_type=truncation_type
         )
+        for m in markov
+            println(m)
+        end
+        println()
     else
+        println("UNBOUNDED CASE")
+        println("Heres my ray ", ray)
+        @show i relaxation_i
         markov = lift_unbounded(s, i, ray)
+        for m in markov
+            println(m)
+        end
+        println()
     end
     #markov needs to be permuted to match the order of variables in the new
     #group relaxation. To do this, we first put it back to the original variable
@@ -326,6 +339,11 @@ function project_and_lift(
         state = next(state, completion=completion, truncation_type=truncation_type)
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
+    println("FINAL MARKOV")
+    for m in state.markov
+        println(m)
+    end
+    println()
     return state.markov
 end
 

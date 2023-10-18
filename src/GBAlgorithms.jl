@@ -230,7 +230,7 @@ function run(
     print_algorithm_stats(algorithm, quiet)
     #tr(bin) = quick_truncation(algorithm, bin) || truncate(algorithm, bin)
     #ans = is_truncated_groebner_basis(current_basis(algorithm), tr)
-    #"Is this a truncated GB? " * string(ans)
+    #println("Is this a truncated GB? " * string(ans))
     return prepare_gb_output(algorithm)
 end
 

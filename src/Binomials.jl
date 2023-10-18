@@ -1,6 +1,6 @@
 module Binomials
 
-export initialize_binomials, Binomial, lattice_generator_binomial
+export initialize_binomials, Binomial
 
 using MIPMatrixTools.IPInstances
 

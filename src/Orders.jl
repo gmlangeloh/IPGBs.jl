@@ -158,14 +158,14 @@ function MonomialOrder(
     return MonomialOrder(C, :invlex, is_minimization, num_costs)
 end
 
-MonomialOrder(C :: Matrix{S}, A, b, min, nvars = nothing) where {S <: Real} =
-    MonomialOrder(Float64.(C), A, b, min, nvars)
+MonomialOrder(C :: Matrix{S}, A :: Matrix{Int}, b :: Vector{Int}, unbounded :: Vector{Bool}, min, nvars = nothing) where {S <: Real} =
+    MonomialOrder(Float64.(C), A, b, unbounded, min, nvars)
 
 function MonomialOrder(
     instance :: IPInstance,
     num_vars :: Union{Nothing, Int} = nothing
 )
-    return MonomialOrder(instance.C, instance.A, instance.b, true, num_vars)
+    return MonomialOrder(instance.C, instance.A, instance.b, unbounded_variables(instance), true, num_vars)
 end
 
 """

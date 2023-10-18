@@ -46,13 +46,17 @@ function BinomialSet(
     basis :: Vector{T},
     C :: Array{S},
     A :: Matrix{Int},
-    b :: Vector{Int}
+    b :: Vector{Int},
+    unbounded :: Union{Vector{Bool}, Nothing} = nothing
 ) where {T <: AbstractVector{Int}, S <: Real}
     is_minimization = !is_implicit(T)
     if !(S <: Float64)
         C = Float64.(C)
     end
-    order = MonomialOrder(C, A, b, is_minimization)
+    if isnothing(unbounded)
+        unbounded = fill(false, size(A, 2))
+    end
+    order = MonomialOrder(C, A, b, unbounded, is_minimization)
     return BinomialSet{T, MonomialOrder}(basis, order, is_minimization)
 end
 
@@ -164,6 +168,50 @@ function reduce!(
         g, bs, reduction_tree(bs), skipbinomial=skipbinomial, 
         is_monomial_reduction=is_monomial(g)
     )
+end
+
+"""
+    reduce!(
+    g :: T,
+    bs :: Vector{T}
+) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}}
+
+    Reduce `g` by `bs` inefficiently by linearly searching for a reducer.
+    This is useful for very small examples and debugging. For anything else,
+    consider making a BinomialSet and reducing using a SupportTree.
+
+    Return a tuple (r, c) where r == true iff `g` reduced to zero, and c == true
+    iff `g` was changed in this reduction.
+"""
+function reduce!(
+    g :: T,
+    bs :: Vector{T}
+) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}}
+    function linear_reducer_search(g, bs)
+        found_reducer = false
+        reducer = copy(g)
+        for r in bs
+            if GBElements.reduces(r, g)
+                found_reducer = true
+                reducer = r
+                break
+            end
+        end
+        return reducer, found_reducer
+    end
+    reducer, found_reducer = linear_reducer_search(g, bs)
+    changed = false
+    reduced_to_zero = false
+    while found_reducer
+        changed = true
+        GBElements.reduce!(g, reducer)
+        if is_zero(g)
+            reduced_to_zero = true
+            break
+        end
+        reducer, found_reducer = linear_reducer_search(g, bs)
+    end
+    return reduced_to_zero, changed
 end
 
 """
@@ -288,6 +336,9 @@ I also added new criteria for binary variables. In this case, a pair
 the negative binaries of j, and vice-versa. This is because in these cases
 the pair will generate some binomial with 2 or -2 in some coordinate.
 These are never necessary in a Gröbner basis.
+
+TODO: Prove when exactly this criterion works. It leads to issues in
+Set Cover.
 """
 function is_support_reducible(
     i :: Int,
@@ -296,9 +347,9 @@ function is_support_reducible(
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     #if is_minimization(bs)
     return !disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
-        disjoint(positive_support(bs[i]), positive_support(bs[j])) ||
-        !disjoint(positive_binaries(bs[i]), negative_binaries(bs[j])) ||
-        !disjoint(negative_binaries(bs[i]), positive_binaries(bs[j]))
+        disjoint(positive_support(bs[i]), positive_support(bs[j])) #||
+        #!disjoint(positive_binaries(bs[i]), negative_binaries(bs[j])) ||
+        #!disjoint(negative_binaries(bs[i]), positive_binaries(bs[j]))
     #end
     #Maximization problem
     #return disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
