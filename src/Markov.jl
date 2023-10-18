@@ -14,6 +14,7 @@ using AbstractAlgebra
 
 using MIPMatrixTools.GBTools
 using MIPMatrixTools.IPInstances
+using MIPMatrixTools.SolverTools
 
 using IPGBs.Binomials
 using IPGBs.BinomialSets
@@ -95,11 +96,21 @@ function truncate_markov(
 )::Vector{Vector{Int}}
     truncated_basis = Vector{Int}[]
     should_truncate = truncation_type != :None
+    if !should_truncate
+        return markov
+    end
+    trunc_var_type = Int
+    if truncation_type == :LP
+        trunc_var_type = Real
+    end
+    model, _, constrs = SolverTools.feasibility_model(
+        instance.A, instance.b, instance.u, nonnegative_vars(instance),
+        trunc_var_type
+    )
     for v in markov
         truncated = GBElements.truncate(
             v, instance.A, instance.b, instance.u,
-            instance.model, instance.model_cons,
-            should_truncate, truncation_type
+            model, constrs, should_truncate, truncation_type
         )
         if !truncated
             push!(truncated_basis, v)
@@ -223,8 +234,6 @@ function lift_bounded(
     @info "P&L bounded case" i length(s.markov)
     proj_sigma = s.relaxation.inverse_permutation[s.sigma]
     update_objective!(s.relaxation, i, proj_sigma)
-    #proj_relaxation = projection(s.relaxation, proj_sigma)
-    #proj_markov = project_vector.(s.markov, proj_sigma)
     if completion == :Buchberger
         alg = BuchbergerAlgorithm(
             s.markov, s.relaxation, truncation_type=truncation_type
@@ -268,31 +277,31 @@ program or a Gröbner Basis computation.
 function next(
     s::ProjectAndLiftState;
     completion :: Symbol = :Buchberger,
-    truncation_type::Symbol = :None
+    truncation_type::Symbol = :LP
 )::ProjectAndLiftState
     i = minimum_lifting(s.sigma) #Pick some variable to lift
     relaxation_i = s.relaxation.inverse_permutation[i] #This is the index of i in projection
     ray = unboundedness_proof(s.relaxation, relaxation_i)
     if isempty(ray)
-        println("BOUNDED CASE")
-        @show i relaxation_i
+        #println("BOUNDED CASE")
+        #@show i relaxation_i
         markov = lift_bounded(
             s, relaxation_i, completion=completion,
             truncation_type=truncation_type
         )
-        for m in markov
-            println(m)
-        end
-        println()
+        #for m in markov
+        #    println(m)
+        #end
+        #println()
     else
-        println("UNBOUNDED CASE")
-        println("Heres my ray ", ray)
-        @show i relaxation_i
+        #println("UNBOUNDED CASE")
+        #println("Heres my ray ", ray)
+        #@show i relaxation_i
         markov = lift_unbounded(s, i, ray)
-        for m in markov
-            println(m)
-        end
-        println()
+        #for m in markov
+        #    println(m)
+        #end
+        #println()
     end
     #markov needs to be permuted to match the order of variables in the new
     #group relaxation. To do this, we first put it back to the original variable
@@ -330,7 +339,7 @@ a full Markov basis is computed instead.
 function project_and_lift(
     instance::IPInstance;
     completion :: Symbol = :Buchberger,
-    truncation_type::Symbol = :None
+    truncation_type::Symbol = :LP
 )::Vector{Vector{Int}}
     @debug "Initializing Project-and-lift"
     state = initialize_project_and_lift(instance)
@@ -339,11 +348,11 @@ function project_and_lift(
         state = next(state, completion=completion, truncation_type=truncation_type)
     end
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
-    println("FINAL MARKOV")
-    for m in state.markov
-        println(m)
-    end
-    println()
+    #println("FINAL MARKOV")
+    #for m in state.markov
+    #    println(m)
+    #end
+    #println()
     return state.markov
 end
 
@@ -398,7 +407,7 @@ function markov_basis end
 function markov_basis(
     instance::IPInstance;
     algorithm::Symbol = :Any,
-    truncation_type::Symbol = :None
+    truncation_type::Symbol = :LP
 )::Vector{Vector{Int}}
     @debug "Starting to compute Markov basis for " instance
     if algorithm == :Any
