@@ -93,7 +93,6 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         truncation_type :: Symbol = :Model,
         trunc_var_type :: DataType = Real
     )
-        @assert !isempty(markov)
         #Build order and generating set
         order = MonomialOrder(
             instance.C, instance.A, instance.b, 
@@ -101,7 +100,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         )
         initialize_binomials(instance, order)
         generating_set = [to_gbelement(m, order, T) for m in markov]
-        preallocated = Vector{Int}(undef, length(generating_set[1]))
+        gen_size = instance.n + order.num_costs
+        preallocated = Vector{Int}(undef, gen_size)
         should_truncate = truncation_type != :None
         #Initialize a feasibility model in case we want to use model truncation
         model, vars, constrs = SolverTools.feasibility_model(
