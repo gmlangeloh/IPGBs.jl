@@ -110,11 +110,11 @@ function normalize_order(
     cost_matrix = zeros(Float64, num_vars, num_vars)
     #Add cost vector bounding the unbounded components
     old_C = copy(C)
-    cost_rows = 1
+    cost_rows = size(old_C, 1)
     if any(unbounded)
         unbnd_row = [ unbounded[i] ? 1.0 : 0.0 for i in 1:size(C, 2) ]
         old_C = [old_C; unbnd_row']
-        cost_rows = 2
+        cost_rows += 1
     end
     if num_vars == size(A, 2)
         cost_matrix = tiebreak(old_C)

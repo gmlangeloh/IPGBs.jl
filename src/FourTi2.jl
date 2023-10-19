@@ -343,7 +343,7 @@ function markov(
         truncation_opt = "--truncation=ip"
     end
     #Run 4ti2
-    cmd = `markov -parb --generation=project-and-lift $truncation_opt $project_name`
+    cmd = `markov -parb -q $truncation_opt $project_name`
     run(cmd)
 
     out_file = project_name * ".mar"
