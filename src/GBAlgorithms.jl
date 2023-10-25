@@ -165,8 +165,6 @@ function run(
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
-    #@debug "Initial generaring set in GB algorithm: " current_basis(algorithm)
-    #@info "Starting GB algorithm with Markov basis of size " length(current_basis(algorithm))
     #TODO: Move parameter initialization elsewhere!!! (IPGBs.jl)
     IPGBs.initialize_parameters(
         auto_reduce_freq = 2500,
@@ -181,22 +179,11 @@ function run(
             break
         end
         if late_pair_elimination(algorithm, pair)
-            #Everything becomes very slow with this on
-            #@debug("Eliminated by GCD / cancellation", pair.i, pair.j,
-            #    element_i=current_basis(algorithm)[pair.i], 
-            #    element_j=current_basis(algorithm)[pair.j],
-            #    binomial=sbinomial(algorithm, pair)
-            #)
             continue
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, pair)
         if quick_truncation(algorithm, binomial)
-            #@debug("Eliminated by quick truncation", pair.i, pair.j,
-            #    element_i=current_basis(algorithm)[pair.i], 
-            #    element_j=current_basis(algorithm)[pair.j],
-            #    binomial=binomial
-            #)
             continue
         end
         reduced_to_zero, _ = reduce!(algorithm, binomial)
@@ -205,25 +192,9 @@ function run(
             #This is more efficient because relatively few elements are 
             #truncated when compared to the number of zero reductions
             if !truncate(algorithm, binomial)
-                #@debug("Added to basis", pair.i, pair.j,
-                #    element_i=current_basis(algorithm)[pair.i], 
-                #    element_j=current_basis(algorithm)[pair.j],
-                #    binomial=binomial
-                #)
                 update!(algorithm, binomial, pair)
-            else
-                #@debug("Eliminated by truncation", pair.i, pair.j,
-                #    element_i=current_basis(algorithm)[pair.i], 
-                #    element_j=current_basis(algorithm)[pair.j],
-                #    binomial=binomial
-                #)
             end
         else
-            #@debug("Reduction to zero", pair.i, pair.j,
-            #    element_i=current_basis(algorithm)[pair.i], 
-            #    element_j=current_basis(algorithm)[pair.j],
-            #    binomial=sbinomial(algorithm, pair)
-            #)
             process_zero_reduction!(algorithm, binomial, pair)
         end
     end
