@@ -119,7 +119,16 @@ function truncate_markov(
     return truncated_basis
 end
 
-minimum_lifting(sigma) = minimum(sigma)
+#
+# How to pick the next variable to lift?
+#
+
+first_variable(sigma) = minimum(sigma)
+most_negative(sigma, solution) = argmin(solution[sigma])
+
+#
+# ---------------------------------------
+#
 
 """
     State of the project-and-lift algorithm representing the relevant
@@ -144,6 +153,58 @@ function Base.show(io :: IO, state :: ProjectAndLiftState)
     print(io, "σ = ", state.sigma, "\n")
     print(io, "Markov = ", state.markov, "\n")
 end
+
+#
+# Lifting feasible solutions using a Markov basis
+#
+
+function initial_solution(
+    instance :: IPInstance, #TODO: this should be a relaxed instance, I think
+    markov :: Vector{Vector{Int}}, 
+    nonnegative :: Vector{Bool}
+) :: Vector{Int}
+    solution = copy(instance.fiber_solution)
+    #Make the solution feasible for the initial state (group relaxation)
+    for i in eachindex(solution)
+        if nonnegative[i] && solution[i] < 0
+            #Find Markov basis element with positive coefficient on i
+            #And add them to solution as many times as needed to guarantee
+            #solution[i] >= 0
+            for m in markov
+                if m[i] > 0
+                    k = ceil(Int, -solution[i] / m[i])
+                    solution += k * m
+                    break
+                end
+            end
+        end
+    end
+    @assert IPInstances.is_feasible_solution(instance, solution)
+    return solution
+end
+
+function lift_solution_bounded(
+    solution :: Vector{Int}, 
+    markov :: Vector{Vector{Int}}, 
+    instance :: IPInstance
+) :: Vector{Int}
+    gb = BinomialSet(markov, instance)
+    BinomialSets.reduce!(solution, gb)
+    return solution
+end
+
+function lift_solution_unbounded(
+    solution :: Vector{Int}, 
+    ray :: Vector{Int}, 
+    i :: Int
+) :: Vector{Int}
+    k = ceil(Int, -solution[i] / ray[i])
+    return solution + k * ray
+end
+
+#
+# ----------------------------------------------
+#
 
 """
     initialize_project_and_lift(instance :: IPInstance)
@@ -171,6 +232,9 @@ function initialize_project_and_lift(
         v = Vector{Int}(row)
         push!(markov, lift_vector(v, basis, instance))
     end
+    @show markov
+    @show instance.fiber_solution
+    @show sigma
     relaxation = nonnegativity_relaxation(instance, nonnegative)
     permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
     @debug "Group relaxation Markov Basis: " markov
@@ -279,7 +343,7 @@ function next(
     completion :: Symbol = :Buchberger,
     truncation_type::Symbol = :LP
 )::ProjectAndLiftState
-    i = minimum_lifting(s.sigma) #Pick some variable to lift
+    i = first_variable(s.sigma) #Pick some variable to lift
     relaxation_i = s.relaxation.inverse_permutation[i] #This is the index of i in projection
     ray = unboundedness_proof(s.relaxation, relaxation_i)
     if isempty(ray)

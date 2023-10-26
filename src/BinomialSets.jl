@@ -64,7 +64,7 @@ function BinomialSet(
     basis :: Vector{T},
     ip :: IPInstance
 ) where {T <: AbstractVector{Int}}
-    return BinomialSet(basis, ip.C, ip.A, ip.b)
+    return BinomialSet(basis, ip.C, ip.A, ip.b, unbounded_variables(ip))
 end
 
 """
