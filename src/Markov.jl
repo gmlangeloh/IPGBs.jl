@@ -139,6 +139,8 @@ most_negative(sigma, solution) = argmin(solution[sigma])
     `relaxation`: IPInstance representing the problem with the non-negativity of
     the sigma variables relaxed
     `markov`: current partial Markov basis (indexed by the permuted variables)
+    `solution`: a feasible solution for this relaxation. Computing a feasible
+    solution is essentially free in project-and-lift, so we always compute one.
 """
 struct ProjectAndLiftState
     instance::IPInstance
@@ -146,6 +148,7 @@ struct ProjectAndLiftState
     nonnegative::Vector{Bool}
     relaxation::IPInstance
     markov::Vector{Vector{Int}}
+    solution::Vector{Int}
 end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
@@ -159,14 +162,13 @@ end
 #
 
 function initial_solution(
-    instance :: IPInstance, #TODO: this should be a relaxed instance, I think
-    markov :: Vector{Vector{Int}}, 
-    nonnegative :: Vector{Bool}
+    instance :: IPInstance,
+    markov :: Vector{Vector{Int}}
 ) :: Vector{Int}
     solution = copy(instance.fiber_solution)
     #Make the solution feasible for the initial state (group relaxation)
     for i in eachindex(solution)
-        if nonnegative[i] && solution[i] < 0
+        if IPInstances.is_nonnegative(i, instance) && solution[i] < 0
             #Find Markov basis element with positive coefficient on i
             #And add them to solution as many times as needed to guarantee
             #solution[i] >= 0
@@ -232,14 +234,14 @@ function initialize_project_and_lift(
         v = Vector{Int}(row)
         push!(markov, lift_vector(v, basis, instance))
     end
-    @show markov
-    @show instance.fiber_solution
-    @show sigma
     relaxation = nonnegativity_relaxation(instance, nonnegative)
     permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
+    solution = initial_solution(relaxation, permuted_markov)
     @debug "Group relaxation Markov Basis: " markov
     @debug "Variables to lift: " sigma
-    return ProjectAndLiftState(instance, sigma, nonnegative, relaxation, permuted_markov)
+    return ProjectAndLiftState(
+        instance, sigma, nonnegative, relaxation, permuted_markov, solution
+    )
 end
 
 """
@@ -330,13 +332,17 @@ function lift_unbounded(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) 
 end
 
 """
-    next(state :: ProjectAndLiftState; truncation_type :: Symbol) :: ProjectAndLiftState
+    next(
+    s::ProjectAndLiftState;
+    completion :: Symbol = :Buchberger,
+    truncation_type::Symbol = :LP
+)::ProjectAndLiftState
 
-Run a single iteration of the project-and-lift algorithm over `state`, returning the new
-state after that iteration.
+Run a single iteration of the project-and-lift algorithm over `state`, 
+returning the new state after that iteration.
 
-One iteration involves lifting a previously unlifted variable, either through a linear
-program or a Gröbner Basis computation.
+One iteration involves lifting a previously unlifted variable, either through 
+a linear program or a Gröbner Basis computation.
 """
 function next(
     s::ProjectAndLiftState;
@@ -361,7 +367,6 @@ function next(
     relaxation = nonnegativity_relaxation(s.instance, s.nonnegative)
     markov = IPInstances.apply_permutation(markov, relaxation.permutation)
     markov = truncate_markov(markov, relaxation, truncation_type)
-    #Truncate the Markov basis
     return ProjectAndLiftState(
         s.instance, s.sigma, s.nonnegative, relaxation, markov
     )
