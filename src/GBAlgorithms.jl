@@ -29,6 +29,7 @@ update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
 truncate_basis(algorithm :: GBAlgorithm) = algorithm.should_truncate
 use_implicit_representation(:: GBAlgorithm) = false
 quick_truncation(:: GBAlgorithm, :: GBElement) = false
+optimize_solutions!(:: GBAlgorithm) = error("Not implemented.")
 
 function initialize!(
     :: GBAlgorithm,
@@ -138,6 +139,7 @@ function prepare_gb_output(
 ) :: Vector{Vector{Int}}
     reintroduce_truncated!(algorithm)
     reduced_basis!(current_basis(algorithm))
+    optimize_solutions!(algorithm)
     output = fourti2_form(current_basis(algorithm))
     sort!(output)
     return output

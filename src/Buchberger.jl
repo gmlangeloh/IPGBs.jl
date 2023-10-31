@@ -72,6 +72,8 @@ end
 mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     basis :: BinomialSet{T, MonomialOrder}
     state :: BuchbergerState
+    solutions :: Vector{T}
+    original_solutions :: Vector{Vector{Int}}
     should_truncate :: Bool
     truncation_type :: Symbol
     stats :: BuchbergerStats
@@ -87,7 +89,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
 
     function BuchbergerAlgorithm(
         markov :: Vector{Vector{Int}},
-        instance :: IPInstance;
+        instance :: IPInstance,
+        solutions :: Vector{Vector{Int}} = Vector{Int}[];
         T :: Type = Binomial,
         minimization :: Bool = true,
         truncation_type :: Symbol = :Model,
@@ -100,6 +103,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         )
         initialize_binomials(instance, order)
         generating_set = [to_gbelement(m, order, T) for m in markov]
+        init_solutions = [to_gbelement(s, order, T, false) for s in solutions]
         gen_size = instance.n + order.num_costs
         preallocated = Vector{Int}(undef, gen_size)
         should_truncate = truncation_type != :None
@@ -139,9 +143,9 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         state = BuchbergerState(length(binomial_gen_set))
         stats = BuchbergerStats()
         new{T}(
-            binomial_gen_set, state, should_truncate, truncation_type, stats, 
-            preallocated, 0, model, vars, constrs, instance, truncated_gens, 
-            weight, max_weight
+            binomial_gen_set, state, init_solutions, solutions, should_truncate, 
+            truncation_type, stats, preallocated, 0, model, vars, constrs, 
+            instance, truncated_gens, weight, max_weight
         )
     end
 end
@@ -227,6 +231,18 @@ function GBAlgorithms.quick_truncation(
     g :: T
 ) where {T <: GBElement}
     return weight(g, algorithm.truncation_weight) > algorithm.max_truncation_weight
+end
+
+function GBAlgorithms.optimize_solutions!(
+    algorithm :: BuchbergerAlgorithm{T}
+) where {T <: GBElement}
+    for i in eachindex(algorithm.solutions)
+        solution = algorithm.solutions[i]
+        BinomialSets.reduce!(solution, current_basis(algorithm), is_monomial_reduction=true)
+        for j in eachindex(algorithm.original_solutions[i])
+            algorithm.original_solutions[i][j] = solution[j]
+        end
+    end
 end
 
 end

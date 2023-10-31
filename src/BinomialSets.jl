@@ -57,7 +57,13 @@ function BinomialSet(
         unbounded = fill(false, size(A, 2))
     end
     order = MonomialOrder(C, A, b, unbounded, is_minimization)
-    return BinomialSet{T, MonomialOrder}(basis, order, is_minimization)
+    oriented_basis = T[]
+    for g in basis
+        oriented_g = copy(g)
+        orientate!(oriented_g, order)
+        push!(oriented_basis, oriented_g)
+    end
+    return BinomialSet{T, MonomialOrder}(oriented_basis, order, is_minimization)
 end
 
 function BinomialSet(
@@ -162,11 +168,12 @@ changed in this reduction.
 function reduce!(
     g :: T,
     bs :: BinomialSet{T, S};
-    skipbinomial :: Union{T, Nothing} = nothing
+    skipbinomial :: Union{T, Nothing} = nothing,
+    is_monomial_reduction :: Bool = is_monomial(g)
 ) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: GBOrder}
     return reduce!(
         g, bs, reduction_tree(bs), skipbinomial=skipbinomial, 
-        is_monomial_reduction=is_monomial(g)
+        is_monomial_reduction=is_monomial_reduction
     )
 end
 

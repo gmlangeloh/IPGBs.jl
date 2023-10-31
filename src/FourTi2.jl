@@ -255,11 +255,11 @@ Returns the normal form and its value using `c` as objective function.
 """
 function normalform(
     A :: Array{Int, 2},
-    c :: Array{T},
+    c :: Array{Int},
     xinit :: Vector{Int};
     nonnegative :: Vector{Bool} = Bool[],
     project_name = "tmp" :: String,
-) :: Tuple{Vector{Int}, Int} where {T <: Real}
+) :: Tuple{Vector{Int}, Int}
     #Write the project files
     matrix_file = project_name * ".mat"
     _4ti2_write(A, matrix_file)
@@ -290,6 +290,18 @@ function normalform(
     return x, obj' * x
 end
 
+function normalform(
+    instance :: IPInstance, 
+    xinit :: Vector{Int}; 
+    project_name :: String = "tmp"
+) :: Tuple{Vector{Int}, Int}
+    return normalform(
+        instance.A, round.(Int, instance.C), xinit, 
+        nonnegative=IPInstances.nonnegative_variables(instance), 
+        project_name=project_name
+    )
+end
+
 """
 Calls 4ti2's `groebner` command followed by `normalform`. This is equivalent to
 `minimize`, except it generates a Gröbner basis in as output and doesn't apply
@@ -303,15 +315,27 @@ function groebnernf(
     xinit :: Vector{Int};
     nonnegative :: Vector{Bool},
     project_name = "tmp" :: String,
-) :: Tuple{Vector{Int}, Int} where {T <: Real}
-    _ = groebner(
+) :: Tuple{Matrix{Int}, Vector{Int}, Int} where {T <: Real}
+    gb = groebner(
         A, c, nonnegative=nonnegative, project_name=project_name,
         truncation_sol=xinit
     )
-    return normalform(
-        A, c, xinit,
+    sol, val = normalform(
+        A, round(Int, c), xinit,
         project_name=project_name, nonnegative=nonnegative
     )
+    return gb, sol, val
+end
+
+function groebnernf(
+    instance :: IPInstance, 
+    markov :: Vector{Vector{Int}},
+    xinit :: Vector{Int}; 
+    project_name :: String = "tmp"
+) :: Tuple{Matrix{Int}, Vector{Int}, Int}
+    gb = groebner(instance, markov=markov, project_name=project_name)
+    sol, val = normalform(instance, xinit, project_name=project_name)
+    return gb, sol, val
 end
 
 """
