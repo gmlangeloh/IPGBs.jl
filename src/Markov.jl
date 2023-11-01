@@ -145,7 +145,7 @@ most_negative(sigma, solution) = argmin(solution[sigma])
 """
 struct ProjectAndLiftState
     instance::IPInstance
-    sigma::Vector{Int}
+    unlifted::Vector{Int}
     nonnegative::Vector{Bool}
     relaxation::IPInstance
     markov::Vector{Vector{Int}}
@@ -154,7 +154,7 @@ end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
     print(io, "Project-and-Lift State for instance: ", state.instance, "\n")
-    print(io, "σ = ", state.sigma, "\n")
+    print(io, "σ = ", state.unlifted, "\n")
     print(io, "Markov = ", state.markov, "\n")
 end
 
@@ -182,7 +182,7 @@ function initial_solution(
             end
         end
     end
-    @assert IPInstances.is_feasible_solution(instance, solution)
+    @assert is_feasible_solution(instance, solution)
     return solution
 end
 
@@ -190,12 +190,9 @@ function lift_solution_unbounded(
     solution :: Vector{Int}, 
     ray :: Vector{Int}
 ) :: Vector{Int}
-    k = 0
-    for i in eachindex(ray)
-        if solution[i] < 0 && ray[i] > 0
-            k = max(k, ceil(Int, -solution[i] / ray[i]))
-        end
-    end
+    k = maximum([ceil(Int, -solution[i] / ray[i]) 
+        for i in eachindex(ray) if ray[i] > 0 && solution[i] < 0]
+    )
     return solution + k * ray
 end
 
@@ -212,8 +209,16 @@ a Markov basis for its group relaxation.
 The group relaxation Markov basis is obtained through the Hermite Normal Form algorithm.
 """
 function initialize_project_and_lift(
-    instance::IPInstance
+    instance :: IPInstance;
+    optimize :: Bool = false,
+    solution :: Vector{Int} = zeros(Int, instance.n),
+    best_value :: Ref{Int} = Ref(0)
 )::ProjectAndLiftState
+    if optimize && is_feasible_solution(instance, solution)
+        #In this case, we should use the given solution as an upper bound
+        #GBs are smaller this way.
+        opt_instance = add_constraint(instance, instance.C[1, :], best_value[] - 1)
+    end
     basis, sigma = IPInstances.lattice_basis_projection(instance)
     uhnf_basis = hnf(basis)
     normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
@@ -232,11 +237,23 @@ function initialize_project_and_lift(
     relaxation = nonnegativity_relaxation(instance, nonnegative)
     permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
     solution = initial_solution(relaxation, permuted_markov)
+    if optimize
+        #TODO: Use Markov to optimize solution
+    end
     @debug "Group relaxation Markov Basis: " markov
     @debug "Variables to lift: " sigma
     return ProjectAndLiftState(
         instance, sigma, nonnegative, relaxation, permuted_markov, solution
     )
+end
+
+"""
+    relaxation_index(i :: Int, relaxation :: IPInstance)
+
+    Index of original variable `i` in `relaxation`.
+"""
+function relaxation_index(i :: Int, relaxation :: IPInstance)
+    return relaxation.inverse_permutation[i]
 end
 
 """
@@ -252,18 +269,19 @@ function can_lift(markov :: Vector{Vector{Int}}, i :: Int)
 end
 
 function lift_variables!(
-    markov :: Vector{Vector{Int}}, 
-    sigma :: Vector{Int},
-    nonnegative :: Vector{Bool},
-    permutation :: Vector{Int}
+    pl :: ProjectAndLiftState;
+    markov :: Union{Vector{Vector{Int}}, Nothing} = nothing
 )
+    if isnothing(markov)
+        markov = pl.markov
+    end
     i = 1
-    while i <= length(sigma)
-        variable = sigma[i]
+    while i <= length(pl.unlifted)
+        variable = pl.unlifted[i]
         #Markov is permuted here, so we need to take that into account
-        if can_lift(markov, permutation[variable])
-            nonnegative[variable] = true
-            deleteat!(sigma, i)
+        if can_lift(markov, relaxation_index(variable, pl.relaxation))
+            pl.nonnegative[variable] = true
+            deleteat!(pl.unlifted, i)
         else
             i += 1
         end
@@ -281,28 +299,25 @@ end
 
 """
 function lift_bounded(
-    s :: ProjectAndLiftState, 
+    pl :: ProjectAndLiftState, 
     i :: Int;
     completion :: Symbol = :Buchberger,
     truncation_type :: Symbol = :None
 ) :: Vector{Vector{Int}}
     #Compute a GB in the adequate monomial order
-    @info "P&L bounded case" i length(s.markov)
-    proj_sigma = s.relaxation.inverse_permutation[s.sigma]
-    update_objective!(s.relaxation, i, proj_sigma)
+    @info "P&L bounded case" i length(pl.markov)
+    update_objective!(pl.relaxation, i, relaxation_index.(pl.unlifted, pl.relaxation))
     if completion == :Buchberger
         #This will automatically lift s.solution
-        markov = IPGBs.groebner_basis(s.markov, s.relaxation, [s.solution], truncation_type=truncation_type)
+        markov = IPGBs.groebner_basis(pl.markov, pl.relaxation, [pl.solution], truncation_type=truncation_type)
     elseif completion == :FourTi2
-        gb, sol, _ = FourTi2.groebnernf(s.relaxation, s.markov, s.solution)
+        gb, sol, _ = FourTi2.groebnernf(pl.relaxation, pl.markov, pl.solution)
         markov = GBTools.tovector(gb)
-        for i in eachindex(s.solution)
-            s.solution[i] = sol[i]
-        end
+        copyto!(pl.solution, sol)
     else
         error("Unknown completion algorithm: $completion")
     end
-    lift_variables!(markov, s.sigma, s.nonnegative, s.relaxation.inverse_permutation)
+    lift_variables!(pl, markov=markov)
     @info "Markov size after lifting: " length(markov)
     return markov
 end
@@ -317,8 +332,8 @@ function lift_unbounded(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) 
     if !(ray in s.markov)
         push!(s.markov, ray)
     end
-    i_index = findfirst(isequal(i), s.sigma)
-    deleteat!(s.sigma, i_index)
+    i_index = findfirst(isequal(i), s.unlifted)
+    deleteat!(s.unlifted, i_index)
     s.nonnegative[i] = true
     return s.markov
 end
@@ -337,34 +352,35 @@ One iteration involves lifting a previously unlifted variable, either through
 a linear program or a Gröbner Basis computation.
 """
 function next(
-    s::ProjectAndLiftState;
+    pl::ProjectAndLiftState;
     completion :: Symbol = :Buchberger,
     truncation_type::Symbol = :LP
 )::ProjectAndLiftState
-    i = first_variable(s.sigma) #Pick some variable to lift
-    relaxation_i = s.relaxation.inverse_permutation[i] #This is the index of i in projection
-    ray = unboundedness_proof(s.relaxation, relaxation_i)
+    i = first_variable(pl.unlifted) #Pick some variable to lift
+    relaxation_i = relaxation_index(i, pl.relaxation)
+    ray = unboundedness_proof(pl.relaxation, relaxation_i)
     if isempty(ray)
         lifted_markov = lift_bounded(
-            s, relaxation_i, completion=completion,
+            pl, relaxation_i, completion=completion,
             truncation_type=truncation_type
         )
-        lifted_solution = s.solution
+        lifted_solution = pl.solution
     else
-        lifted_markov = lift_unbounded(s, i, ray)
-        lifted_solution = lift_solution_unbounded(s.solution, ray)
+        lifted_markov = lift_unbounded(pl, i, ray)
+        lifted_solution = lift_solution_unbounded(pl.solution, ray)
     end
+    #TODO: Clean all this stuff up, it looks terrible!!!
     #markov needs to be permuted to match the order of variables in the new
     #group relaxation. To do this, we first put it back to the original variable
     #order and then apply the permutation of the relaxation
-    lifted_markov = IPInstances.apply_permutation(lifted_markov, s.relaxation.inverse_permutation)
-    lifted_solution = lifted_solution[s.relaxation.inverse_permutation]
-    next_relaxation = nonnegativity_relaxation(s.instance, s.nonnegative)
+    lifted_markov = IPInstances.apply_permutation(lifted_markov, pl.relaxation.inverse_permutation)
+    lifted_solution = lifted_solution[pl.relaxation.inverse_permutation]
+    next_relaxation = nonnegativity_relaxation(pl.instance, pl.nonnegative)
     lifted_markov = IPInstances.apply_permutation(lifted_markov, next_relaxation.permutation)
     lifted_solution = lifted_solution[next_relaxation.permutation]
     lifted_markov = truncate_markov(lifted_markov, next_relaxation, truncation_type)
     return ProjectAndLiftState(
-        s.instance, s.sigma, s.nonnegative, next_relaxation, lifted_markov, 
+        pl.instance, pl.unlifted, pl.nonnegative, next_relaxation, lifted_markov, 
         lifted_solution
     )
 end
@@ -377,7 +393,7 @@ Check whether the project-and-lift algorithm is ready to terminate at `state`.
 function is_finished(
     state::ProjectAndLiftState
 )::Bool
-    return isempty(state.sigma)
+    return isempty(state.unlifted)
 end
 
 """
@@ -391,21 +407,28 @@ a full Markov basis is computed instead.
 function project_and_lift(
     instance::IPInstance;
     completion :: Symbol = :Buchberger,
-    truncation_type::Symbol = :LP
+    truncation_type::Symbol = :LP,
+    optimize :: Bool = false,
+    solution :: Vector{Int} = zeros(Int, instance.n),
+    best_value :: Ref{Int} = Ref(0)
 )::Vector{Vector{Int}}
     @debug "Initializing Project-and-lift"
-    state = initialize_project_and_lift(instance)
-    #Lift as many variables as possible before starting
-    lift_variables!(
-        state.markov, state.sigma, state.nonnegative, state.relaxation.inverse_permutation
+    pl = initialize_project_and_lift(
+        instance, optimize=optimize, solution=solution, best_value=best_value
     )
-    while !is_finished(state)
-        @debug "Starting iteration with $(length(state.sigma)) variables left to lift: "
-        state = next(state, completion=completion, truncation_type=truncation_type)
+    #Lift as many variables as possible before starting
+    lift_variables!(pl)
+    #Main loop: lift all remaining variables via LP or GBs
+    while !is_finished(pl)
+        @debug "Starting iteration with $(length(pl.sigma)) variables left to lift: "
+        pl = next(pl, completion=completion, truncation_type=truncation_type)
     end
-    @assert IPInstances.is_feasible_solution(instance, state.solution)
-    @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
-    return state.markov
+    @assert is_feasible_solution(instance, pl.solution)
+    @debug "Ending P&L, found Markov Basis of length $(length(pl.markov))"
+    #Update solution and best known value
+    copyto!(solution, pl.solution)
+    best_value[] = instance.C[1, :]' * solution
+    return pl.markov
 end
 
 """
@@ -491,6 +514,20 @@ function markov_basis(
     return markov_basis(
         instance, algorithm = algorithm, truncation_type = truncation_type
     )
+end
+
+function optimize(
+    instance :: IPInstance;
+    completion :: Symbol = :Buchberger,
+    truncation_type :: Symbol = :LP
+) :: Tuple{Vector{Int}, Int}
+    solution = copy(instance.fiber_solution)
+    value = instance.C[1, :]' * solution
+    project_and_lift(
+        instance, completion=completion, truncation_type=truncation_type,
+        optimize=true, solution=solution, best_value=Ref(value)
+    )
+    return solution, value
 end
 
 end
