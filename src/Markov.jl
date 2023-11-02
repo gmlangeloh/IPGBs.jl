@@ -12,6 +12,7 @@ export markov_basis
 
 using MIPMatrixTools.GBTools
 using MIPMatrixTools.IPInstances
+using MIPMatrixTools.MatrixTools
 using MIPMatrixTools.SolverTools
 
 using IPGBs
@@ -81,8 +82,12 @@ most_negative(sigma, solution) = argmin(solution[sigma])
     `relaxation`: IPInstance representing the problem with the non-negativity of
     the unlifted variables relaxed
     `markov`: current partial Markov basis (indexed by the permuted variables)
-    `solution`: a feasible solution for `relaxation`. Computing a feasible
+    `primal_solutions`: feasible solutions for the original problem (and thus all of
+    its group relaxations)
+    `dual_solutions`: feasible solutions for `relaxation`. Computing a feasible
     solution is essentially free in project-and-lift, so we always compute one.
+    If it is ever feasible for the original problem, it is also optimal for it.
+    `optimal_solution`: The optimal solution for the original problem, if known.
 """
 struct ProjectAndLiftState
     original_instance::IPInstance
@@ -91,7 +96,9 @@ struct ProjectAndLiftState
     nonnegative::Vector{Bool}
     relaxation::IPInstance
     markov::Vector{Vector{Int}}
-    solution::Vector{Int}
+    primal_solutions::Vector{Vector{Int}}
+    dual_solutions::Vector{Vector{Int}}
+    optimal_solution::Vector{Int}
 end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
@@ -142,6 +149,39 @@ end
 # ----------------------------------------------
 #
 
+project_to_instance(v :: Vector{Int}, instance :: IPInstance) = v[1:instance.n]
+
+function optimize_with_markov(
+    opt_instance :: IPInstance,
+    primal_solutions :: Vector{Vector{Int}},
+    dual_solutions :: Vector{Vector{Int}},
+    relaxation :: IPInstance,
+    permuted_markov :: Vector{Vector{Int}};
+    optimize :: Bool = false
+)
+    is_optimal = false
+    opt_solution = zeros(Int, opt_instance.n)
+    if optimize
+        all_solutions = [ primal_solutions; dual_solutions ]
+        # For now, I won't try to reuse this Gröbner basis. Might be worthwhile
+        # to try doing that eventually, though (easier Markov bases later?)
+        _ = groebner_basis(permuted_markov, relaxation, all_solutions)
+        for relaxation_s in dual_solutions
+            s = relaxation_s[relaxation.inverse_permutation]
+            # Any dual solution feasible for the original problem is optimal.
+            if is_feasible_solution(opt_instance, s)
+                opt_solution = s
+                is_optimal = true
+                break
+            end
+        end
+        #TODO: Keep truncation bounds updated in opt_instance and relaxation
+        bkv = minimum([opt_instance.C[1, :]' * s for s in primal_solutions])
+        #Need to update both opt_instance and corresponding solution slacks...
+    end
+    return opt_solution, is_optimal
+end
+
 """
     initialize_project_and_lift(instance :: IPInstance)
 
@@ -174,16 +214,17 @@ function initialize_project_and_lift(
     ]
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
-    solution = initial_solution(relaxation, permuted_markov)
-    if optimize
-        #TODO: Compute a GB and optimize solutions!
-        #TODO: Keep truncation bounds updated in opt_instance
+    #Find initial primal and dual solutions if possible
+    relaxation_solution = initial_solution(relaxation, permuted_markov)
+    primal_solutions = Vector{Int}[]
+    if !iszero(solution)
+        push!(primal_solutions, solution)
     end
-    @debug "Group relaxation Markov Basis: " markov
-    @debug "Variables to lift: " unlifted
+    dual_solutions = [ relaxation_solution ]
+    optimize_with_markov()
     return ProjectAndLiftState(
         instance, opt_instance, unlifted, nonnegative, relaxation, 
-        permuted_markov, solution
+        permuted_markov, primal_solutions, dual_solutions
     )
 end
 
