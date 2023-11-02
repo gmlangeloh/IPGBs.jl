@@ -10,8 +10,6 @@ module Markov
 
 export markov_basis
 
-using AbstractAlgebra
-
 using MIPMatrixTools.GBTools
 using MIPMatrixTools.IPInstances
 using MIPMatrixTools.SolverTools
@@ -25,64 +23,6 @@ using IPGBs.GBElements
 using IPGBs.Orders
 
 using IPGBs.FourTi2
-
-"""
-    normalize_hnf!(H :: Generic.MatSpaceElem{T})
-
-Change `H` to an upper row HNF matrix satisfying the following property:
-all entries above a pivot are non-positive and of smaller magnitude than the pivot
-
-Assumes `H` is already in HNF as defined by AbstractAlgebra.jl, that is, it is in
-upper row HNF satisfying:
-- all entries above a pivot are non-negative and of smaller magnitude than the pivot
-"""
-function normalize_hnf!(
-    H::Generic.MatSpaceElem{T}
-) where {T}
-    m, n = size(H)
-    for i in 1:m
-        #Find the pivot in row i
-        j = i
-        while j <= n && H[i, j] == 0
-            j += 1
-        end
-        if j > n #We reached a row of zeros, we are done.
-            break
-        end
-        #Update rows above the pivot
-        for k in 1:(i-1)
-            if H[k, j] > 0 #only change positive entries
-                H[k, :] -= H[i, :]
-            end
-        end
-    end
-end
-
-"""
-    is_normalized_hnf(H :: Generic.MatSpaceElem{T})
-
-Return true iff `H` is in normalized HNF form as defined in `normalize_hnf!`.
-"""
-function is_normalized_hnf(
-    H::Generic.MatSpaceElem{T}
-)::Bool where {T}
-    m, n = size(H)
-    for i in 1:m
-        j = i + 1
-        while j <= n && H[i, j] == 0
-            j += 1
-        end
-        if j > n
-            break
-        end
-        for k in 1:(i-1)
-            if H[k, j] > 0 || (H[k, j] < 0 && abs(H[k, j]) >= H[i, j])
-                return false
-            end
-        end
-    end
-    return true
-end
 
 """
     truncate_markov(markov :: Vector{Vector{Int}}, instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
@@ -134,17 +74,19 @@ most_negative(sigma, solution) = argmin(solution[sigma])
 """
     State of the project-and-lift algorithm representing the relevant
     information during a specific iteration.
-    `instance`: the original IPInstance being solved
-    `sigma`: the remaining unlifted variables (original indexing, following `instance`)
+    `original_instance`: the original IPInstance being solved
+    `working_instance`: instance including potential upper bounds for efficiency
+    `unlifted`: the remaining unlifted variables (original indexing, following `working_instance`)
     `nonnegative`: the variables that have nonnegative constraints (original indexing)
     `relaxation`: IPInstance representing the problem with the non-negativity of
-    the sigma variables relaxed
+    the unlifted variables relaxed
     `markov`: current partial Markov basis (indexed by the permuted variables)
     `solution`: a feasible solution for `relaxation`. Computing a feasible
     solution is essentially free in project-and-lift, so we always compute one.
 """
 struct ProjectAndLiftState
-    instance::IPInstance
+    original_instance::IPInstance
+    working_instance::IPInstance
     unlifted::Vector{Int}
     nonnegative::Vector{Bool}
     relaxation::IPInstance
@@ -153,8 +95,8 @@ struct ProjectAndLiftState
 end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
-    print(io, "Project-and-Lift State for instance: ", state.instance, "\n")
-    print(io, "σ = ", state.unlifted, "\n")
+    print(io, "Project-and-Lift State for instance: ", state.original_instance, "\n")
+    print(io, "Unlifted = ", state.unlifted, "\n")
     print(io, "Markov = ", state.markov, "\n")
 end
 
@@ -214,36 +156,34 @@ function initialize_project_and_lift(
     solution :: Vector{Int} = zeros(Int, instance.n),
     best_value :: Ref{Int} = Ref(0)
 )::ProjectAndLiftState
+    # Update instance to include upper bounds for efficiency if possible
+    opt_instance = instance
     if optimize && is_feasible_solution(instance, solution)
-        #In this case, we should use the given solution as an upper bound
-        #GBs are smaller this way.
+        # In this case, we should use the given solution as an upper bound
+        # GBs are smaller this way.
         opt_instance = add_constraint(instance, instance.C[1, :], best_value[] - 1)
     end
-    basis, sigma = IPInstances.lattice_basis_projection(instance)
-    uhnf_basis = hnf(basis)
-    normalize_hnf!(uhnf_basis) #Normalize so that non-pivot entries are < 0
-    #Now, the first `rank` columns of hnf_basis should be LI
-    #and thus a Markov basis of the corresponding projection
-    nonnegative = nonnegative_vars(instance)
-    for s in sigma
+    # Compute a group relaxation with its corresponding Markov basis
+    basis, uhnf_basis, unlifted = lattice_basis_projection(opt_instance)
+    nonnegative = nonnegative_vars(opt_instance)
+    for s in unlifted
         nonnegative[s] = false
     end
-    #This is a Markov basis of the projected problem
-    markov = Vector{Int}[]
-    for row in eachrow(Array(uhnf_basis))
-        v = Vector{Int}(row)
-        push!(markov, lift_vector(v, basis, instance))
-    end
-    relaxation = nonnegativity_relaxation(instance, nonnegative)
+    markov = [ lift_vector(v, basis, opt_instance) 
+        for v in eachrow(Array(uhnf_basis))
+    ]
+    relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
     solution = initial_solution(relaxation, permuted_markov)
     if optimize
-        #TODO: Use Markov to optimize solution
+        #TODO: Compute a GB and optimize solutions!
+        #TODO: Keep truncation bounds updated in opt_instance
     end
     @debug "Group relaxation Markov Basis: " markov
-    @debug "Variables to lift: " sigma
+    @debug "Variables to lift: " unlifted
     return ProjectAndLiftState(
-        instance, sigma, nonnegative, relaxation, permuted_markov, solution
+        instance, opt_instance, unlifted, nonnegative, relaxation, 
+        permuted_markov, solution
     )
 end
 
@@ -375,13 +315,13 @@ function next(
     #order and then apply the permutation of the relaxation
     lifted_markov = IPInstances.apply_permutation(lifted_markov, pl.relaxation.inverse_permutation)
     lifted_solution = lifted_solution[pl.relaxation.inverse_permutation]
-    next_relaxation = nonnegativity_relaxation(pl.instance, pl.nonnegative)
+    next_relaxation = nonnegativity_relaxation(pl.working_instance, pl.nonnegative)
     lifted_markov = IPInstances.apply_permutation(lifted_markov, next_relaxation.permutation)
     lifted_solution = lifted_solution[next_relaxation.permutation]
     lifted_markov = truncate_markov(lifted_markov, next_relaxation, truncation_type)
     return ProjectAndLiftState(
-        pl.instance, pl.unlifted, pl.nonnegative, next_relaxation, lifted_markov, 
-        lifted_solution
+        pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative, 
+        next_relaxation, lifted_markov, lifted_solution
     )
 end
 
