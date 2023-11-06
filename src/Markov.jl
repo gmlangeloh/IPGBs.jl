@@ -218,7 +218,7 @@ function initialize_project_and_lift(
         push!(markov, lift_vector(v, basis, opt_instance.lattice_basis))
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
-    permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
+    permuted_markov = apply_permutation(markov, relaxation.permutation)
     #Find initial primal and dual solutions if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
     primal_solutions = Vector{Int}[]
@@ -321,6 +321,9 @@ function lift_unbounded(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) 
     @info "P&L unbounded case" ray
     if !(ray in s.markov)
         push!(s.markov, ray)
+        for solution in s.dual_solutions
+            lift_solution_unbounded!(solution, ray)
+        end
     end
     i_index = findfirst(isequal(i), s.unlifted)
     deleteat!(s.unlifted, i_index)
@@ -334,15 +337,15 @@ function relax_and_reorder(
 )
     #Before taking the relaxation, we bring the Markov basis and known solutions back into
     #the original variable ordering
-    lifted_markov = IPInstances.apply_permutation(markov, pl.relaxation.inverse_permutation)
-    dual_solutions = pl.dual_solutions[pl.relaxation.inverse_permutation]
-    primal_solutions = pl.primal_solutions[pl.relaxation.inverse_permutation]
+    lifted_markov = apply_permutation(markov, pl.relaxation.inverse_permutation)
+    dual_solutions = apply_permutation(pl.dual_solutions, pl.relaxation.inverse_permutation)
+    primal_solutions = apply_permutation(pl.primal_solutions, pl.relaxation.inverse_permutation)
     #Now we take the relaxation with respect to the non-negativity constraints specified in pl
     relaxation = nonnegativity_relaxation(pl.working_instance, pl.nonnegative)
     #And we permute the Markov basis and solutions back to the new variable ordering
-    lifted_markov = IPInstances.apply_permutation(lifted_markov, relaxation.permutation)
-    dual_solutions = dual_solutions[relaxation.permutation]
-    primal_solutions = primal_solutions[relaxation.permutation]
+    lifted_markov = apply_permutation(lifted_markov, relaxation.permutation)
+    dual_solutions = apply_permutation(pl.dual_solutions, relaxation.permutation)
+    primal_solutions = apply_permutation(pl.primal_solutions, relaxation.permutation)
     return relaxation, markov, primal_solutions, dual_solutions
 end
 
@@ -375,7 +378,6 @@ function next(
         )
     else
         lifted_markov = lift_unbounded(pl, i, ray)
-        lift_solution_unbounded!.(pl.dual_solutions, ray)
     end
     relaxation, lifted_markov, primals, duals = relax_and_reorder(
         pl, lifted_markov
