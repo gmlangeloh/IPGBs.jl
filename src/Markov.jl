@@ -209,9 +209,11 @@ function initialize_project_and_lift(
     for s in unlifted
         nonnegative[s] = false
     end
-    markov = [ lift_vector(v, basis, opt_instance) 
-        for v in eachrow(Array(uhnf_basis))
-    ]
+    markov = Vector{Int}[]
+    for row in eachrow(Array(uhnf_basis))
+        v = Vector{Int}(row)
+        push!(markov, lift_vector(v, basis, opt_instance.lattice_basis))
+    end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = IPInstances.apply_permutation(markov, relaxation.permutation)
     #Find initial primal and dual solutions if possible
