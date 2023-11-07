@@ -268,7 +268,6 @@ function lift_variables!(
     while i <= length(pl.unlifted)
         variable = pl.unlifted[i]
         #Markov is permuted here, so we need to take that into account
-        @show variable relaxation_index(variable, pl.relaxation)
         if can_lift(markov, relaxation_index(variable, pl.relaxation))
             pl.nonnegative[variable] = true
             deleteat!(pl.unlifted, i)

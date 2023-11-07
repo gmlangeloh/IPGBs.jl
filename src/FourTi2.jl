@@ -384,7 +384,7 @@ function markov(
 )
     nonnegative = IPInstances.nonnegative_variables(instance)
     int_objective = IPInstances.integer_objective(instance)
-    init_sol = IPInstances.initial_solution(instance)
+    init_sol = MatrixTools.initial_solution(instance.A, instance.b)
     return markov(instance.A, int_objective, nonnegative=nonnegative, 
         truncation_sol=init_sol, project_name=project_name)
 end
