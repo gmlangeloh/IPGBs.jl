@@ -142,7 +142,8 @@ function lift_solution_unbounded!(
     ray :: Vector{Int}
 )
     k = maximum([ceil(Int, -solution[i] / ray[i]) 
-        for i in eachindex(ray) if ray[i] > 0 && solution[i] < 0]
+        for i in eachindex(ray) if ray[i] > 0 && solution[i] < 0],
+        init = 0
     )
     solution .= solution .+ k * ray
 end
@@ -219,6 +220,9 @@ function initialize_project_and_lift(
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = apply_permutation(markov, relaxation.permutation)
+    for m in permuted_markov
+        println(m)
+    end
     #Find initial primal and dual solutions if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
     primal_solutions = Vector{Int}[]
@@ -371,11 +375,14 @@ function next(
     relaxation_i = relaxation_index(i, pl.relaxation)
     ray = unboundedness_proof(pl.relaxation, relaxation_i)
     if isempty(ray)
+        println("lifting bounded ", i )
         lifted_markov = lift_bounded(
             pl, relaxation_i, completion=completion,
             truncation_type=truncation_type
         )
     else
+        println("lifting unbounded ", i )
+        println("ray: ", ray)
         lifted_markov = lift_unbounded(pl, i, ray)
     end
     relaxation, lifted_markov, primals, duals = relax_and_reorder(
@@ -409,7 +416,7 @@ a full Markov basis is computed instead.
 """
 function project_and_lift(
     instance::IPInstance;
-    completion :: Symbol = :Buchberger,
+    completion :: Symbol = :FourTi2,
     truncation_type::Symbol = :LP,
     optimize :: Bool = false,
     solution :: Vector{Int} = zeros(Int, instance.n),
@@ -417,14 +424,10 @@ function project_and_lift(
 )::Vector{Vector{Int}}
     pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution, best_value=best_value)
     #Lift as many variables as possible before starting
-    #lift_variables!(pl)
+    lift_variables!(pl)
     #Main loop: lift all remaining variables via LP or GBs
-    count = 0
-    while !is_finished(pl) && count < 2
+    while !is_finished(pl)
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
-        if pl.unlifted == [25]
-            count += 1
-        end
     end
     @assert all(is_feasible_solution(instance, solution) for solution in pl.primal_solutions)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
