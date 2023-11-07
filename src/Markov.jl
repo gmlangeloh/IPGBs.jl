@@ -420,12 +420,8 @@ function project_and_lift(
     #Lift as many variables as possible before starting
     #lift_variables!(pl)
     #Main loop: lift all remaining variables via LP or GBs
-    count = 0
-    while !is_finished(pl) && count < 2
+    while !is_finished(pl)
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
-        if pl.unlifted == [25]
-            count += 1
-        end
     end
     @assert all(is_feasible_solution(instance, solution) for solution in pl.primal_solutions)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
