@@ -268,6 +268,7 @@ function lift_variables!(
     while i <= length(pl.unlifted)
         variable = pl.unlifted[i]
         #Markov is permuted here, so we need to take that into account
+        @show variable relaxation_index(variable, pl.relaxation)
         if can_lift(markov, relaxation_index(variable, pl.relaxation))
             pl.nonnegative[variable] = true
             deleteat!(pl.unlifted, i)
@@ -419,8 +420,12 @@ function project_and_lift(
     #Lift as many variables as possible before starting
     #lift_variables!(pl)
     #Main loop: lift all remaining variables via LP or GBs
-    while !is_finished(pl)
+    count = 0
+    while !is_finished(pl) && count < 2
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
+        if pl.unlifted == [25]
+            count += 1
+        end
     end
     @assert all(is_feasible_solution(instance, solution) for solution in pl.primal_solutions)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
