@@ -133,6 +133,7 @@ function initial_solution(
             end
         end
     end
+    BinomialSets.reduce!(solution, markov)
     @assert is_feasible_solution(instance, solution)
     return solution
 end
@@ -373,18 +374,6 @@ function next(
     return lift_and_relax(
         pl, lifted_markov, optimize=optimize, truncation_type=truncation_type
     )
-    #relaxation, lifted_markov, primals, dual = relax_and_reorder(
-    #    pl, lifted_markov
-    #)
-    #lifted_markov = truncate_markov(lifted_markov, relaxation, truncation_type)
-    #opt_solution, is_optimal = optimize_with_markov(
-    #    pl.original_instance, pl.working_instance, primals, dual, 
-    #    relaxation, lifted_markov, optimize=optimize
-    #)
-    #return ProjectAndLiftState(
-    #    pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative, 
-    #    relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
-    #)
 end
 
 function lift_and_relax(
@@ -437,7 +426,7 @@ function project_and_lift(
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
     end
     @assert all(is_feasible_solution(instance, solution) for solution in pl.primal_solutions)
-    #@assert is_feasible_solution(instance, pl.dual_solution)
+    @assert is_feasible_solution(instance, pl.dual_solution)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
     #Update solution and best known value
     copyto!(solution, pl.optimal_solution)

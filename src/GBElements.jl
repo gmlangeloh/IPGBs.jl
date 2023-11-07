@@ -46,7 +46,7 @@ compute_supports(:: AbstractVector{Int}) = return
 compute_binaries(:: AbstractVector{Int}) = return
 
 is_monomial(g :: AbstractVector{Int}) = all(gi >= 0 for gi in g)
-reduces(g :: AbstractVector{Int}, h :: AbstractVector{Int}) = all(g .<= h)
+reduces(g :: AbstractVector{Int}, h :: AbstractVector{Int}) = all(g[i] <= h[i] for i in eachindex(g) if h[i] >= 0)
 
 """
 Turns a vector `v` into a GBElement of type `S`. Currently, Binomials are the
