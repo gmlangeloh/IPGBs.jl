@@ -84,7 +84,7 @@ most_negative(sigma, solution) = argmin(solution[sigma])
     `markov`: current partial Markov basis (indexed by the permuted variables)
     `primal_solutions`: feasible solutions for the original problem (and thus all of
     its group relaxations)
-    `dual_solutions`: feasible solutions for `relaxation`. Computing a feasible
+    `dual_solution: feasible solution for `relaxation`. Computing a feasible
     solution is essentially free in project-and-lift, so we always compute one.
     If it is ever feasible for the original problem, it is also optimal for it.
     `optimal_solution`: The optimal solution for the original problem, if known (original indexing)
@@ -98,7 +98,7 @@ struct ProjectAndLiftState
     relaxation::IPInstance
     markov::Vector{Vector{Int}}
     primal_solutions::Vector{Vector{Int}}
-    dual_solutions::Vector{Vector{Int}}
+    dual_solution::Vector{Int}
     optimal_solution::Vector{Int}
     has_optimal_solution::Bool
 end
@@ -158,7 +158,7 @@ function optimize_with_markov(
     orig_instance :: IPInstance,
     opt_instance :: IPInstance,
     primal_solutions :: Vector{Vector{Int}},
-    dual_solutions :: Vector{Vector{Int}},
+    dual_solution:: Vector{Int},
     relaxation :: IPInstance,
     permuted_markov :: Vector{Vector{Int}};
     optimize :: Bool = false
@@ -166,18 +166,15 @@ function optimize_with_markov(
     is_optimal = false
     opt_solution = zeros(Int, orig_instance.n)
     if optimize
-        all_solutions = [ primal_solutions; dual_solutions ]
+        all_solutions = [ primal_solutions; dual_solution ]
         # For now, I won't try to reuse this Gröbner basis. Might be worthwhile
         # to try doing that eventually, though (easier Markov bases later?)
         _ = groebner_basis(permuted_markov, relaxation, all_solutions)
-        for relaxation_s in dual_solutions
-            s = relaxation_s[relaxation.inverse_permutation]
-            # Any dual solution feasible for the original problem is optimal.
-            if is_feasible_solution(opt_instance, s)
-                opt_solution = project_to_instance(s[relaxation.inverse_permutation], orig_instance)
-                is_optimal = true
-                break
-            end
+        orig_dual = dual_solution[relaxation.inverse_permutation]
+        # Any dual solution feasible for the original problem is optimal.
+        if is_feasible_solution(opt_instance, orig_dual)
+            opt_solution = project_to_instance(orig_dual[relaxation.inverse_permutation], orig_instance)
+            is_optimal = true
         end
         # TODO: Keep truncation bounds updated in opt_instance and relaxation
         # Need to update both opt_instance and corresponding solution slacks...
@@ -226,14 +223,13 @@ function initialize_project_and_lift(
     if !iszero(solution)
         push!(primal_solutions, solution)
     end
-    dual_solutions = [ relaxation_solution ]
     opt_solution, is_optimal = optimize_with_markov(
-        instance, opt_instance, primal_solutions, dual_solutions, relaxation, 
+        instance, opt_instance, primal_solutions, relaxation_solution, relaxation, 
         permuted_markov, optimize=optimize
     )
     return ProjectAndLiftState(
         instance, opt_instance, unlifted, nonnegative, relaxation, 
-        permuted_markov, primal_solutions, dual_solutions, opt_solution, 
+        permuted_markov, primal_solutions, relaxation_solution, opt_solution, 
         is_optimal
     )
 end
@@ -299,11 +295,11 @@ function lift_bounded(
     update_objective!(pl.relaxation, i, relaxation_index(pl.unlifted, pl.relaxation))
     if completion == :Buchberger
         #This will automatically lift pl.dual_solutions
-        markov = IPGBs.groebner_basis(pl.markov, pl.relaxation, pl.dual_solutions, truncation_type=truncation_type)
+        markov = IPGBs.groebner_basis(pl.markov, pl.relaxation, [pl.dual_solution], truncation_type=truncation_type)
     elseif completion == :FourTi2
-        gb, sol, _ = FourTi2.groebnernf(pl.relaxation, pl.markov, pl.dual_solutions[1])
+        gb, sol, _ = FourTi2.groebnernf(pl.relaxation, pl.markov, pl.dual_solution)
         markov = GBTools.tovector(gb)
-        copyto!(pl.dual_solutions[1], sol)
+        copyto!(pl.dual_solution, sol)
     else
         error("Unknown completion algorithm: $completion")
     end
@@ -321,9 +317,7 @@ function lift_unbounded(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) 
     @info "P&L unbounded case" ray
     if !(ray in s.markov)
         push!(s.markov, ray)
-        for solution in s.dual_solutions
-            lift_solution_unbounded!(solution, ray)
-        end
+        lift_solution_unbounded!(s.dual_solution, ray)
     end
     i_index = findfirst(isequal(i), s.unlifted)
     deleteat!(s.unlifted, i_index)
@@ -338,15 +332,15 @@ function relax_and_reorder(
     #Before taking the relaxation, we bring the Markov basis and known solutions back into
     #the original variable ordering
     lifted_markov = apply_permutation(markov, pl.relaxation.inverse_permutation)
-    dual_solutions = apply_permutation(pl.dual_solutions, pl.relaxation.inverse_permutation)
+    dual_solution = pl.dual_solution[pl.relaxation.inverse_permutation]
     primal_solutions = apply_permutation(pl.primal_solutions, pl.relaxation.inverse_permutation)
     #Now we take the relaxation with respect to the non-negativity constraints specified in pl
     relaxation = nonnegativity_relaxation(pl.working_instance, pl.nonnegative)
     #And we permute the Markov basis and solutions back to the new variable ordering
     lifted_markov = apply_permutation(lifted_markov, relaxation.permutation)
-    dual_solutions = apply_permutation(pl.dual_solutions, relaxation.permutation)
+    dual_solution = dual_solution[relaxation.permutation]
     primal_solutions = apply_permutation(pl.primal_solutions, relaxation.permutation)
-    return relaxation, lifted_markov, primal_solutions, dual_solutions
+    return relaxation, lifted_markov, primal_solutions, dual_solution
 end
 
 """
@@ -379,17 +373,17 @@ function next(
     else
         lifted_markov = lift_unbounded(pl, i, ray)
     end
-    relaxation, lifted_markov, primals, duals = relax_and_reorder(
+    relaxation, lifted_markov, primals, dual= relax_and_reorder(
         pl, lifted_markov
     )
     lifted_markov = truncate_markov(lifted_markov, relaxation, truncation_type)
     opt_solution, is_optimal = optimize_with_markov(
-        pl.original_instance, pl.working_instance, primals, duals, 
+        pl.original_instance, pl.working_instance, primals, dual, 
         relaxation, lifted_markov, optimize=optimize
     )
     return ProjectAndLiftState(
         pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative, 
-        relaxation, lifted_markov, primals, duals, opt_solution, is_optimal
+        relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
     )
 end
 
@@ -424,6 +418,7 @@ function project_and_lift(
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
     end
     @assert all(is_feasible_solution(instance, solution) for solution in pl.primal_solutions)
+    @assert is_feasible_solution(instance, pl.dual_solution)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
     #Update solution and best known value
     copyto!(solution, pl.optimal_solution)
