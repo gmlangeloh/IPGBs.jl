@@ -242,9 +242,8 @@ end
 
     Index of original variable `i` in `relaxation`.
 """
-function relaxation_index(i :: Int, relaxation :: IPInstance)
-    return relaxation.inverse_permutation[i]
-end
+relaxation_index(i :: Int, r :: IPInstance) = r.inverse_permutation[i]
+relaxation_index(v :: Vector{Int}, r :: IPInstance) = [ relaxation_index(i, r) for i in v]
 
 """
     can_lift(markov :: Vector{Vector{Int}}, i :: Int)
@@ -296,9 +295,9 @@ function lift_bounded(
 ) :: Vector{Vector{Int}}
     #Compute a GB in the adequate monomial order
     @info "P&L bounded case" i length(pl.markov)
-    update_objective!(pl.relaxation, i, relaxation_index.(pl.unlifted, pl.relaxation))
+    update_objective!(pl.relaxation, i, relaxation_index(pl.unlifted, pl.relaxation))
     if completion == :Buchberger
-        #This will automatically lift s.solution
+        #This will automatically lift pl.dual_solutions
         markov = IPGBs.groebner_basis(pl.markov, pl.relaxation, pl.dual_solutions, truncation_type=truncation_type)
     elseif completion == :FourTi2
         gb, sol, _ = FourTi2.groebnernf(pl.relaxation, pl.markov, pl.dual_solutions[1])
@@ -418,7 +417,7 @@ function project_and_lift(
 )::Vector{Vector{Int}}
     pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution, best_value=best_value)
     #Lift as many variables as possible before starting
-    lift_variables!(pl)
+    #lift_variables!(pl)
     #Main loop: lift all remaining variables via LP or GBs
     while !is_finished(pl)
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)

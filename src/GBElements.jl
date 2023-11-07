@@ -58,7 +58,7 @@ function to_gbelement(
     S :: DataType,
     should_orientate :: Bool = true
 ) where {T <: GBOrder}
-    costs = round.(Int, order_costs(order, v))
+    costs = order_costs(order, v)
     b = S([v; costs])
     if should_orientate
         orientate!(b, order)

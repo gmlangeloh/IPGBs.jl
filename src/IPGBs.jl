@@ -243,7 +243,7 @@ function groebner_basis(
     @debug "Starting to compute Gröbner basis for: " markov_basis
     algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
     representation = implicit_representation ? GradedBinomial : Binomial
-    use_minimization = implicit_representation
+    use_minimization = true
     trunc_type, trunc_var = parse_truncation(truncation_type, instance.A, instance.b)
 
     #Signatures aren't currently supported with implicit representation
