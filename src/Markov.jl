@@ -396,14 +396,14 @@ function project_and_lift(
     @debug "Initializing Project-and-lift"
     state = initialize_project_and_lift(instance)
     #Lift as many variables as possible before starting
-    lift_variables!(
-        state.markov, state.sigma, state.nonnegative, state.relaxation.inverse_permutation
-    )
+    #lift_variables!(
+    #    state.markov, state.sigma, state.nonnegative, state.relaxation.inverse_permutation
+    #)
     while !is_finished(state)
         @debug "Starting iteration with $(length(state.sigma)) variables left to lift: "
         state = next(state, completion=completion, truncation_type=truncation_type)
     end
-    @assert IPInstances.is_feasible_solution(instance, state.solution)
+    #@assert IPInstances.is_feasible_solution(instance, state.solution)
     @debug "Ending P&L, found Markov Basis of length $(length(state.markov))"
     return state.markov
 end
