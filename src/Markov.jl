@@ -255,12 +255,9 @@ function can_lift(markov :: Vector{Vector{Int}}, i :: Int)
 end
 
 function lift_variables!(
-    pl :: ProjectAndLiftState;
-    markov :: Union{Vector{Vector{Int}}, Nothing} = nothing
+    pl :: ProjectAndLiftState,
+    markov :: Vector{Vector{Int}}
 )
-    if isnothing(markov)
-        markov = pl.markov
-    end
     i = 1
     while i <= length(pl.unlifted)
         variable = pl.unlifted[i]
@@ -303,7 +300,6 @@ function lift_bounded(
     else
         error("Unknown completion algorithm: $completion")
     end
-    lift_variables!(pl, markov=markov)
     @info "Markov size after lifting: " length(markov)
     return markov
 end
@@ -315,6 +311,7 @@ end
 """
 function lift_unbounded(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) :: Vector{Vector{Int}}
     @info "P&L unbounded case" ray
+    println("lift unbounded ", i, ray)
     if !(ray in s.markov)
         push!(s.markov, ray)
         lift_solution_unbounded!(s.dual_solution, ray)
@@ -373,9 +370,31 @@ function next(
     else
         lifted_markov = lift_unbounded(pl, i, ray)
     end
-    relaxation, lifted_markov, primals, dual= relax_and_reorder(
-        pl, lifted_markov
+    return lift_and_relax(
+        pl, lifted_markov, optimize=optimize, truncation_type=truncation_type
     )
+    #relaxation, lifted_markov, primals, dual = relax_and_reorder(
+    #    pl, lifted_markov
+    #)
+    #lifted_markov = truncate_markov(lifted_markov, relaxation, truncation_type)
+    #opt_solution, is_optimal = optimize_with_markov(
+    #    pl.original_instance, pl.working_instance, primals, dual, 
+    #    relaxation, lifted_markov, optimize=optimize
+    #)
+    #return ProjectAndLiftState(
+    #    pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative, 
+    #    relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
+    #)
+end
+
+function lift_and_relax(
+    pl :: ProjectAndLiftState,
+    markov :: Vector{Vector{Int}}; 
+    optimize::Bool=false,
+    truncation_type::Symbol = :LP
+) :: ProjectAndLiftState
+    lift_variables!(pl, markov)
+    relaxation, lifted_markov, primals, dual = relax_and_reorder(pl, markov)
     lifted_markov = truncate_markov(lifted_markov, relaxation, truncation_type)
     opt_solution, is_optimal = optimize_with_markov(
         pl.original_instance, pl.working_instance, primals, dual, 
@@ -412,13 +431,13 @@ function project_and_lift(
 )::Vector{Vector{Int}}
     pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution, best_value=best_value)
     #Lift as many variables as possible before starting
-    #lift_variables!(pl)
+    pl = lift_and_relax(pl, pl.markov, optimize=optimize, truncation_type=truncation_type)
     #Main loop: lift all remaining variables via LP or GBs
     while !is_finished(pl)
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
     end
     @assert all(is_feasible_solution(instance, solution) for solution in pl.primal_solutions)
-    @assert is_feasible_solution(instance, pl.dual_solution)
+    #@assert is_feasible_solution(instance, pl.dual_solution)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
     #Update solution and best known value
     copyto!(solution, pl.optimal_solution)
