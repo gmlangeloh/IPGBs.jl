@@ -167,7 +167,9 @@ function optimize_with_markov(
     is_optimal = false
     opt_solution = zeros(Int, orig_instance.n)
     if optimize
-        all_solutions = [ primal_solutions; dual_solution ]
+        #TODO: Primal solutions have to be permuted
+        all_solutions = copy(primal_solutions)
+        push!(all_solutions, dual_solution)
         # For now, I won't try to reuse this Gröbner basis. Might be worthwhile
         # to try doing that eventually, though (easier Markov bases later?)
         _ = groebner_basis(permuted_markov, relaxation, all_solutions)
@@ -200,10 +202,12 @@ function initialize_project_and_lift(
 )::ProjectAndLiftState
     # Update instance to include upper bounds for efficiency if possible
     opt_instance = instance
+    primal_solutions = Vector{Int}[]
     if optimize && is_feasible_solution(instance, solution)
         # In this case, we should use the given solution as an upper bound
         # GBs are smaller this way.
         opt_instance = add_constraint(instance, instance.C[1, :], best_value[] - 1)
+        push!(primal_solutions, solution)
     end
     # Compute a group relaxation with its corresponding Markov basis
     basis, uhnf_basis, unlifted = lattice_basis_projection(opt_instance)
@@ -220,10 +224,6 @@ function initialize_project_and_lift(
     permuted_markov = apply_permutation(markov, relaxation.permutation)
     #Find initial primal and dual solutions if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
-    primal_solutions = Vector{Int}[]
-    if !iszero(solution)
-        push!(primal_solutions, solution)
-    end
     opt_solution, is_optimal = optimize_with_markov(
         instance, opt_instance, primal_solutions, relaxation_solution, relaxation, 
         permuted_markov, optimize=optimize
@@ -484,12 +484,16 @@ function markov_basis end
 
 function markov_basis(
     instance::IPInstance;
+    solution :: Vector{Int} = zeros(Int, instance.n),
     algorithm::Symbol = :Any,
-    truncation_type::Symbol = :LP
+    truncation_type::Symbol = :LP,
+    optimize::Bool = false
 )::Vector{Vector{Int}}
     @debug "Starting to compute Markov basis for " instance
+    can_use_simple = IPInstances.nonnegative_data_only(instance) && IPInstances.has_slacks(instance)
+    has_solution = !iszero(solution) && is_feasible_solution(instance, solution)
     if algorithm == :Any
-        if IPInstances.nonnegative_data_only(instance) && IPInstances.has_slacks(instance)
+        if can_use_simple && !has_solution
             #The Simple algorithm may be used, so use it.
             algorithm = :Simple
         else
@@ -500,7 +504,7 @@ function markov_basis(
     if algorithm == :Simple
         basis = simple_markov(instance)
     else
-        basis = project_and_lift(instance, truncation_type = truncation_type)
+        basis = project_and_lift(instance, solution=solution, truncation_type = truncation_type, optimize=optimize)
     end
     return basis
 end
@@ -522,13 +526,14 @@ end
 function optimize(
     instance :: IPInstance;
     completion :: Symbol = :Buchberger,
-    truncation_type :: Symbol = :LP
+    truncation_type :: Symbol = :LP,
+    solution :: Vector{Int} = zeros(Int, instance.n)
 ) :: Tuple{Vector{Int}, Int}
-    solution = copy(instance.fiber_solution)
-    value = instance.C[1, :]' * solution
+    initial_solution = copy(solution)
+    value = round(Int, instance.C[1, :]' * solution)
     project_and_lift(
         instance, completion=completion, truncation_type=truncation_type,
-        optimize=true, solution=solution, best_value=Ref(value)
+        optimize=true, solution=initial_solution, best_value=Ref(value)
     )
     return solution, value
 end

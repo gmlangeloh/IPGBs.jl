@@ -134,15 +134,20 @@ basis.
 """
 function groebner_basis(
     instance::IPInstance;
+    solutions :: Vector{Vector{Int}} = Vector{Int}[],
     use_signatures::Bool = false,
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
     quiet::Bool = true
 )::Vector{Vector{Int}}
-    markov = markov_basis(instance)
+    if !isempty(solutions)
+        markov = markov_basis(instance, solution=solutions[1])
+    else
+        markov = markov_basis(instance)
+    end
     return groebner_basis(
-        markov, instance,
+        markov, instance, solutions,
         use_signatures = use_signatures,
         implicit_representation = implicit_representation,
         module_order = module_order,
