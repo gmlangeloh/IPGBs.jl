@@ -181,7 +181,7 @@ function optimize_with_markov(
         end
         # TODO: Keep truncation bounds updated in opt_instance and relaxation
         # Need to update both opt_instance and corresponding solution slacks...
-        bkv = minimum([opt_instance.C[1, :]' * s for s in primal_solutions])
+        #bkv = minimum([opt_instance.C[1, :]' * s for s in primal_solutions])
     end
     return opt_solution, is_optimal
 end
