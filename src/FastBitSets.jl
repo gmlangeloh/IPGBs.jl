@@ -25,6 +25,7 @@ const MAX_SVECTOR_SIZE = 3
 struct FastBitSet
     data :: MVector{MAX_SVECTOR_SIZE,Int}
     words :: Int
+    vars :: Int
 end
 
 function Base.show(
@@ -52,7 +53,7 @@ function FastBitSet(
         word, index = word_and_index(i)
         data[word] += 1 << index
     end
-    return FastBitSet(data, words)
+    return FastBitSet(data, words, vars)
 end
 
 function FastBitSet(
@@ -69,7 +70,7 @@ function FastBitSet(
             data[word] += 1 << index
         end
     end
-    return FastBitSet(data, words)
+    return FastBitSet(data, words, vars)
 end
 
 FastBitSet(vars :: Int) = FastBitSet(vars, Int[])
@@ -118,7 +119,7 @@ end
 function Base.length(
     bitset :: FastBitSet
 ) :: Int
-    return bitset.words
+    return bitset.vars
 end
 
 #
@@ -128,7 +129,7 @@ end
 function isempty(
     bitset :: FastBitSet
 ) :: Bool
-    for i in 1:length(bitset)
+    for i in 1:bitset.words
         if bitset.data[i] != 0
             return false
         end
