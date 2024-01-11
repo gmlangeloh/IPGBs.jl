@@ -5,7 +5,7 @@ module FastBitSets
 
 using StaticArrays
 
-export FastBitSet, disjoint, not_disjoint, BitTriangle, add_row!
+export FastBitSet, disjoint, BitTriangle, add_row!
 
 
 #BitVector-based implementation, it is slower than FastBitSets
