@@ -2,6 +2,8 @@ module ZDDs
 
 export ZDD
 
+using DataStructures
+using Graphs
 using IPGBs.FastBitSets
 
 struct ZDDNode
@@ -24,9 +26,25 @@ end
 const TOP_ZDD = ZDD([TOP], TOP)
 const BOTTOM_ZDD = ZDD([BOTTOM], BOTTOM)
 
-#TODO: Make a to_graph function that allows plotting the ZDD
+function to_digraph(zdd :: ZDD) :: DiGraph
+    #Keep track of the node labels / indices for printing later
+    node_labels = Int[]
+    visited_nodes = Set{ZDDNode}()
+    D = DiGraph()
+    #Traverse the ZDD in a depth-first manner, adding visited nodes and edges to D
+    s = Stack{ZDDNode}()
+    push!(s, zdd.root)
 
-function partition_by_index(sets :: Vector{FastBitSet}, index :: Int)
+    while !isempty(s)
+        node = pop!(s)
+        if !visited_nodes[node]
+
+        end
+    end
+    return D
+end
+
+function _partition_by_index(sets :: Vector{FastBitSet}, index :: Int)
     low = Vector{FastBitSet}()
     high = Vector{FastBitSet}()
     for set in sets
@@ -40,9 +58,9 @@ function partition_by_index(sets :: Vector{FastBitSet}, index :: Int)
 end
 
 #TODO: Still need to make sure the ZDD is reduced. There are currently redundant nodes
-function build_ZDD(
-    sets :: Vector{FastBitSet}, 
-    n :: Int, 
+function _build_ZDD(
+    sets :: Vector{FastBitSet},
+    n :: Int,
     i :: Int = 1
 ) :: ZDD
     if isempty(sets)
@@ -69,9 +87,9 @@ function build_ZDD(
     end
     #Take the sets that don't contain j, build ZDD recursively
     #Take the sets that do contain j, build ZDD recursively
-    low, high = partition_by_index(sets, j)
-    low_zdd = build_ZDD(low, n, j + 1)
-    high_zdd = build_ZDD(high, n, j + 1)
+    low, high = _partition_by_index(sets, j)
+    low_zdd = _build_ZDD(low, n, j + 1)
+    high_zdd = _build_ZDD(high, n, j + 1)
     #Connect node j to the two recursively built ZDDs
     j_node = ZDDNode(j, low_zdd.root, high_zdd.root)
     all_nodes = vcat(low_zdd.nodes, high_zdd.nodes, [j_node])
@@ -84,7 +102,7 @@ function ZDD(sets :: Vector{FastBitSet})
     if !isempty(sets)
         n = length(sets[1])
     end
-    return build_ZDD(sets, n)
+    return _build_ZDD(sets, n)
 end
 
 end
