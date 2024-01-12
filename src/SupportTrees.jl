@@ -4,9 +4,8 @@ binomial sets for efficient reductions. Called SupportTrees in reference
 to Roune and Stillman (2012).
 """
 module SupportTrees
-export ReductionTree, SupportTree, CacheTree, find_reducer, support_tree, add_binomial!,
-    remove_binomial!, enumerate_reducers, find_reducer_iter
-
+export ReductionTree, SupportTree, CacheTree, find_reducer, add_binomial!,
+    remove_binomial!, enumerate_reducers
 
 using LRUCache
 
@@ -256,7 +255,7 @@ function find_reducer(
     #The fullfilter parameter was removed as it affects performance and
     #it was only useful when T == GradedBinomial.
     return find_reducer(
-        g, gb, tree.root, tree.stats, skipbinomial=skipbinomial, 
+        g, gb, tree.root, tree.stats, skipbinomial=skipbinomial,
         negative=negative
     )
 end
@@ -342,7 +341,7 @@ mutable struct CacheTree{T <: AbstractVector{Int}} <: ReductionTree{T}
 end
 
 function CacheTree{T}(
-    gb :: S; 
+    gb :: S;
     fullfilter :: Bool = false
 ) where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     tree = CacheTree{T}(fullfilter)
@@ -353,7 +352,7 @@ function CacheTree{T}(
 end
 
 function add_binomial!(
-    tree :: CacheTree{T}, 
+    tree :: CacheTree{T},
     binomial :: T
 ) where {T <: AbstractVector{Int}}
     add_binomial!(tree.full_tree, binomial)
@@ -364,7 +363,7 @@ function add_binomial!(
 end
 
 function remove_binomial!(
-    tree :: CacheTree{T}, 
+    tree :: CacheTree{T},
     binomial :: T
 ) where {T <: AbstractVector{Int}}
     if haskey(tree.lru, binomial)
@@ -375,7 +374,7 @@ function remove_binomial!(
 end
 
 function update_cache!(
-    tree :: CacheTree{T}, 
+    tree :: CacheTree{T},
     binomial :: T
 ) where {T <: AbstractVector{Int}}
     if !haskey(tree.lru, binomial)
@@ -393,14 +392,14 @@ function update_cache!(
 end
 
 function find_reducer(
-    g :: T, 
-    gb :: S, 
-    tree :: CacheTree{T}; 
-    skipbinomial :: Union{T, Nothing} = nothing, 
+    g :: T,
+    gb :: S,
+    tree :: CacheTree{T};
+    skipbinomial :: Union{T, Nothing} = nothing,
     negative :: Bool = false
 ) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
-    #First search for some reducer for binomial in the cache. If it isn't 
-    #found there, look for it in the full tree. If it's found in the full 
+    #First search for some reducer for binomial in the cache. If it isn't
+    #found there, look for it in the full tree. If it's found in the full
     #tree, that's a cache miss, so update the cache with the reducer.
     reducer, found_cache_reducer = find_reducer(
         g, gb, tree.cache_tree, skipbinomial=skipbinomial, negative=negative

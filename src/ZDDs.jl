@@ -38,7 +38,14 @@ function to_digraph(zdd :: ZDD) :: DiGraph
     while !isempty(s)
         node = pop!(s)
         if !visited_nodes[node]
-
+            visited_nodes[node] = true
+            push!(node_labels, node.index)
+            if !is_top(node)
+                push!(s, node.low)
+                push!(s, node.high)
+                add_edge!(D, node.index, node.low.index)
+                add_edge!(D, node.index, node.high.index)
+            end
         end
     end
     return D
