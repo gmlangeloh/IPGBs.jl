@@ -167,8 +167,7 @@ function groebner_basis(
     implicit_representation::Bool = false,
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
-    quiet::Bool = true,
-    minimization::Bool = true
+    quiet::Bool = true
 )::Vector{Vector{Int}}
     return groebner_basis(
         IPInstance(model),
@@ -176,8 +175,25 @@ function groebner_basis(
         implicit_representation = implicit_representation,
         module_order = module_order,
         truncation_type = truncation_type,
-        quiet = quiet,
-        minimization = minimization
+        quiet = quiet
+    )
+end
+
+function groebner_basis(
+    path :: String;
+    use_signatures::Bool = false,
+    implicit_representation::Bool = false,
+    module_order::Symbol = :ltpot,
+    truncation_type::Symbol = :Heuristic,
+    quiet::Bool = true
+)::Vector{Vector{Int}}
+    return groebner_basis(
+        IPInstance(path),
+        use_signatures = use_signatures,
+        implicit_representation = implicit_representation,
+        module_order = module_order,
+        truncation_type = truncation_type,
+        quiet = quiet
     )
 end
 

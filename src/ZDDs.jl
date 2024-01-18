@@ -1,3 +1,9 @@
+"""
+Incomplete implementation of a Zero-suppressed decision diagram (ZDD).
+
+In theory, ZDDs could be an efficient way to implement the reducer search, but implementing
+this data structure well is a bit tricky. I intend to complete this implementation later.
+"""
 module ZDDs
 
 export ZDD
