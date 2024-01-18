@@ -10,6 +10,7 @@ export ReductionTree, SupportTree, CacheTree, find_reducer, add_binomial!,
 using LRUCache
 
 using IPGBs
+using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Statistics
 
@@ -126,6 +127,8 @@ function add_binomial!(
 ) where {T <: AbstractVector{Int}}
     current = tree.root
     depth = 1
+    #GBElements.compute_supports(binomial)
+    #println("insert ", positive_support(binomial))
     binomial_filter = GBElements.filter(binomial, fullfilter=tree.fullfilter)
     #Search for a path in the tree labeled by the indices in the filter
     #Create any missing nodes in this path
@@ -166,6 +169,8 @@ function remove_binomial!(
 ) where {T <: AbstractVector{Int}}
     current = tree.root
     binomial_filter = GBElements.filter(binomial, fullfilter=tree.fullfilter)
+    #GBElements.compute_supports(binomial)
+    #println("remove ", positive_support(binomial))
     for i in binomial_filter
         j = 1
         while j <= length(current.children) && current.children[j][1] != i
@@ -254,6 +259,8 @@ function find_reducer(
 ) :: Tuple{T, Bool} where {T <: AbstractVector{Int}, S <: AbstractVector{T}}
     #The fullfilter parameter was removed as it affects performance and
     #it was only useful when T == GradedBinomial.
+    #GBElements.compute_supports(g)
+    #println("query ", positive_support(g))
     return find_reducer(
         g, gb, tree.root, tree.stats, skipbinomial=skipbinomial,
         negative=negative

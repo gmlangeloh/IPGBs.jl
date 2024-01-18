@@ -189,9 +189,9 @@ function run(
             continue
         end
         reduced_to_zero, _ = reduce!(algorithm, binomial)
-        if !reduced_to_zero 
+        if !reduced_to_zero
             #First we check reduction to zero, then truncation.
-            #This is more efficient because relatively few elements are 
+            #This is more efficient because relatively few elements are
             #truncated when compared to the number of zero reductions
             if !truncate(algorithm, binomial)
                 update!(algorithm, binomial, pair)
@@ -204,7 +204,9 @@ function run(
     #tr(bin) = quick_truncation(algorithm, bin) || truncate(algorithm, bin)
     #ans = is_truncated_groebner_basis(current_basis(algorithm), tr)
     #println("Is this a truncated GB? " * string(ans))
-    return prepare_gb_output(algorithm)
+    output = prepare_gb_output(algorithm)
+    #println("nodes ", current_basis(algorithm).reduction_tree.stats.reduction_steps)
+    return output
 end
 
 end

@@ -28,10 +28,17 @@ struct FastBitSet
     vars :: Int
 end
 
-function Base.show(
-    io :: IO,
-    bitset :: FastBitSet
-)
+function to_string(bitset :: FastBitSet)
+    s = ""
+    for i in 1:bitset.vars
+        s *= bitset[i] ? "1" : "0"
+    end
+    return s
+end
+
+Base.show(io :: IO, bitset :: FastBitSet) = print(io, to_string(bitset))
+
+function show_full(io :: IO, bitset :: FastBitSet)
     for i in bitset.words:-1:1
         word = bitset.data[i]
         for j in BITS_PER_WORD:-1:1
@@ -57,8 +64,8 @@ function FastBitSet(
 end
 
 function FastBitSet(
-    vars :: Int, 
-    input_data :: AbstractVector{Int}, 
+    vars :: Int,
+    input_data :: AbstractVector{Int},
     criterion :: Function
 )
     words = Int(ceil(vars / BITS_PER_WORD))
