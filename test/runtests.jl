@@ -2,6 +2,7 @@ using IPGBs
 using IPGBs.Binomials
 using IPGBs.BinomialSets
 using IPGBs.Buchberger
+using IPGBs.FourTi2
 using IPGBs.GBAlgorithms
 using MIPMatrixTools.GBTools
 using Test
@@ -9,21 +10,26 @@ using Test
 include("./Aqua.jl")
 include("./test_functions.jl")
 
-@testset "Buchberger: Binary Knapsacks" begin
-    for n in [5, 10, 15, 20, 25, 30]
-        println("Buchberger test for binary knapsack, n = ", n)
-        ipgbs_result, fourti2_result, instance = test_buchberger(n, quiet=true)
-        alg = BuchbergerAlgorithm(ipgbs_result, instance)
-        truncate(b) = GBAlgorithms.general_truncate(alg, b)
-        @test is_truncated_groebner_basis(current_basis(alg), truncate)
-        @test length(ipgbs_result) == length(fourti2_result)
-        @test GBTools.isequal(ipgbs_result, fourti2_result)
-        if !GBTools.isequal(ipgbs_result, fourti2_result)
-            println("4ti2 result:")
-            println(fourti2_result)
-            println("My result:")
-            println(ipgbs_result)
+@testset "All tests" begin
+
+    @testset "Buchberger: Simple binary knapsacks" begin
+        for n in [5, 10, 15, 20, 25, 30]
+            println("Buchberger test for binary knapsack, n = ", n)
+            ipgbs_result, fourti2_result, instance = ipgbs_and_fourti2(n, quiet=true)
+            test_buchberger_correctness(ipgbs_result, fourti2_result, instance)
         end
-        println()
     end
+
+    @testset "Buchberger: combinatorial optimization instances" begin
+        for filename in readdir("test_instances", join=true)
+            if endswith(filename, ".mps")
+                println("Buchberger test for ", filename)
+                instance = IPInstance(filename)
+                ipgbs_result = IPGBs.groebner_basis(instance)
+                fourti2_result = GBTools.tovector(IPGBs.FourTi2.groebner(instance))
+                test_buchberger_correctness(ipgbs_result, fourti2_result, instance)
+            end
+        end
+    end
+
 end

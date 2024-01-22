@@ -11,7 +11,7 @@ import Random
 Returns the GB given by my implementation of Buchberger's algorithm and the
 equivalent 4ti2 GB.
 """
-function test_buchberger(
+function ipgbs_and_fourti2(
     n::Int;
     seed = 0,
     setseed = true,
@@ -44,6 +44,21 @@ function test_buchberger(
         @show length(gb) time
     end
     return gb, fourti2gb, IPInstance(instance)
+end
+
+function test_buchberger_correctness(ipgbs_result, fourti2_result, instance)
+    alg = BuchbergerAlgorithm(ipgbs_result, instance)
+    truncate(b) = GBAlgorithms.general_truncate(alg, b)
+    @test is_truncated_groebner_basis(current_basis(alg), truncate)
+    @test length(ipgbs_result) == length(fourti2_result)
+    @test GBTools.isequal(ipgbs_result, fourti2_result)
+    if !GBTools.isequal(ipgbs_result, fourti2_result)
+        println("4ti2 result:")
+        println(fourti2_result)
+        println("My result:")
+        println(ipgbs_result)
+    end
+    println()
 end
 
 #TODO: Reintroduce this function after updating the signature algorithm
