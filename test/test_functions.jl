@@ -2,6 +2,7 @@ using IPGBs
 using IPGBs.FourTi2
 
 using MIPMatrixTools.GBTools
+using MIPMatrixTools.IPInstances
 using MIPMatrixTools.CombinatorialOptimizationInstances
 
 import Random
@@ -17,7 +18,7 @@ function test_buchberger(
     implicit_representation = false,
     truncation_type = :Heuristic,
     quiet = false
-)::Tuple{Vector{Vector{Int}},Vector{Vector{Int}}}
+)
     if setseed
         Random.seed!(seed)
     end
@@ -29,7 +30,7 @@ function test_buchberger(
         @show size(rgb, 1) time
         println()
     end
-    fourti2gb = IPGBs.GBTools.tovector(rgb)
+    fourti2gb = GBTools.tovector(rgb)
 
     #Compute a GB using my Buchberger implementation
     gb, time, _, _, _ = @timed groebner_basis(
@@ -42,7 +43,7 @@ function test_buchberger(
         println("my results")
         @show length(gb) time
     end
-    return gb, fourti2gb
+    return gb, fourti2gb, IPInstance(instance)
 end
 
 #TODO: Reintroduce this function after updating the signature algorithm

@@ -47,7 +47,8 @@ function BinomialSet(
     C :: Array{S},
     A :: Matrix{Int},
     b :: Vector{Int},
-    unbounded :: Union{Vector{Bool}, Nothing} = nothing
+    unbounded :: Union{Vector{Bool}, Nothing} = nothing,
+    R :: DataType = T
 ) where {T <: AbstractVector{Int}, S <: Real}
     is_minimization = !is_implicit(T)
     if !(S <: Float64)
@@ -63,14 +64,19 @@ function BinomialSet(
         orientate!(oriented_g, order)
         push!(oriented_basis, oriented_g)
     end
+    if R == Binomial
+        new_oriented = [to_gbelement(v, order, R, false) for v in oriented_basis]
+        return BinomialSet{R, MonomialOrder}(new_oriented, order, is_minimization)
+    end
     return BinomialSet{T, MonomialOrder}(oriented_basis, order, is_minimization)
 end
 
 function BinomialSet(
     basis :: Vector{T},
-    ip :: IPInstance
+    ip :: IPInstance,
+    S :: DataType = T
 ) where {T <: AbstractVector{Int}}
-    return BinomialSet(basis, ip.C, ip.A, ip.b, unbounded_variables(ip))
+    return BinomialSet(basis, ip.C, ip.A, ip.b, unbounded_variables(ip), S)
 end
 
 """
@@ -172,7 +178,7 @@ function reduce!(
     is_monomial_reduction :: Bool = is_monomial(g)
 ) :: Tuple{Bool, Bool} where {T <: AbstractVector{Int}, S <: GBOrder}
     return reduce!(
-        g, bs, reduction_tree(bs), skipbinomial=skipbinomial, 
+        g, bs, reduction_tree(bs), skipbinomial=skipbinomial,
         is_monomial_reduction=is_monomial_reduction
     )
 end
@@ -445,7 +451,7 @@ function auto_reduce_once!(
                 removed_before_index += 1
                 current_index -= 1
             end
-            @debug("Autorreduced binomial", original=gb[i], 
+            @debug("Autorreduced binomial", original=gb[i],
                 result=(reduced_to_zero ? 0 : g),
                 reduced_to_zero, changed
             )
@@ -504,7 +510,9 @@ function reduced_basis!(
         g = gb[i]
         reducing = true
         while reducing
-            h, found_reducer = find_reducer(g, gb, reduction_tree(gb), negative=true, skipbinomial=g)
+            h, found_reducer = find_reducer(
+                g, gb, reduction_tree(gb), negative=true, skipbinomial=g
+            )
             if found_reducer
                 #The binomial has to be removed from the tree first, otherwise
                 #its filter will already have been changed and it won't be

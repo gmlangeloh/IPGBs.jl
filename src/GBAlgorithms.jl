@@ -100,6 +100,19 @@ function truncate(
 end
 
 """
+    general_truncate(algorithm :: GBAlgorithm, binomial :: GBElement) :: Bool
+
+Return true iff `binomial` is truncated by the weight criterion or by the general
+truncation method used by `algorithm`.
+"""
+function general_truncate(
+    algorithm :: GBAlgorithm,
+    binomial :: GBElement
+) :: Bool
+    return quick_truncation(algorithm, binomial) || truncate(algorithm, binomial)
+end
+
+"""
     reintroduce_truncated!(algorithm :: GBAlgorithm)
 
 Add truncated elements of the given Markov basis back into the GB.
