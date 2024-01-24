@@ -226,7 +226,7 @@ function groebner(
 end
 
 function groebner(
-    instance :: IPInstance; 
+    instance :: IPInstance;
     markov :: Union{Nothing,Vector{Vector{Int}}} = nothing,
     project_name :: String = "tmp"
 )
@@ -244,6 +244,13 @@ function groebner(
     project_name :: String = "tmp"
 )
     return groebner(IPInstance(model), project_name=project_name)
+end
+
+function groebner(
+    filename :: String;
+    project_name :: String = "tmp"
+)
+    return groebner(IPInstance(filename), project_name=project_name)
 end
 
 """
@@ -292,13 +299,13 @@ function normalform(
 end
 
 function normalform(
-    instance :: IPInstance, 
-    xinit :: Vector{Int}; 
+    instance :: IPInstance,
+    xinit :: Vector{Int};
     project_name :: String = "tmp"
 ) :: Tuple{Vector{Int}, Int}
     return normalform(
-        instance.A, round.(Int, instance.C), xinit, 
-        nonnegative=IPInstances.nonnegative_variables(instance), 
+        instance.A, round.(Int, instance.C), xinit,
+        nonnegative=IPInstances.nonnegative_variables(instance),
         project_name=project_name
     )
 end
@@ -329,9 +336,9 @@ function groebnernf(
 end
 
 function groebnernf(
-    instance :: IPInstance, 
+    instance :: IPInstance,
     markov :: Vector{Vector{Int}},
-    xinit :: Vector{Int}; 
+    xinit :: Vector{Int};
     project_name :: String = "tmp"
 ) :: Tuple{Matrix{Int}, Vector{Int}, Int}
     gb = groebner(instance, markov=markov, project_name=project_name)
@@ -385,7 +392,7 @@ function markov(
     nonnegative = IPInstances.nonnegative_variables(instance)
     int_objective = IPInstances.integer_objective(instance)
     init_sol = MatrixTools.initial_solution(instance.A, instance.b)
-    return markov(instance.A, int_objective, nonnegative=nonnegative, 
+    return markov(instance.A, int_objective, nonnegative=nonnegative,
         truncation_sol=init_sol, project_name=project_name)
 end
 

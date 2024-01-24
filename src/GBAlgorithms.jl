@@ -150,7 +150,6 @@ This output is compatible with 4ti2's output format.
 function prepare_gb_output(
     algorithm :: GBAlgorithm
 ) :: Vector{Vector{Int}}
-    reintroduce_truncated!(algorithm)
     reduced_basis!(current_basis(algorithm))
     optimize_solutions!(algorithm)
     output = fourti2_form(current_basis(algorithm))

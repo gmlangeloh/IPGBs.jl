@@ -99,7 +99,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         @assert is_bounded(instance)
         #Build order and generating set
         order = MonomialOrder(
-            instance.C, instance.A, instance.b, 
+            instance.C, instance.A, instance.b,
             unbounded_variables(instance), minimization
         )
         initialize_binomials(instance, order)
@@ -121,7 +121,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         end
         for gen in generating_set
             if is_zero(gen)
-               nontruncated_gens = [gen] 
+               nontruncated_gens = [gen]
                truncated_gens = T[]
                break
             end
@@ -144,8 +144,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         state = BuchbergerState(length(binomial_gen_set))
         stats = BuchbergerStats()
         new{T}(
-            binomial_gen_set, state, init_solutions, solutions, should_truncate, 
-            truncation_type, stats, preallocated, 0, model, vars, constrs, 
+            binomial_gen_set, state, init_solutions, solutions, should_truncate,
+            truncation_type, stats, preallocated, 0, model, vars, constrs,
             instance, truncated_gens, weight, max_weight
         )
     end

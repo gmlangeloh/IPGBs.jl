@@ -7,11 +7,11 @@ using IPGBs.GBAlgorithms
 using MIPMatrixTools.GBTools
 using Test
 
-include("./Aqua.jl")
 include("./test_functions.jl")
 
 @testset "All tests" begin
 
+    include("./Aqua.jl")
     @testset "Buchberger: Simple binary knapsacks" begin
         for n in [5, 10, 15, 20, 25, 30]
             println("Buchberger test for binary knapsack, n = ", n)
