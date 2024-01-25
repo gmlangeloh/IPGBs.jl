@@ -215,7 +215,25 @@ function groebner(
     #Run 4ti2
     quiet_opt = quiet ? "-q" : ""
     cmd = `groebner -parb $quiet_opt $truncation_opt $project_name`
-    run(cmd)
+    error_file = project_name * ".err"
+
+    try
+        run(pipeline(cmd, stderr=error_file))
+    catch
+        #If 4ti2 fails, check why by reading the error file
+        #If the cost function is unbounded, deal with it.
+        #default to returning a basis with the zero vector in these cases.
+        COST_ERROR = "Cost function is not bounded."
+        #TODO: Make this stuff work, it still tries to read the .gro file
+        open(error_file) do io
+            error = read(io, String)
+            if occursin(COST_ERROR, error)
+                return zeros(Int, 1, size(A, 2))
+            else
+                throw(error)
+            end
+        end
+    end
 
     out_file = project_name * ".gro"
     gb = _4ti2_read(out_file)
