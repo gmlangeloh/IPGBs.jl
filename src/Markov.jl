@@ -487,7 +487,10 @@ function markov_basis(
     optimize::Bool = false
 )::Vector{Vector{Int}}
     @debug "Starting to compute Markov basis for " instance
-    can_use_simple = IPInstances.nonnegative_data_only(instance) && IPInstances.has_slacks(instance)
+    if !is_bounded(instance)
+        return [zeros(Int, instance.n)]
+    end
+    can_use_simple = nonnegative_data_only(instance) && has_slacks(instance)
     has_solution = !iszero(solution) && is_feasible_solution(instance, solution)
     if algorithm == :Any
         if can_use_simple && !has_solution
@@ -501,7 +504,9 @@ function markov_basis(
     if algorithm == :Simple
         basis = simple_markov(instance)
     else
-        basis = project_and_lift(instance, solution=solution, truncation_type = truncation_type, optimize=optimize)
+        basis = project_and_lift(
+            instance, solution=solution, truncation_type=truncation_type, optimize=optimize
+        )
     end
     return basis
 end

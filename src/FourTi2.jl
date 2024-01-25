@@ -56,7 +56,7 @@ function _4ti2_clear(
 )
     extensions = [
         ".zsol", ".lat", ".mat", ".cost", ".gro", "gra", ".feas", ".nf",
-        ".sign", ".min", ".mar"
+        ".sign", ".min", ".mar", ".err"
     ]
     for ext in extensions
         path = filename * ext
@@ -217,22 +217,23 @@ function groebner(
     cmd = `groebner -parb $quiet_opt $truncation_opt $project_name`
     error_file = project_name * ".err"
 
+    unbounded = false
     try
         run(pipeline(cmd, stderr=error_file))
     catch
         #If 4ti2 fails, check why by reading the error file
         #If the cost function is unbounded, deal with it.
         #default to returning a basis with the zero vector in these cases.
-        COST_ERROR = "Cost function is not bounded."
-        #TODO: Make this stuff work, it still tries to read the .gro file
-        open(error_file) do io
-            error = read(io, String)
-            if occursin(COST_ERROR, error)
-                return zeros(Int, 1, size(A, 2))
-            else
-                throw(error)
-            end
+        err = open(error_file, "r")
+        error_message = read(err, String)
+        if !occursin("Cost function is not bounded.", error_message)
+            rethrow()
         end
+        close(err)
+        unbounded = true
+    end
+    if unbounded
+        return zeros(Int, 1, size(A, 2))
     end
 
     out_file = project_name * ".gro"

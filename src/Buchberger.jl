@@ -96,7 +96,6 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         truncation_type :: Symbol = :Model,
         trunc_var_type :: DataType = Real
     )
-        @assert is_bounded(instance)
         #Build order and generating set
         order = MonomialOrder(
             instance.C, instance.A, instance.b,
