@@ -407,6 +407,9 @@ function is_truncated_groebner_basis(
     bs :: BinomialSet{T, S},
     truncate :: Function
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
+    if isempty(bs)
+        return true
+    end
     mem = Vector{Int}(undef, length(bs[1]))
     for i in 1:length(bs)
         for j in 1:(i-1)

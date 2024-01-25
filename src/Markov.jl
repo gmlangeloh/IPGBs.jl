@@ -139,10 +139,10 @@ function initial_solution(
 end
 
 function lift_solution_unbounded!(
-    solution :: Vector{Int}, 
+    solution :: Vector{Int},
     ray :: Vector{Int}
 )
-    k = maximum([ceil(Int, -solution[i] / ray[i]) 
+    k = maximum([ceil(Int, -solution[i] / ray[i])
         for i in eachindex(ray) if ray[i] > 0 && solution[i] < 0],
         init = 0
     )
@@ -211,7 +211,7 @@ function initialize_project_and_lift(
         push!(primal_solutions, solution)
     end
     # Compute a group relaxation with its corresponding Markov basis
-    basis, uhnf_basis, unlifted = lattice_basis_projection(
+    uhnf_basis, unlifted = lattice_basis_projection(
         opt_instance, :SimplexBasis
     )
     nonnegative = nonnegative_vars(opt_instance)
@@ -221,15 +221,15 @@ function initialize_project_and_lift(
     markov = Vector{Int}[]
     for row in eachrow(Array(uhnf_basis))
         v = Vector{Int}(row)
-        push!(markov, lift_vector(v, basis, opt_instance.lattice_basis))
+        push!(markov, lift_vector(v, uhnf_basis, opt_instance.lattice_basis))
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = apply_permutation(markov, relaxation.permutation)
     #Find initial primal and dual solutions if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
     return ProjectAndLiftState(
-        instance, opt_instance, unlifted, nonnegative, relaxation, 
-        permuted_markov, primal_solutions, relaxation_solution, 
+        instance, opt_instance, unlifted, nonnegative, relaxation,
+        permuted_markov, primal_solutions, relaxation_solution,
         zeros(Int, instance.n), false
     )
 end
@@ -273,7 +273,7 @@ end
 
 """
     bounded_case(
-    s :: ProjectAndLiftState, 
+    s :: ProjectAndLiftState,
     i :: Int;
     completion :: Symbol = :Buchberger,
     truncation_type :: Symbol = :None
@@ -282,7 +282,7 @@ end
 
 """
 function lift_bounded(
-    pl :: ProjectAndLiftState, 
+    pl :: ProjectAndLiftState,
     i :: Int;
     completion :: Symbol = :Buchberger,
     truncation_type :: Symbol = :None
@@ -346,10 +346,10 @@ end
     truncation_type::Symbol = :LP
 )::ProjectAndLiftState
 
-Run a single iteration of the project-and-lift algorithm over `state`, 
+Run a single iteration of the project-and-lift algorithm over `state`,
 returning the new state after that iteration.
 
-One iteration involves lifting a previously unlifted variable, either through 
+One iteration involves lifting a previously unlifted variable, either through
 a linear program or a Gröbner Basis computation.
 """
 function next(
@@ -376,7 +376,7 @@ end
 
 function lift_and_relax(
     pl :: ProjectAndLiftState,
-    markov :: Vector{Vector{Int}}; 
+    markov :: Vector{Vector{Int}};
     optimize::Bool=false,
     truncation_type::Symbol = :LP
 ) :: ProjectAndLiftState
@@ -387,7 +387,7 @@ function lift_and_relax(
         pl, primals, dual, relaxation, lifted_markov, optimize=optimize
     )
     return ProjectAndLiftState(
-        pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative, 
+        pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative,
         relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
     )
 end
