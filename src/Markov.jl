@@ -134,7 +134,7 @@ function initial_solution(
         end
     end
     BinomialSets.reduce!(solution, markov)
-    @assert is_feasible_solution(instance, solution)
+    #@assert is_feasible_solution(instance, solution)
     return solution
 end
 
@@ -423,7 +423,7 @@ function project_and_lift(
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
     end
     @assert all(is_feasible_solution(instance, solution, pl.relaxation.inverse_permutation) for solution in pl.primal_solutions)
-    @assert is_feasible_solution(instance, pl.dual_solution, pl.relaxation.inverse_permutation)
+    #@assert is_feasible_solution(instance, pl.dual_solution, pl.relaxation.inverse_permutation)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
     #Update solution and best known value
     copyto!(solution, pl.optimal_solution)

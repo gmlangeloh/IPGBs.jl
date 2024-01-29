@@ -15,7 +15,7 @@ function disjoint(b1 :: BitVector, b2 :: BitVector)
 end
 
 const BITS_PER_WORD = 8 * sizeof(Int)
-const MAX_SVECTOR_SIZE = 3
+const MAX_SVECTOR_SIZE = 5
 
 #
 # Fast (uni-dimensional) bitsets that are useful mainly when we know their
