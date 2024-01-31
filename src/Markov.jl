@@ -211,7 +211,7 @@ function initialize_project_and_lift(
         push!(primal_solutions, solution)
     end
     # Compute a group relaxation with its corresponding Markov basis
-    uhnf_basis, unlifted = lattice_basis_projection(
+    uhnf_basis, proj_basis, unlifted = lattice_basis_projection(
         opt_instance, :SimplexBasis
     )
     nonnegative = nonnegative_vars(opt_instance)
@@ -221,14 +221,10 @@ function initialize_project_and_lift(
     markov = Vector{Int}[]
     for row in eachrow(Array(uhnf_basis))
         v = Vector{Int}(row)
-        push!(markov, lift_vector(v, uhnf_basis, opt_instance.lattice_basis))
+        push!(markov, lift_vector(v, proj_basis, opt_instance.lattice_basis))
     end
-    println("Initial")
-    display(GBTools.tomatrix(markov))
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = apply_permutation(markov, relaxation.permutation)
-    println("initial permuted")
-    display(GBTools.tomatrix(permuted_markov))
     #Find initial primal and dual solutions if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
     return ProjectAndLiftState(
@@ -364,16 +360,13 @@ function next(
 )::ProjectAndLiftState
     i = first_variable(pl.unlifted) #Pick some variable to lift
     relaxation_i = relaxation_index(i, pl.relaxation)
-    println("Lifting: ", i, " -> ", relaxation_i)
     ray = unboundedness_proof(pl.relaxation, relaxation_i)
     if isempty(ray)
-        println("Calling lift bounded")
         lifted_markov = lift_bounded(
             pl, relaxation_i, completion=completion,
             truncation_type=truncation_type
         )
     else
-        println("Calling lift unbounded")
         lifted_markov = lift_unbounded(pl, i, ray)
     end
     return lift_and_relax(
@@ -423,18 +416,11 @@ function project_and_lift(
     best_value :: Ref{Int} = Ref(0)
 )::Vector{Vector{Int}}
     pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution, best_value=best_value)
-    println(pl.unlifted)
     #Lift as many variables as possible before starting
     pl = lift_and_relax(pl, pl.markov, optimize=optimize, truncation_type=truncation_type)
-    println("post lift and relax")
-    display(GBTools.tomatrix(pl.markov))
-    println(pl.unlifted)
     #Main loop: lift all remaining variables via LP or GBs
     while !is_finished(pl)
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
-        println("iteration")
-        display(GBTools.tomatrix(pl.markov))
-        println(pl.unlifted)
     end
     @assert all(is_feasible_solution(instance, solution, pl.relaxation.inverse_permutation) for solution in pl.primal_solutions)
     #@assert is_feasible_solution(instance, pl.dual_solution, pl.relaxation.inverse_permutation)
