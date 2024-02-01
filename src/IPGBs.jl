@@ -1,7 +1,7 @@
 #TODO: re-export the relevant functions: the 4ti2 interface and my GB
 #implementations
 module IPGBs
-export groebner_basis
+export groebner_basis, markov_basis, optimize
 
 include("./Globals.jl")
 include("./FastBitSets.jl")
@@ -31,7 +31,7 @@ include("./Markov.jl")
 include("./StandardDecomposition.jl")
 
 using .GBAlgorithms
-using .Markov
+import .Markov: markov_basis, optimize
 import .Buchberger: BuchbergerAlgorithm
 import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial
