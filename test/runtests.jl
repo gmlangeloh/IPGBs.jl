@@ -32,6 +32,18 @@ include("./test_functions.jl")
         end
     end
 
+    @testset "Guessing initial solutions" begin
+        for filename in readdir("test_instances", join=true)
+            if endswith(filename, ".mps")
+                println("Initial solution test for ", filename)
+                instance = IPInstance(filename)
+                solution = IPInstances.guess_initial_solution(instance)
+                println("Guessed feasible solution? ",
+                    @test is_feasible_solution(instance, solution))
+            end
+        end
+    end
+
     @testset "Optimize combinatorial optimization instances" begin
         for filename in readdir("test_instances", join=true)
             if endswith(filename, ".mps")
@@ -40,7 +52,7 @@ include("./test_functions.jl")
                 #Optimize with IPGBs and with a traditional IP solver, then compare
                 _, ipgbs_value = optimize(instance)
                 solver_solution, solver_value = solve(instance)
-                println("Optimal value with no initial solution?",
+                println("Optimal value with no initial solution? ",
                     @test ipgbs_value == solver_value)
                 init_solution = IPInstances.guess_initial_solution(instance)
                 _, init_value = optimize(instance, solution=init_solution)
