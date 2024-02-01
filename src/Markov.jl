@@ -134,6 +134,7 @@ function initial_solution(
         end
     end
     BinomialSets.reduce!(solution, markov)
+    println("Initial dual solution: ", solution)
     @assert is_feasible_solution(instance, solution)
     return solution
 end
@@ -198,17 +199,16 @@ The group relaxation Markov basis is obtained through the Hermite Normal Form al
 function initialize_project_and_lift(
     instance :: IPInstance;
     optimize :: Bool = false,
-    solution :: Vector{Int} = zeros(Int, instance.n),
-    best_value :: Ref{Int} = Ref(0)
+    solution :: Vector{Int} = zeros(Int, instance.n)
 )::ProjectAndLiftState
     # Update instance to include upper bounds for efficiency if possible
     opt_instance = instance
     primal_solutions = Vector{Int}[]
     if optimize && is_feasible_solution(instance, solution)
+        println("Started with feasible solution")
         # In this case, we should use the given solution as an upper bound
         # GBs are smaller this way.
         #opt_instance = add_constraint(instance, round.(Int, instance.C[1, :]), best_value[] - 1)
-        println("hello")
         push!(primal_solutions, solution)
     end
     # Compute a group relaxation with its corresponding Markov basis
@@ -226,7 +226,7 @@ function initialize_project_and_lift(
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = apply_permutation(markov, relaxation.permutation)
-    #Find initial primal and dual solutions if possible
+    #Find initial dual solution if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
     return ProjectAndLiftState(
         instance, opt_instance, unlifted, nonnegative, relaxation,
@@ -387,6 +387,7 @@ function lift_and_relax(
     opt_solution, is_optimal = optimize_with_markov(
         pl, primals, dual, relaxation, lifted_markov, optimize=optimize
     )
+    println("new dual solution ", dual)
     return ProjectAndLiftState(
         pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative,
         relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
@@ -413,23 +414,24 @@ function project_and_lift(
     completion :: Symbol = :Buchberger,
     truncation_type::Symbol = :LP,
     optimize :: Bool = false,
-    solution :: Vector{Int} = zeros(Int, instance.n),
-    best_value :: Ref{Int} = Ref(0)
-)::Vector{Vector{Int}}
-    pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution, best_value=best_value)
+    solution :: Vector{Int} = zeros(Int, instance.n)
+)::Tuple{Vector{Vector{Int}}, Bool, Vector{Int}, Float64}
+    pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution)
     #Lift as many variables as possible before starting
     pl = lift_and_relax(pl, pl.markov, optimize=optimize, truncation_type=truncation_type)
+    println("after initial lift: ", pl.dual_solution)
+    println("has optimal solution? ", pl.has_optimal_solution)
     #Main loop: lift all remaining variables via LP or GBs
     while !is_finished(pl)
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
+        println("after iteration: ", pl.dual_solution)
     end
     @assert all(is_feasible_solution(instance, solution, pl.relaxation.inverse_permutation) for solution in pl.primal_solutions)
     @assert !optimize || is_feasible_solution(instance, pl.dual_solution, pl.relaxation.inverse_permutation)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
     #Update solution and best known value
-    copyto!(solution, pl.optimal_solution)
-    best_value[] = instance.C[1, :]' * solution
-    return pl.markov
+    optimal_value = instance.C[1, :]' * pl.optimal_solution
+    return pl.markov, pl.has_optimal_solution, pl.optimal_solution, optimal_value
 end
 
 """
@@ -505,7 +507,7 @@ function markov_basis(
     if algorithm == :Simple
         basis = simple_markov(instance)
     else
-        basis = project_and_lift(
+        basis, _, _, _ = project_and_lift(
             instance, solution=solution, truncation_type=truncation_type, optimize=optimize
         )
     end
@@ -533,12 +535,12 @@ function optimize(
     solution :: Vector{Int} = zeros(Int, instance.n)
 ) :: Tuple{Vector{Int}, Int}
     initial_solution = copy(solution)
-    value = round(Int, instance.C[1, :]' * solution)
-    project_and_lift(
+    _, is_opt, opt_sol, opt_val = project_and_lift(
         instance, completion=completion, truncation_type=truncation_type,
-        optimize=true, solution=initial_solution, best_value=Ref(value)
+        optimize=true, solution=initial_solution
     )
-    return solution, value
+    @assert is_opt
+    return opt_sol, opt_val
 end
 
 function optimize(

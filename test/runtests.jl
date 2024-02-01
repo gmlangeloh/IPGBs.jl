@@ -51,7 +51,7 @@ include("./test_functions.jl")
                 instance = IPInstance(filename)
                 #Optimize with IPGBs and with a traditional IP solver, then compare
                 _, ipgbs_value = optimize(instance)
-                solver_solution, solver_value = solve(instance)
+                solver_solution, solver_value = IPInstances.solve(instance)
                 println("Optimal value with no initial solution? ",
                     @test ipgbs_value == solver_value)
                 init_solution = IPInstances.guess_initial_solution(instance)
