@@ -76,6 +76,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     original_solutions :: Vector{Vector{Int}}
     should_truncate :: Bool
     truncation_type :: Symbol
+    use_quick_truncation :: Bool
     stats :: BuchbergerStats
     preallocated :: Vector{Int}
     num_iterations :: Int #Total number of binomials added to the basis at some point
@@ -94,7 +95,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         T :: Type = Binomial,
         minimization :: Bool = true,
         truncation_type :: Symbol = :Model,
-        trunc_var_type :: DataType = Real
+        trunc_var_type :: DataType = Real,
+        use_quick_truncation :: Bool = true
     )
         #Build order and generating set
         order = MonomialOrder(
@@ -144,8 +146,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         stats = BuchbergerStats()
         new{T}(
             binomial_gen_set, state, init_solutions, solutions, should_truncate,
-            truncation_type, stats, preallocated, 0, model, vars, constrs,
-            instance, truncated_gens, weight, max_weight
+            truncation_type, use_quick_truncation, stats, preallocated, 0, model, vars,
+            constrs, instance, truncated_gens, weight, max_weight
         )
     end
 end
@@ -230,6 +232,9 @@ function GBAlgorithms.quick_truncation(
     algorithm :: BuchbergerAlgorithm{T},
     g :: T
 ) where {T <: GBElement}
+    if !algorithm.use_quick_truncation
+        return false
+    end
     return weight(g, algorithm.truncation_weight) > algorithm.max_truncation_weight
 end
 

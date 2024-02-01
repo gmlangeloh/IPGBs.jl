@@ -133,8 +133,11 @@ function initial_solution(
             end
         end
     end
+    #println("Solution before initial reduction: ", solution)
+    #println("Reducing basis:")
+    #display(GBTools.tomatrix(markov))
     BinomialSets.reduce!(solution, markov)
-    println("Initial dual solution: ", solution)
+    #println("Initial dual solution (after reduction): ", solution)
     @assert is_feasible_solution(instance, solution)
     return solution
 end
@@ -170,11 +173,19 @@ function optimize_with_markov(
     is_optimal = false
     opt_solution = pl.optimal_solution
     if optimize
-        all_solutions = copy(primal_solutions)
+        println("Primal solutions before opt: ", primal_solutions)
+        all_solutions = primal_solutions
         push!(all_solutions, dual_solution)
-        # For now, I won't try to reuse this Gröbner basis. Might be worthwhile
+        #TODO: For now, I won't try to reuse this Gröbner basis. Might be worthwhile
         # to try doing that eventually, though (easier Markov bases later?)
-        _ = groebner_basis(permuted_markov, relaxation, all_solutions)
+        #TODO: truncation_type = :Simple or :Heuristic breaks things here for some reason
+        #Figure out why and check if the conditions for using :Simple have to be changed
+        _ = groebner_basis(
+            permuted_markov, relaxation, all_solutions,
+            truncation_type=:LP, use_quick_truncation=false
+        )
+        pop!(all_solutions)
+        println("Primal solutions after opt: ", primal_solutions)
         orig_dual = dual_solution[relaxation.inverse_permutation]
         # Any dual solution feasible for the original problem is optimal.
         if is_feasible_solution(pl.working_instance, orig_dual)
@@ -205,7 +216,6 @@ function initialize_project_and_lift(
     opt_instance = instance
     primal_solutions = Vector{Int}[]
     if optimize && is_feasible_solution(instance, solution)
-        println("Started with feasible solution")
         # In this case, we should use the given solution as an upper bound
         # GBs are smaller this way.
         #opt_instance = add_constraint(instance, round.(Int, instance.C[1, :]), best_value[] - 1)
@@ -226,6 +236,9 @@ function initialize_project_and_lift(
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = apply_permutation(markov, relaxation.permutation)
+    println("Initial primal solution before perm: ", primal_solutions)
+    primal_solutions = apply_permutation(primal_solutions, relaxation.permutation)
+    println("Initial primal solution after perm: ", primal_solutions)
     #Find initial dual solution if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
     return ProjectAndLiftState(
@@ -293,7 +306,12 @@ function lift_bounded(
     update_objective!(pl.relaxation, i, relaxation_index(pl.unlifted, pl.relaxation))
     if completion == :Buchberger
         #This will automatically lift pl.dual_solutions
-        markov = IPGBs.groebner_basis(pl.markov, pl.relaxation, [pl.dual_solution], truncation_type=truncation_type)
+        #TODO: Using quick truncation breaks something here. It may be a bug in my code,
+        #or some implicit hypothesis that I'm not meeting. Figure this out later!
+        markov = IPGBs.groebner_basis(
+            pl.markov, pl.relaxation, [pl.dual_solution],
+            truncation_type=truncation_type, use_quick_truncation=false
+        )
     elseif completion == :FourTi2
         gb, sol, _ = FourTi2.groebnernf(pl.relaxation, pl.markov, pl.dual_solution)
         markov = GBTools.tovector(gb)
@@ -387,7 +405,6 @@ function lift_and_relax(
     opt_solution, is_optimal = optimize_with_markov(
         pl, primals, dual, relaxation, lifted_markov, optimize=optimize
     )
-    println("new dual solution ", dual)
     return ProjectAndLiftState(
         pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative,
         relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
@@ -419,12 +436,9 @@ function project_and_lift(
     pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution)
     #Lift as many variables as possible before starting
     pl = lift_and_relax(pl, pl.markov, optimize=optimize, truncation_type=truncation_type)
-    println("after initial lift: ", pl.dual_solution)
-    println("has optimal solution? ", pl.has_optimal_solution)
     #Main loop: lift all remaining variables via LP or GBs
     while !is_finished(pl)
         pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize)
-        println("after iteration: ", pl.dual_solution)
     end
     @assert all(is_feasible_solution(instance, solution, pl.relaxation.inverse_permutation) for solution in pl.primal_solutions)
     @assert !optimize || is_feasible_solution(instance, pl.dual_solution, pl.relaxation.inverse_permutation)
