@@ -173,8 +173,7 @@ function optimize_with_markov(
     is_optimal = false
     opt_solution = pl.optimal_solution
     if optimize
-        println("Primal solutions before opt: ", primal_solutions)
-        all_solutions = primal_solutions
+        all_solutions = Vector{Int}[]
         push!(all_solutions, dual_solution)
         #TODO: For now, I won't try to reuse this Gröbner basis. Might be worthwhile
         # to try doing that eventually, though (easier Markov bases later?)
@@ -185,7 +184,6 @@ function optimize_with_markov(
             truncation_type=:LP, use_quick_truncation=false
         )
         pop!(all_solutions)
-        println("Primal solutions after opt: ", primal_solutions)
         orig_dual = dual_solution[relaxation.inverse_permutation]
         # Any dual solution feasible for the original problem is optimal.
         if is_feasible_solution(pl.working_instance, orig_dual)
@@ -236,9 +234,7 @@ function initialize_project_and_lift(
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = apply_permutation(markov, relaxation.permutation)
-    println("Initial primal solution before perm: ", primal_solutions)
     primal_solutions = apply_permutation(primal_solutions, relaxation.permutation)
-    println("Initial primal solution after perm: ", primal_solutions)
     #Find initial dual solution if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
     return ProjectAndLiftState(
@@ -549,6 +545,9 @@ function optimize(
     solution :: Vector{Int} = zeros(Int, instance.n)
 ) :: Tuple{Vector{Int}, Int}
     initial_solution = copy(solution)
+    if !is_bounded(instance)
+        return initial_solution, 0
+    end
     _, is_opt, opt_sol, opt_val = project_and_lift(
         instance, completion=completion, truncation_type=truncation_type,
         optimize=true, solution=initial_solution
