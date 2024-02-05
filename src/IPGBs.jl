@@ -120,7 +120,7 @@ function groebner_basis(
         info = false
     )
     instance = IPInstance(A, b, C, u, apply_normalization=normalize_ip)
-    markov = markov_basis(instance)
+    markov = markov_basis(instance, quiet=quiet)
     return groebner_basis(
         markov, instance,
         use_signatures = use_signatures,
@@ -149,9 +149,9 @@ function groebner_basis(
     quiet::Bool = true
 )::Vector{Vector{Int}}
     if !isempty(solutions)
-        markov = markov_basis(instance, solution=solutions[1])
+        markov = markov_basis(instance, solution=solutions[1], quiet=quiet)
     else
-        markov = markov_basis(instance)
+        markov = markov_basis(instance, quiet=quiet)
     end
     return groebner_basis(
         markov, instance, solutions,
