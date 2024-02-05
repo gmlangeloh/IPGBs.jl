@@ -221,8 +221,9 @@ function initialize_project_and_lift(
         push!(primal_solutions, solution)
     end
     # Compute a group relaxation with its corresponding Markov basis
+    init_basis_algorithm = optimize ? :SimplexBasis : :Any
     uhnf_basis, proj_basis, unlifted = lattice_basis_projection(
-        opt_instance, :SimplexBasis
+        opt_instance, init_basis_algorithm
     )
     nonnegative = nonnegative_vars(opt_instance)
     for s in unlifted
