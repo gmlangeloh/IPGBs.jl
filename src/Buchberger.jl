@@ -77,6 +77,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     should_truncate :: Bool
     truncation_type :: Symbol
     use_quick_truncation :: Bool
+    use_binary_truncation :: Bool
     stats :: BuchbergerStats
     preallocated :: Vector{Int}
     num_iterations :: Int #Total number of binomials added to the basis at some point
@@ -96,7 +97,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         minimization :: Bool = true,
         truncation_type :: Symbol = :Model,
         trunc_var_type :: DataType = Real,
-        use_quick_truncation :: Bool = true
+        use_quick_truncation :: Bool = true,
+        use_binary_truncation :: Bool = true
     )
         #Build order and generating set
         order = MonomialOrder(
@@ -146,8 +148,9 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         stats = BuchbergerStats()
         new{T}(
             binomial_gen_set, state, init_solutions, solutions, should_truncate,
-            truncation_type, use_quick_truncation, stats, preallocated, 0, model, vars,
-            constrs, instance, truncated_gens, weight, max_weight
+            truncation_type, use_quick_truncation, use_binary_truncation, stats,
+            preallocated, 0, model, vars, constrs, instance, truncated_gens, weight,
+            max_weight
         )
     end
 end
@@ -203,8 +206,10 @@ function GBAlgorithms.late_pair_elimination(
     algorithm :: BuchbergerAlgorithm{T},
     pair :: CriticalPair
 ) :: Bool where {T <: GBElement}
-    if is_support_reducible(GBElements.first(pair), GBElements.second(pair),
-                            current_basis(algorithm))
+    if is_support_reducible(
+        GBElements.first(pair), GBElements.second(pair), current_basis(algorithm),
+        use_binary_truncation=algorithm.use_binary_truncation
+    )
         increment(algorithm, :eliminated_by_gcd)
         return true
     end

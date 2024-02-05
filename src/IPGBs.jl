@@ -104,6 +104,7 @@ function groebner_basis(
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
     use_quick_truncation::Bool = true,
+    use_binary_truncation::Bool = true,
     quiet::Bool = true,
     normalize_ip::Bool = true
 )::Vector{Vector{Int}} where {T<:Real}
@@ -127,6 +128,7 @@ function groebner_basis(
         module_order = module_order,
         truncation_type = truncation_type,
         use_quick_truncation = use_quick_truncation,
+        use_binary_truncation = use_binary_truncation,
         quiet = quiet
     )
 end
@@ -143,6 +145,7 @@ function groebner_basis(
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
     use_quick_truncation::Bool = true,
+    use_binary_truncation::Bool = true,
     quiet::Bool = true
 )::Vector{Vector{Int}}
     if !isempty(solutions)
@@ -157,6 +160,7 @@ function groebner_basis(
         module_order = module_order,
         truncation_type = truncation_type,
         use_quick_truncation = use_quick_truncation,
+        use_binary_truncation = use_binary_truncation,
         quiet = quiet
     )
 end
@@ -172,7 +176,8 @@ function groebner_basis(
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
     use_quick_truncation::Bool = true,
-    quiet::Bool = true
+    quiet::Bool = true,
+    use_binary_truncation::Bool = true
 )::Vector{Vector{Int}}
     return groebner_basis(
         IPInstance(model),
@@ -181,6 +186,7 @@ function groebner_basis(
         module_order = module_order,
         truncation_type = truncation_type,
         use_quick_truncation = use_quick_truncation,
+        use_binary_truncation = use_binary_truncation,
         quiet = quiet
     )
 end
@@ -192,7 +198,8 @@ function groebner_basis(
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
     use_quick_truncation::Bool = true,
-    quiet::Bool = true
+    quiet::Bool = true,
+    use_binary_truncation::Bool = true
 )::Vector{Vector{Int}}
     return groebner_basis(
         IPInstance(path),
@@ -201,6 +208,7 @@ function groebner_basis(
         module_order = module_order,
         truncation_type = truncation_type,
         use_quick_truncation = use_quick_truncation,
+        use_binary_truncation = use_binary_truncation,
         quiet = quiet
     )
 end
@@ -216,7 +224,8 @@ function groebner_basis(
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
     use_quick_truncation::Bool = true,
-    quiet::Bool = true
+    quiet::Bool = true,
+    use_binary_truncation::Bool = true
 )::Vector{Vector{Int}} where {T<:Real}
     if isnothing(u)
         u = Union{Int,Nothing}[]
@@ -230,6 +239,7 @@ function groebner_basis(
         use_signatures = use_signatures,
         implicit_representation = implicit_representation,
         use_quick_truncation = use_quick_truncation,
+        use_binary_truncation = use_binary_truncation,
         module_order = module_order,
         truncation_type = truncation_type,
         quiet = quiet
@@ -270,6 +280,7 @@ function groebner_basis(
     module_order::Symbol = :ltpot,
     truncation_type::Symbol = :Heuristic,
     use_quick_truncation::Bool = true,
+    use_binary_truncation::Bool = true,
     quiet::Bool = true
 )::Vector{Vector{Int}}
     #Setting parameters
@@ -294,7 +305,7 @@ function groebner_basis(
         algorithm = algorithm_type(
             markov_basis, instance, solutions, T = representation, truncation_type = trunc_type,
             trunc_var_type = trunc_var, minimization = use_minimization,
-            use_quick_truncation = use_quick_truncation
+            use_quick_truncation = use_quick_truncation, use_binary_truncation = use_binary_truncation
         )
     end
     gb = GBAlgorithms.run(algorithm, quiet = quiet)

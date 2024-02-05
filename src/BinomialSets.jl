@@ -349,20 +349,20 @@ I also added new criteria for binary variables. In this case, a pair
 the negative binaries of j, and vice-versa. This is because in these cases
 the pair will generate some binomial with 2 or -2 in some coordinate.
 These are never necessary in a Gröbner basis.
-
-TODO: Prove when exactly this criterion works. It leads to issues in
-Set Cover.
 """
 function is_support_reducible(
     i :: Int,
     j :: Int,
-    bs :: BinomialSet{T, S}
+    bs :: BinomialSet{T, S};
+    use_binary_truncation :: Bool = true
 ) :: Bool where {T <: AbstractVector{Int}, S <: GBOrder}
     #if is_minimization(bs)
-    return !disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
-        disjoint(positive_support(bs[i]), positive_support(bs[j])) #||
-        #!disjoint(positive_binaries(bs[i]), negative_binaries(bs[j])) ||
-        #!disjoint(negative_binaries(bs[i]), positive_binaries(bs[j]))
+    eliminate_by_criteria = !disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
+        disjoint(positive_support(bs[i]), positive_support(bs[j]))
+    eliminate_by_truncation = use_binary_truncation && (
+        !disjoint(positive_binaries(bs[i]), negative_binaries(bs[j])) ||
+        !disjoint(negative_binaries(bs[i]), positive_binaries(bs[j])))
+    return eliminate_by_criteria || eliminate_by_truncation
     #end
     #Maximization problem
     #return disjoint(negative_support(bs[i]), negative_support(bs[j])) ||
