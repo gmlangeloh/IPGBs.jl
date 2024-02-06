@@ -160,6 +160,24 @@ function minimize(
     return x, obj' * x
 end
 
+function minimize(
+    instance :: IPInstance;
+    solution :: Vector{Int} = Int[],
+    project_name :: String = "tmp"
+)
+    nonnegative = IPInstances.nonnegative_variables(instance)
+    int_objective = IPInstances.integer_objective(instance)
+    if isempty(solution)
+        init_sol = MatrixTools.initial_solution(instance.A, instance.b)
+    else
+        init_sol = solution
+    end
+    return minimize(
+        instance.A, int_objective, init_sol, nonnegative=nonnegative,
+        project_name=project_name
+    )
+end
+
 """
 Interface with the 4ti2 groebner command.
 Computes the Gröbner Basis of the toric ideal given by `A` using `c` as the
@@ -210,7 +228,7 @@ function groebner(
     if length(truncation_sol) > 0
         truncation_file = project_name * ".zsol"
         _4ti2_write(truncation_sol, truncation_file)
-        truncation_opt = "--truncation=ip"
+        truncation_opt = "--truncation=lp"
     end
     #Run 4ti2
     quiet_opt = quiet ? "-q" : ""

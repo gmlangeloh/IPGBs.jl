@@ -72,6 +72,30 @@ most_negative(sigma, solution) = argmin(solution[sigma])
 # ---------------------------------------
 #
 
+mutable struct ProjectAndLiftStats
+    lift_time :: Float64
+    optimize_time :: Float64
+    num_lifts :: Int
+
+    function ProjectAndLiftStats()
+        new(0.0, 0.0, 0)
+    end
+end
+
+function Base.show(io :: IO, stats :: ProjectAndLiftStats)
+    println(io, "Project-and-Lift Stats: ")
+    println(io, "lifts => ", stats.num_lifts)
+    println(io, "lift_time => ", stats.lift_time)
+    print(io, "optimize_time => ", stats.optimize_time)
+end
+
+function stats_after_lift(stats :: ProjectAndLiftStats, t :: Float64)
+    stats.lift_time += t
+    stats.num_lifts += 1
+end
+
+update_optimize_stats(stats :: ProjectAndLiftStats, t :: Float64) = stats.optimize_time += t
+
 """
     State of the project-and-lift algorithm representing the relevant
     information during a specific iteration.
@@ -101,6 +125,7 @@ struct ProjectAndLiftState
     dual_solution::Vector{Int}
     optimal_solution::Vector{Int}
     has_optimal_solution::Bool
+    stats::ProjectAndLiftStats
 end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
@@ -108,6 +133,8 @@ function Base.show(io :: IO, state :: ProjectAndLiftState)
     print(io, "Unlifted = ", state.unlifted, "\n")
     print(io, "Markov = ", state.markov, "\n")
 end
+
+print_stats(s :: ProjectAndLiftState, quiet = false) = if !quiet println(s.stats) end
 
 #
 # Lifting feasible solutions using a Markov basis
@@ -180,10 +207,21 @@ function optimize_with_markov(
         # to try doing that eventually, though (easier Markov bases later?)
         #TODO: truncation_type = :Simple or :Heuristic breaks things here for some reason
         #Figure out why and check if the conditions for using :Simple have to be changed
-        _ = groebner_basis(
-            permuted_markov, relaxation, all_solutions,
-            truncation_type=:LP, use_quick_truncation=false, quiet=quiet
-        )
+        #_, t, _, _, _ = @timed groebner_basis(
+        #    permuted_markov, relaxation, all_solutions,
+        #    truncation_type=:LP, use_quick_truncation=false, quiet=quiet
+        #)
+        #TODO: Replace this 4ti2 call by my own commands. Currently, IPGBs is really slow
+        #at this, for some reason
+        res, t, _, _, _ = @timed FourTi2.minimize(relaxation, solution=dual_solution)
+        #res, t, _, _, _ = @timed FourTi2.groebnernf(relaxation, permuted_markov, dual_solution)
+        for i in 1:length(dual_solution)
+            dual_solution[i] = res[1][i]
+        end
+        if !quiet
+            println("GROUP => ", relaxation.C[1, :]' * dual_solution)
+        end
+        update_optimize_stats(pl.stats, t)
         pop!(all_solutions)
         orig_dual = dual_solution[relaxation.inverse_permutation]
         # Any dual solution feasible for the original problem is optimal.
@@ -217,7 +255,8 @@ function initialize_project_and_lift(
     if optimize && is_feasible_solution(instance, solution)
         # In this case, we should use the given solution as an upper bound
         # GBs are smaller this way.
-        #opt_instance = add_constraint(instance, round.(Int, instance.C[1, :]), best_value[] - 1)
+        val = round(Int, instance.C[1, :]' * solution)
+        opt_instance = add_constraint(instance, round.(Int, instance.C[1, :]), val)
         push!(primal_solutions, solution)
     end
     # Compute a group relaxation with its corresponding Markov basis
@@ -242,7 +281,7 @@ function initialize_project_and_lift(
     return ProjectAndLiftState(
         instance, opt_instance, unlifted, nonnegative, relaxation,
         permuted_markov, primal_solutions, relaxation_solution,
-        zeros(Int, instance.n), false
+        zeros(Int, instance.n), false, ProjectAndLiftStats()
     )
 end
 
@@ -378,17 +417,20 @@ function next(
     optimize :: Bool = false,
     quiet :: Bool = true
 )::ProjectAndLiftState
-    i = first_variable(pl.unlifted) #Pick some variable to lift
+    negative(u) = most_negative(u, pl.dual_solution)
+    next_variable = optimize ? negative : first_variable
+    i = next_variable(pl.unlifted) #Pick some variable to lift
     relaxation_i = relaxation_index(i, pl.relaxation)
     ray = unboundedness_proof(pl.relaxation, relaxation_i)
     if isempty(ray)
-        lifted_markov = lift_bounded(
+        lifted_markov, t, _, _, _ = @timed lift_bounded(
             pl, relaxation_i, completion=completion,
             truncation_type=truncation_type, quiet = quiet
         )
     else
-        lifted_markov = lift_unbounded(pl, i, ray)
+        lifted_markov, t, _, _, _ = @timed lift_unbounded(pl, i, ray)
     end
+    stats_after_lift(pl.stats, t)
     return lift_and_relax(
         pl, lifted_markov, optimize=optimize, truncation_type=truncation_type
     )
@@ -409,7 +451,7 @@ function lift_and_relax(
     )
     return ProjectAndLiftState(
         pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative,
-        relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
+        relaxation, lifted_markov, primals, dual, opt_solution, is_optimal, pl.stats
     )
 end
 
@@ -447,6 +489,7 @@ function project_and_lift(
     @assert !optimize || is_feasible_solution(instance, pl.dual_solution, pl.relaxation.inverse_permutation)
     @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
     #Update solution and best known value
+    print_stats(pl, quiet)
     optimal_value = instance.C[1, :]' * pl.optimal_solution
     return pl.markov, pl.has_optimal_solution, pl.optimal_solution, optimal_value
 end
@@ -550,7 +593,7 @@ end
 
 function optimize(
     instance :: IPInstance;
-    completion :: Symbol = :Buchberger,
+    completion :: Symbol = :FourTi2,
     truncation_type :: Symbol = :LP,
     solution :: Vector{Int} = zeros(Int, instance.n),
     quiet :: Bool = true
@@ -558,6 +601,10 @@ function optimize(
     initial_solution = copy(solution)
     if !is_bounded(instance)
         return initial_solution, 0
+    end
+    if !quiet
+        lp_val = IPInstances.linear_relaxation(instance)
+        println("LP => ", lp_val)
     end
     _, is_opt, opt_sol, opt_val = project_and_lift(
         instance, completion=completion, truncation_type=truncation_type,
@@ -569,7 +616,7 @@ end
 
 function optimize(
     filepath :: String;
-    completion :: Symbol = :Buchberger,
+    completion :: Symbol = :FourTi2,
     truncation_type :: Symbol = :LP,
     solution :: Vector{Int} = Int[],
     quiet :: Bool = true
