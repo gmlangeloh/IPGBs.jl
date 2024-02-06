@@ -1,0 +1,8 @@
+Constructing initial basis...
+Size of triangular part is 30
+LP => -14049.668909825034
+GROUP => -13913.0
+Project-and-Lift Stats: 
+lifts => 0
+lift_time => 0.0
+optimize_time => 0.07075863
