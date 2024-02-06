@@ -1,0 +1,67 @@
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+IPGBs, no binary truncation
+Algorithm statistics:
+zero_reductions => 13
+max_basis_size => 18
+queued_pairs => 153
+built_pairs => 21
+reduced_pairs => 21
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 132
+time => 0.007175117
+memory => 0.0008283406496047974
+IPGBs, with binary truncation
+Algorithm statistics:
+zero_reductions => 13
+max_basis_size => 18
+queued_pairs => 153
+built_pairs => 21
+reduced_pairs => 21
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 132
+time => 0.003715025
+memory => 0.0008283406496047974
+4ti2 results
+4ti2 time => 0.01706686

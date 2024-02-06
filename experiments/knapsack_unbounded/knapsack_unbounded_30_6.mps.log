@@ -1,0 +1,69 @@
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+IPGBs, no binary truncation
+Algorithm statistics:
+zero_reductions => 15
+max_basis_size => 38
+queued_pairs => 703
+built_pairs => 23
+reduced_pairs => 23
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 680
+time => 0.007817665
+memory => 0.0012983903288841248
+IPGBs, with binary truncation
+Algorithm statistics:
+zero_reductions => 15
+max_basis_size => 38
+queued_pairs => 703
+built_pairs => 23
+reduced_pairs => 23
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 680
+time => 0.007069348
+memory => 0.0012983903288841248
+4ti2 results
+4ti2 time => 0.022676994

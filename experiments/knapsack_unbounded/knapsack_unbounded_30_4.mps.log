@@ -1,0 +1,65 @@
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+IPGBs, no binary truncation
+Algorithm statistics:
+zero_reductions => 3
+max_basis_size => 33
+queued_pairs => 528
+built_pairs => 6
+reduced_pairs => 6
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 522
+time => 0.009015382
+memory => 0.0012739300727844238
+IPGBs, with binary truncation
+Algorithm statistics:
+zero_reductions => 3
+max_basis_size => 33
+queued_pairs => 528
+built_pairs => 6
+reduced_pairs => 6
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 522
+time => 0.007049891
+memory => 0.0012739300727844238
+4ti2 results
+4ti2 time => 0.023807575

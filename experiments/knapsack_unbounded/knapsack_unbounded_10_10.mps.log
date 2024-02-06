@@ -1,0 +1,41 @@
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+Long-step dual simplex will be used
+IPGBs, no binary truncation
+Algorithm statistics:
+zero_reductions => 2
+max_basis_size => 12
+queued_pairs => 66
+built_pairs => 4
+reduced_pairs => 4
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 62
+time => 0.014861343
+memory => 0.0007588863372802734
+IPGBs, with binary truncation
+Algorithm statistics:
+zero_reductions => 2
+max_basis_size => 12
+queued_pairs => 66
+built_pairs => 4
+reduced_pairs => 4
+eliminated_by_truncation => 0
+removed_by_autoreduction => 0
+eliminated_by_gcd => 62
+time => 0.003572716
+memory => 0.0007588863372802734
+4ti2 results
+4ti2 time => 0.016984483
