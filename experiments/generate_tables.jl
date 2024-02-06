@@ -26,6 +26,7 @@ function read_log(filename :: String, log :: Vector{String})
     with_trunc_mem = 0.0
     with_trunc_reduced_pairs = 0
     fti2_time = 0.0
+    max_basis_size = 0
     #Parse log file
     for line in log
         #Figure out which algorithm we're dealing with
@@ -69,15 +70,17 @@ function read_log(filename :: String, log :: Vector{String})
             end
         elseif startswith(line, "4ti2 time =>")
             fti2_time = get_line_value(line)
+        elseif startswith(line, "max_basis_size =>")
+            max_basis_size = parse(Int, split(line, "=>")[2])
         end
     end
     #Finished reading log file, make a vector with the data
     #This vector will later be turned into a dataframe
     #Vector components: instance_name, n, m, no_trunc_time, no_trunc_mem,
     #no_trunc_reduced_pairs, with_trunc_time, with_trunc_mem, with_trunc_reduced_pairs,
-    #fti2_time
+    #fti2_time, max_basis_size
     v = [instance_name(filename), no_trunc_time, no_trunc_mem, no_trunc_reduced_pairs,
-        with_trunc_time, with_trunc_mem, with_trunc_reduced_pairs, fti2_time]
+        with_trunc_time, with_trunc_mem, with_trunc_reduced_pairs, fti2_time, max_basis_size]
     return v
 end
 
@@ -101,12 +104,13 @@ end
 
 function make_dataframe(data)
     col_names = [:instance, :no_trunc_time, :no_trunc_mem, :no_trunc_reduced_pairs,
-        :with_trunc_time, :with_trunc_mem, :with_trunc_reduced_pairs, :fti2_time]
+        :with_trunc_time, :with_trunc_mem, :with_trunc_reduced_pairs, :fti2_time,
+        :gb_size]
     cols = []
     for i in 1:length(col_names)
         if i == 1
             col = String[]
-        elseif i == 4 || i == 7
+        elseif i == 4 || i == 7 || i == 9
             col = Int[]
         else
             col = Float64[]
@@ -122,17 +126,17 @@ end
 
 function problem_from_instance_name(name)
     if startswith(name, "knapsack_binary_multidimensional")
-        return "Binary multiknapsack"
+        return "0-1MDKP"
     elseif startswith(name, "knapsack_binary")
-        return "Binary knapsack"
+        return "0-1KP"
     elseif startswith(name, "knapsack_multidimensional")
-        return "Multiknapsack"
+        return "MDKP"
     elseif startswith(name, "knapsack_unbounded")
-        return "Unbounded knapsack"
+        return "UKP"
     elseif startswith(name, "set_cover")
-        return "Set cover"
+        return "SCP"
     elseif startswith(name, "set_packing")
-        return "Set packing"
+        return "SPP"
     end
     return ""
 end
@@ -182,6 +186,7 @@ function summarize_dataframe(df)
     problem_names = String[]
     ns = Int[]
     ms = Int[]
+    gb_sizes = Float64[]
     means_no_trunc_time = Float64[]
     means_no_trunc_mem = Float64[]
     means_no_trunc_reduced_pairs = Float64[]
@@ -200,6 +205,8 @@ function summarize_dataframe(df)
         n, m = parameters_from_instance_name(name)
         push!(ns, n)
         push!(ms, m)
+        m_gb_size = mean(inst_data.gb_size)
+        push!(gb_sizes, m_gb_size)
         m_no_trunc_time = mean(inst_data.no_trunc_time)
         push!(means_no_trunc_time, m_no_trunc_time)
         m_no_trunc_mem = mean(inst_data.no_trunc_mem)
@@ -212,28 +219,29 @@ function summarize_dataframe(df)
         push!(means_with_trunc_mem, m_with_trunc_mem)
         m_with_trunc_reduced_pairs = mean(inst_data.with_trunc_reduced_pairs)
         push!(means_with_trunc_reduced_pairs, m_with_trunc_reduced_pairs)
-        m_percent_reduced_pairs = m_with_trunc_reduced_pairs / m_no_trunc_reduced_pairs
+        m_percent_reduced_pairs = 100 * m_with_trunc_reduced_pairs / m_no_trunc_reduced_pairs
         push!(means_percent_reduced_pairs, m_percent_reduced_pairs)
-        m_percent_time = m_with_trunc_time / m_no_trunc_time
+        m_percent_time = 100 * m_with_trunc_time / m_no_trunc_time
         push!(means_percent_time, m_percent_time)
-        m_percent_mem = m_with_trunc_mem / m_no_trunc_mem
+        m_percent_mem = 100 * m_with_trunc_mem / m_no_trunc_mem
         push!(means_percent_mem, m_percent_mem)
         m_fti2_time = mean(inst_data.fti2_time)
         push!(means_fti2_time, m_fti2_time)
     end
-    col_names = ["Problem", "n", "m", "t (no binary)", "m (no binary)", "reduced pairs (no binary)",
-        "t (with binary)", "m (with binary)", "reduced pairs (with binary)", "% time",
-        "% mem", "% reduced pairs", "t (4ti2)"]
-    summarized_df = DataFrame([problem_names, ns, ms, means_no_trunc_time, means_no_trunc_mem,
+    col_names = ["Problem", "n", "m", "|G|", "t (no binary)", "m (no binary)", "reduced pairs (no binary)",
+        "t (with binary)", "m (with binary)", "reduced pairs (with binary)", "t (4ti2)"]
+    summarized_df = DataFrame([problem_names, ns, ms, gb_sizes, means_no_trunc_time, means_no_trunc_mem,
         means_no_trunc_reduced_pairs, means_with_trunc_time, means_with_trunc_mem,
-        means_with_trunc_reduced_pairs, means_percent_time, means_percent_mem,
-        means_percent_reduced_pairs, means_fti2_time], col_names)
-    return summarized_df
+        means_with_trunc_reduced_pairs, means_fti2_time], col_names)
+    percent_col_names = ["Problem", "n", "m", "% time", "% memory", "% reduced pairs"]
+    percent_df = DataFrame([problem_names, ns, ms, means_percent_time, means_percent_mem,
+        means_percent_reduced_pairs], percent_col_names)
+    return summarized_df, percent_df
 end
 
 function main()
     data = read_output_data()
     df = make_dataframe(data)
-    sum_df = summarize_dataframe(df)
-    return sum_df
+    sum_df, percent_df = summarize_dataframe(df)
+    return sum_df, percent_df
 end
