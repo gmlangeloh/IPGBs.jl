@@ -181,8 +181,6 @@ end
 
 function summarize_dataframe(df)
     instance_names = unique(df.instance)
-    data_cols = names(df)
-    filter!(name -> name != "instance", data_cols)
     problem_names = String[]
     ns = Int[]
     ms = Int[]
@@ -244,4 +242,94 @@ function main()
     df = make_dataframe(data)
     sum_df, percent_df = summarize_dataframe(df)
     return sum_df, percent_df
+end
+
+function relative_deviation(v, opt)
+    return 100 * (v - opt) / opt
+end
+
+function read_opt_log(filename :: String, log :: Vector{String})
+    lp = 0.0
+    group = 0.0
+    lifts = 0
+    for line in log
+        if startswith(line, "LP =>")
+            lp = -get_line_value(line)
+        elseif startswith(line, "GROUP =>")
+            group = -get_line_value(line)
+        elseif startswith(line, "lifts =>")
+            lifts = parse(Int, split(line, "=>")[2])
+        end
+    end
+    v = [instance_name(filename), lp, group, relative_deviation(lp, group), lifts]
+    return v
+end
+
+function read_opt_data()
+    data = []
+    dirname = "knapsack_binary"
+    for filename in readdir(dirname)
+        if endswith(filename, ".optlog")
+            filename = joinpath(dirname, filename)
+            open(filename) do f
+                log = readlines(f)
+                v = read_opt_log(filename, log)
+                push!(data, v)
+            end
+        end
+    end
+    return data
+end
+
+function make_opt_dataframe(data)
+    col_names = [:instance, :lp, :group, :rel_dev, :lifts]
+    cols = []
+    for i in 1:length(col_names)
+        if i == 1
+            col = String[]
+        elseif i == 5
+            col = Int[]
+        else
+            col = Float64[]
+        end
+        for j in eachindex(data)
+            push!(col, data[j][i])
+        end
+        push!(cols, col)
+    end
+    df = DataFrame(cols, col_names)
+    return df
+end
+
+function summarize_opt_dataframe(df)
+    instance_names = unique(df.instance)
+    ns = Int[]
+    means_lp = Float64[]
+    means_group = Float64[]
+    means_rel_dev = Float64[]
+    means_lifts = Float64[]
+    for name in instance_names
+        println("Processing: ", name)
+        inst_data = df[df.instance .== name, :]
+        n, _ = parameters_from_instance_name(name)
+        push!(ns, n)
+        m_lp = mean(inst_data.lp)
+        push!(means_lp, m_lp)
+        m_group = mean(inst_data.group)
+        push!(means_group, m_group)
+        m_rel_dev = mean(inst_data.rel_dev)
+        push!(means_rel_dev, m_rel_dev)
+        m_lifts = mean(inst_data.lifts)
+        push!(means_lifts, m_lifts)
+    end
+    col_names = ["n", "LP", "GR", "rel_dev", "lifts"]
+    summarized_df = DataFrame([ns, means_lp, means_group, means_rel_dev, means_lifts], col_names)
+    return summarized_df
+end
+
+function main_opt()
+    data = read_opt_data()
+    df = make_opt_dataframe(data)
+    sum_df = summarize_opt_dataframe(df)
+    return sum_df
 end
