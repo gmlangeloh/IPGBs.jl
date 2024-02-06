@@ -1,0 +1,26 @@
+IPGBs, no binary truncation
+Algorithm statistics:
+zero_reductions => 318198
+max_basis_size => 3726
+queued_pairs => 6959647
+built_pairs => 780074
+reduced_pairs => 355982
+eliminated_by_truncation => 34074
+removed_by_autoreduction => 9
+eliminated_by_gcd => 6179573
+time => 2.249144895
+memory => 0.3414369225502014
+IPGBs, with binary truncation
+Algorithm statistics:
+zero_reductions => 60970
+max_basis_size => 3726
+queued_pairs => 6959647
+built_pairs => 128643
+reduced_pairs => 86880
+eliminated_by_truncation => 22200
+removed_by_autoreduction => 9
+eliminated_by_gcd => 6831004
+time => 1.161925774
+memory => 0.19996370375156403
+4ti2 results
+4ti2 time => 5.305390354
