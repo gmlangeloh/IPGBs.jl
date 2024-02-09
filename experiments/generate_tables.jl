@@ -15,6 +15,15 @@ function instance_name(filename)
     return name
 end
 
+function instance_n(filename)
+    #take filename, remove path and extension
+    no_path = split(filename, "/")[end]
+    #To remove the extension, simply remove the last element of the array
+    #This is because the extension is .dat
+    name_with_reps = join(split(no_path, ".")[1:end-1], ".")
+    return parse(Int, split(name_with_reps, "_")[2])
+end
+
 function read_log(filename :: String, log :: Vector{String})
     no_trunc = false
     with_trunc = false
@@ -332,4 +341,78 @@ function main_opt()
     df = make_opt_dataframe(data)
     sum_df = summarize_opt_dataframe(df)
     return sum_df
+end
+
+function read_unbounded_log(log)
+    ukp_rows = []
+    mdkp_rows = []
+    first_line = true
+    for line in log
+        if first_line
+            first_line = false
+            continue
+        end
+        words = split(line)
+        n = instance_n(words[1])
+        gb1_size = parse(Int, words[2])
+        gb2_size = parse(Int, words[3])
+        ipgbs1_time = parse(Float64, words[4])
+        ipgbs2_time = parse(Float64, words[5])
+        fti21_time = parse(Float64, words[6])
+        fti22_time = parse(Float64, words[7])
+        row1 = [n, gb1_size, ipgbs1_time, fti21_time]
+        push!(ukp_rows, row1)
+        row2 = [n, gb2_size, ipgbs2_time, fti22_time]
+        push!(mdkp_rows, row2)
+    end
+    return ukp_rows, mdkp_rows
+end
+
+function basic_unbounded_table(rows)
+    col_names = [:n, :gb_size, :ipgbs_time, :fti2_time]
+    cols = []
+    for i in 1:length(col_names)
+        if i == 1 || i == 2
+            col = Int[]
+        elseif i == 3 || i == 4
+            col = Float64[]
+        end
+        for j in eachindex(rows)
+            push!(col, rows[j][i])
+        end
+        push!(cols, col)
+    end
+    return DataFrame(cols, col_names)
+end
+
+function make_unbounded_table(rows, problem_name)
+    df = basic_unbounded_table(rows)
+    ns = unique([row[1] for row in rows])
+    problem_names = String[]
+    gb_sizes = Float64[]
+    ipgbs_times = Float64[]
+    fti2_times = Float64[]
+    for n in ns
+        println("processing: ", n, " - ", problem_name)
+        push!(problem_names, problem_name)
+        inst_data = df[df.n .== n, :]
+        m_gb_size = mean(inst_data.gb_size)
+        push!(gb_sizes, m_gb_size)
+        m_ipgbs_time = mean(inst_data.ipgbs_time)
+        push!(ipgbs_times, m_ipgbs_time)
+        m_fti2_time = mean(inst_data.fti2_time)
+        push!(fti2_times, m_fti2_time)
+    end
+    col_names = ["Problem", "n", "|G|", "t (IPGBs)", "t (4ti2)"]
+    summarized_df = DataFrame([problem_names, ns, gb_sizes, ipgbs_times, fti2_times], col_names)
+    return summarized_df
+end
+
+function main_unbounded()
+    open("unbounded_results.dat", "r") do f
+        ukp_rows, mdkp_rows = read_unbounded_log(readlines(f))
+        ukp_df = make_unbounded_table(ukp_rows, "UKP")
+        mdkp_df = make_unbounded_table(mdkp_rows, "MDKP")
+        return ukp_df, mdkp_df
+    end
 end
