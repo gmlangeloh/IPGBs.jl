@@ -90,225 +90,113 @@ function parse_truncation(
     return type, var_type
 end
 
-"""
-Computes a Markov basis for `instance` and then uses it to compute a Gröbner
-basis.
-"""
 function groebner_basis(
-    A::Array{Int,2},
-    b::Vector{Int},
-    C::Array{T,2};
-    u::Union{Nothing,Vector{<:Union{Int,Nothing}}} = nothing,
-    use_signatures::Bool = false,
-    implicit_representation::Bool = false,
-    module_order::Symbol = :ltpot,
-    truncation_type::Symbol = :Heuristic,
-    use_quick_truncation::Bool = true,
-    use_binary_truncation::Bool = true,
-    quiet::Bool = true,
-    normalize_ip::Bool = true
-)::Vector{Vector{Int}} where {T<:Real}
-    if isnothing(u)
-        u = Union{Int,Nothing}[]
-        for _ in 1:size(A, 2)
-            push!(u, nothing)
-        end
+    filepath :: String,
+    markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
+    kwargs...
+) :: Vector{Vector{Int}}
+    instance = IPInstance(filepath)
+    return groebner_basis(instance, markov_basis; kwargs...)
+end
+
+function groebner_basis(
+    model :: JuMP.Model,
+    markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
+    kwargs...
+) :: Vector{Vector{Int}}
+    instance = IPInstance(model)
+    return groebner_basis(instance, markov_basis; kwargs...)
+end
+
+function groebner_basis(
+    A :: Matrix{Int},
+    b :: Vector{Int},
+    C :: Matrix{T},
+    markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
+    u :: Union{Nothing, Vector{<:Union{Int, Nothing}}} = nothing,
+    kwargs...
+) :: Vector{Vector{Int}} where {T <: Real}
+    normalize = true
+    if :apply_normalization in keys(kwargs)
+        normalize = kwargs[:apply_normalization]
     end
-    initialize_parameters(
-        auto_reduce_freq = 2500,
-        debug = false,
-        info = false
-    )
-    instance = IPInstance(A, b, C, u, apply_normalization=normalize_ip)
-    markov = markov_basis(instance, quiet=quiet)
-    return groebner_basis(
-        markov, instance,
-        use_signatures = use_signatures,
-        implicit_representation = implicit_representation,
-        module_order = module_order,
-        truncation_type = truncation_type,
-        use_quick_truncation = use_quick_truncation,
-        use_binary_truncation = use_binary_truncation,
-        quiet = quiet
-    )
+    instance = IPInstance(A, b, C, u, apply_normalization=normalize)
+    return groebner_basis(instance, markov_basis; kwargs...)
 end
 
-"""
-Computes a Markov basis for `instance` and then uses it to compute a Gröbner
-basis.
-"""
-function groebner_basis(
-    instance::IPInstance;
-    solutions :: Vector{Vector{Int}} = Vector{Int}[],
-    use_signatures::Bool = false,
-    implicit_representation::Bool = false,
-    module_order::Symbol = :ltpot,
-    truncation_type::Symbol = :Heuristic,
-    use_quick_truncation::Bool = true,
-    use_binary_truncation::Bool = true,
-    quiet::Bool = true
-)::Vector{Vector{Int}}
-    if !isempty(solutions)
-        markov = markov_basis(instance, solution=solutions[1], quiet=quiet)
-    else
-        markov = markov_basis(instance, quiet=quiet)
-    end
-    return groebner_basis(
-        markov, instance, solutions,
-        use_signatures = use_signatures,
-        implicit_representation = implicit_representation,
-        module_order = module_order,
-        truncation_type = truncation_type,
-        use_quick_truncation = use_quick_truncation,
-        use_binary_truncation = use_binary_truncation,
-        quiet = quiet
-    )
-end
-
-"""
-Computes a Markov basis for `instance` and then uses it to compute a Gröbner
-basis.
-"""
-function groebner_basis(
-    model::JuMP.Model;
-    use_signatures::Bool = false,
-    implicit_representation::Bool = false,
-    module_order::Symbol = :ltpot,
-    truncation_type::Symbol = :Heuristic,
-    use_quick_truncation::Bool = true,
-    quiet::Bool = true,
-    use_binary_truncation::Bool = true
-)::Vector{Vector{Int}}
-    return groebner_basis(
-        IPInstance(model),
-        use_signatures = use_signatures,
-        implicit_representation = implicit_representation,
-        module_order = module_order,
-        truncation_type = truncation_type,
-        use_quick_truncation = use_quick_truncation,
-        use_binary_truncation = use_binary_truncation,
-        quiet = quiet
-    )
-end
-
-function groebner_basis(
-    path :: String;
-    use_signatures::Bool = false,
-    implicit_representation::Bool = false,
-    module_order::Symbol = :ltpot,
-    truncation_type::Symbol = :Heuristic,
-    use_quick_truncation::Bool = true,
-    quiet::Bool = true,
-    use_binary_truncation::Bool = true
-)::Vector{Vector{Int}}
-    return groebner_basis(
-        IPInstance(path),
-        use_signatures = use_signatures,
-        implicit_representation = implicit_representation,
-        module_order = module_order,
-        truncation_type = truncation_type,
-        use_quick_truncation = use_quick_truncation,
-        use_binary_truncation = use_binary_truncation,
-        quiet = quiet
-    )
-end
-
-function groebner_basis(
-    markov_basis::Vector{Vector{Int}},
-    A::Array{Int,2},
-    b::Vector{Int},
-    C::Array{T,2};
-    u::Union{Nothing,Vector{<:Union{Int,Nothing}}} = nothing,
-    use_signatures::Bool = false,
-    implicit_representation::Bool = false,
-    module_order::Symbol = :ltpot,
-    truncation_type::Symbol = :Heuristic,
-    use_quick_truncation::Bool = true,
-    quiet::Bool = true,
-    use_binary_truncation::Bool = true
-)::Vector{Vector{Int}} where {T<:Real}
-    if isnothing(u)
-        u = Union{Int,Nothing}[]
-        for _ in 1:size(A, 2)
-            push!(u, nothing)
-        end
-    end
-    instance = IPInstance(A, b, C, u)
-    return groebner_basis(
-        markov_basis, instance,
-        use_signatures = use_signatures,
-        implicit_representation = implicit_representation,
-        use_quick_truncation = use_quick_truncation,
-        use_binary_truncation = use_binary_truncation,
-        module_order = module_order,
-        truncation_type = truncation_type,
-        quiet = quiet
-    )
+@kwdef struct Options
+    quiet :: Bool = true
+    use_signatures :: Bool = false
+    implicit_representation :: Bool = false
+    truncation_type :: Symbol = :Heuristic
+    use_quick_truncation :: Bool = true
+    use_binary_truncation :: Bool = true
+    solutions :: Vector{Vector{Int}} = Vector{Int}[]
+    module_order :: Symbol = :ltpot
 end
 
 """
     groebner_basis(
-    markov_basis::Vector{Vector{Int}},
-    instance::IPInstance,
-    solutions::Vector{Vector{Int}} = Vector{Int}[];
-    use_signatures::Bool = false,
-    implicit_representation::Bool = false,
-    module_order::Symbol = :ltpot,
-    truncation_type::Symbol = :Heuristic,
-    quiet::Bool = true
-)::Vector{Vector{Int}}
+    instance :: IPInstance,
+    markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
+    kwargs...
+) :: Vector{Vector{Int}}
 
-Return the reduced Gröbner Basis of the ideal generated by `markov`,
-corresponding to the given integer programming instance. If `solutions`
-are given, they are reduced by the Gröbner basis before being returned.
+    Return a Gröbner basis of `instance` using the given `markov_basis` if
+    it is available. Otherwise, a Markov basis is computed first.
 
-- use_signatures: Whether to use signatures for S-binomial elimination. This
-is currently not finished.
-- implicit_representation: Whether to use implicit variables for slacks and
-upper bounds. This is currently unsupported.
-- module_order: The options are :ltpot, :pot and :top. Only relevant for signature
-algorithms.
-- truncation_type: The options are :None, :Heuristic, :LP, :IP, :Simple.
-- quiet: Whether to print debug information.
+    Keyword parameters:
+    - quiet: Whether to print information about the computation
+    - use_signatures: Whether to use signatures in the computation (work in progress)
+    - implicit_representation: Whether to represent slack variables implicitly or not (as described in Thomas and Weismantel (1997))
+    - truncation_type: The type of truncation to use. Can be :Heuristic, :LP, :IP, :Simple, or :None
+    - use_quick_truncation: Whether to use grading-based truncation
+    - use_binary_truncation: Whether to use the binary truncation criterion for binary variables
+    - solutions: A vector with known feasible solutions to be optimized
+    - module_order: The module order to use in a signature GB computation (work in progress)
 """
 function groebner_basis(
-    markov_basis::Vector{Vector{Int}},
-    instance::IPInstance,
-    solutions::Vector{Vector{Int}} = Vector{Int}[];
-    use_signatures::Bool = false,
-    implicit_representation::Bool = false,
-    module_order::Symbol = :ltpot,
-    truncation_type::Symbol = :Heuristic,
-    use_quick_truncation::Bool = true,
-    use_binary_truncation::Bool = true,
-    quiet::Bool = true
-)::Vector{Vector{Int}}
-    #Setting parameters
-    @debug "Starting to compute Gröbner basis for: " markov_basis
-    algorithm_type = use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
-    representation = implicit_representation ? GradedBinomial : Binomial
+    instance :: IPInstance,
+    markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
+    kwargs...
+) :: Vector{Vector{Int}}
+    #Check whether the given Markov basis is in the kernel of instance.A
+    if !isnothing(markov_basis) && !in_kernel(markov_basis, instance)
+        throw(ArgumentError("markov_basis is not in the kernel of instance."))
+    end
+    opt = Options(; kwargs...)
+    #If there is no Markov basis given, compute it
+    if isnothing(markov_basis)
+        markov_basis = Markov.markov_basis(instance, quiet=opt.quiet)
+    end
+    #Build the GBAlgorithm corresponding to the given parameters
+
+    algorithm_type = opt.use_signatures ? SignatureAlgorithm : BuchbergerAlgorithm
+    representation = opt.implicit_representation ? GradedBinomial : Binomial
     use_minimization = true
-    trunc_type, trunc_var = parse_truncation(truncation_type, instance.A, instance.b)
+    trunc_type, trunc_var = parse_truncation(opt.truncation_type, instance.A, instance.b)
 
     #Signatures aren't currently supported with implicit representation
-    @assert !(use_signatures && implicit_representation)
+    if opt.use_signatures && opt.implicit_representation
+        throw(ArgumentError("Signatures are not supported with implicit representation."))
+    end
 
     #Run GB algorithm over the given instance
-    if use_signatures
+    if opt.use_signatures
         #TODO: Change the SignatureAlgorithm constructor, then send the whole
         #instance
         algorithm = algorithm_type(
-            representation, instance.C, instance.A, instance.b, module_order,
+            representation, instance.C, instance.A, instance.b, opt.module_order,
             truncate, use_minimization
         )
     else
         algorithm = algorithm_type(
-            markov_basis, instance, solutions, T = representation, truncation_type = trunc_type,
+            markov_basis, instance, opt.solutions, T = representation, truncation_type = trunc_type,
             trunc_var_type = trunc_var, minimization = use_minimization,
-            use_quick_truncation = use_quick_truncation, use_binary_truncation = use_binary_truncation
+            use_quick_truncation = opt.use_quick_truncation, use_binary_truncation = opt.use_binary_truncation
         )
     end
-    gb = GBAlgorithms.run(algorithm, quiet = quiet)
+    gb = GBAlgorithms.run(algorithm, quiet = opt.quiet)
     @debug "IPGBs finished, GB:" gb
     return gb
 end

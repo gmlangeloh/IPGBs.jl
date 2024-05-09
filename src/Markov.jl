@@ -347,7 +347,7 @@ function lift_bounded(
         #TODO: Using quick truncation breaks something here. It may be a bug in my code,
         #or some implicit hypothesis that I'm not meeting. Figure this out later!
         markov = IPGBs.groebner_basis(
-            pl.markov, pl.relaxation, [pl.dual_solution],
+            pl.relaxation, pl.markov, solutions=[pl.dual_solution],
             truncation_type=truncation_type, use_quick_truncation=false,
             quiet = quiet
         )
