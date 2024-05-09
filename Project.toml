@@ -19,7 +19,6 @@ MIPMatrixTools = "92da6944-dd09-4426-96b3-5659caebed13"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-StatsKit = "2cb19f9e-ec4d-5c53-8573-a4542a68d3f0"
 
 [compat]
 AbstractAlgebra = "0.35"
