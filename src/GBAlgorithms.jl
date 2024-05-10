@@ -30,6 +30,7 @@ truncate_basis(algorithm :: GBAlgorithm) = algorithm.should_truncate
 use_implicit_representation(:: GBAlgorithm) = false
 quick_truncation(:: GBAlgorithm, :: GBElement) = false
 optimize_solutions!(:: GBAlgorithm) = error("Not implemented.")
+should_auto_reduce(::GBAlgorithm) = error("Not implemented.")
 
 function initialize!(
     :: GBAlgorithm,
@@ -179,14 +180,6 @@ function run(
     quiet :: Bool = false
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
-    #TODO: Move parameter initialization elsewhere!!! (IPGBs.jl)
-    IPGBs.initialize_parameters(
-        auto_reduce_freq = 2500,
-        auto_reduce_type = IPGBs.FIXED_ITERATIONS,
-        cache_tree_size = 500,
-        debug = false,
-        info = false
-    )
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.

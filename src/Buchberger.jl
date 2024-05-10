@@ -21,6 +21,7 @@ using IPGBs.SupportTrees
 using IPGBs.GBAlgorithms
 
 using JuMP
+using Logging
 
 """
 The state of Buchberger S-binomial generation.
@@ -88,6 +89,10 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     truncated_gens :: Vector{T}
     truncation_weight :: Vector{Float64}
     max_truncation_weight :: Float64
+    auto_reduce_type :: Symbol
+    auto_reduce_freq :: Float64
+    cache_tree_size :: Int
+    prev_gb_size :: Int
 
     function BuchbergerAlgorithm(
         markov :: Vector{Vector{Int}},
@@ -98,7 +103,12 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         truncation_type :: Symbol = :Model,
         trunc_var_type :: DataType = Real,
         use_quick_truncation :: Bool = true,
-        use_binary_truncation :: Bool = true
+        use_binary_truncation :: Bool = true,
+        auto_reduce_type :: Symbol = :FixedIterations,
+        auto_reduce_freq :: Float64 = 2500.0,
+        cache_tree_size :: Int = 100,
+        debug :: Bool = false,
+        info :: Bool = false
     )
         #Build order and generating set
         order = MonomialOrder(
@@ -146,16 +156,49 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         #Initialize the state of the algorithm (no pairs processed yet)
         state = BuchbergerState(length(binomial_gen_set))
         stats = BuchbergerStats()
+        #Setting up logging
+        if debug || info
+            loglevel = debug ? Logging.Debug : Logging.Info
+            logger = SimpleLogger(stderr, loglevel)
+            global_logger(logger)
+        else
+            logger = NullLogger()
+            global_logger(logger)
+        end
         new{T}(
             binomial_gen_set, state, init_solutions, solutions, should_truncate,
             truncation_type, use_quick_truncation, use_binary_truncation, stats,
             preallocated, 0, model, vars, constrs, instance, truncated_gens, weight,
-            max_weight
+            max_weight, auto_reduce_type, auto_reduce_freq, cache_tree_size, 0
         )
     end
 end
 
 GBAlgorithms.use_implicit_representation(:: BuchbergerAlgorithm{T}) where {T} = is_implicit(T)
+
+function GBAlgorithms.should_auto_reduce(
+    algorithm :: BuchbergerAlgorithm{T},
+) :: Bool where {T <: GBElement}
+    gb_size = length(current_basis(algorithm))
+    if algorithm.auto_reduce_type == :None
+        return false
+    elseif algorithm.auto_reduce_type == :FixedIterations
+        return algorithm.num_iterations != 0 &&
+        algorithm.num_iterations % algorithm.auto_reduce_freq == 0
+    elseif algorithm.auto_reduce_type == :FixedElements
+        delta = gb_size - algorithm.prev_gb_size
+        should_reduce = gb_size != 0 && delta >= algorithm.auto_reduce_freq
+        algorithm.prev_gb_size = gb_size
+        return should_reduce
+    elseif algorithm.auto_reduce_type == :FractionElements
+        delta = gb_size - algorithm.prev_gb_size
+        should_reduce = gb_size != 0 && (delta / gb_size >= algorithm.auto_reduce_freq)
+        algorithm.prev_gb_size = gb_size
+        return should_reduce
+    end
+    @assert false #Should never reach this
+    return false
+end
 
 """
 Produces the next BinomialPair to be processed by the Buchberger algorithm,
@@ -170,7 +213,7 @@ function GBAlgorithms.next_pair!(
     #then check whether we should auto-reduce the basis for efficiency
     if algorithm.state.j == algorithm.state.i - 1
         algorithm.num_iterations += 1
-        if IPGBs.should_auto_reduce(algorithm.num_iterations, length(current_basis(algorithm)))
+        if GBAlgorithms.should_auto_reduce(algorithm)
             removed, before_idx = auto_reduce_once!(current_basis(algorithm), current_index=algorithm.state.i+1)
             algorithm.stats.removed_by_autoreduction += removed
             algorithm.state.n -= removed

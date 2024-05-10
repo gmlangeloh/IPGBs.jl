@@ -133,6 +133,11 @@ end
     use_binary_truncation :: Bool = true
     solutions :: Vector{Vector{Int}} = Vector{Int}[]
     module_order :: Symbol = :ltpot
+    auto_reduce_type :: Symbol = :FixedIterations
+    auto_reduce_freq :: Float64 = 2500.0
+    cache_tree_size :: Int = 100
+    debug :: Bool = false
+    info :: Bool = false
 end
 
 """
