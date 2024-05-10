@@ -198,7 +198,9 @@ function groebner_basis(
         algorithm = algorithm_type(
             markov_basis, instance, opt.solutions, T = representation, truncation_type = trunc_type,
             trunc_var_type = trunc_var, minimization = use_minimization,
-            use_quick_truncation = opt.use_quick_truncation, use_binary_truncation = opt.use_binary_truncation
+            use_quick_truncation = opt.use_quick_truncation, use_binary_truncation = opt.use_binary_truncation,
+            auto_reduce_type = opt.auto_reduce_type, auto_reduce_freq = opt.auto_reduce_freq,
+            cache_tree_size = opt.cache_tree_size, debug = opt.debug, info = opt.info
         )
     end
     gb = GBAlgorithms.run(algorithm, quiet = opt.quiet)

@@ -40,28 +40,30 @@ include("./test_functions.jl")
                 solution = IPInstances.guess_initial_solution(instance)
                 println("Guessed feasible solution? ",
                     @test is_feasible_solution(instance, solution))
+                println()
             end
         end
     end
 
-    #@testset "Optimize combinatorial optimization instances" begin
-    #    for filename in readdir("test_instances", join=true)
-    #        if endswith(filename, ".mps")
-    #            println("Optimization test for ", filename)
-    #            instance = IPInstance(filename)
-    #            #Optimize with IPGBs and with a traditional IP solver, then compare
-    #            _, ipgbs_value = optimize(instance)
-    #            solver_solution, solver_value = IPInstances.solve(instance)
-    #            println("Optimal value with no initial solution? ",
-    #                @test ipgbs_value == solver_value)
-    #            init_solution = IPInstances.guess_initial_solution(instance)
-    #            _, init_value = optimize(instance, solution=init_solution)
-    #            println("Optimal value starting from arbitrary solution? ",
-    #                @test init_value == solver_value)
-    #            _, opt_value = optimize(instance, solution=solver_solution)
-    #            println("Optimal value starting from the optimal solution? ",
-    #                @test opt_value == solver_value)
-    #        end
-    #    end
-    #end
+    @testset "Optimize combinatorial optimization instances" begin
+        for filename in readdir("test_instances", join=true)
+            if endswith(filename, ".mps")
+                println("Optimization test for ", filename)
+                instance = IPInstance(filename)
+                #Optimize with IPGBs and with a traditional IP solver, then compare
+                _, ipgbs_value = optimize(instance)
+                solver_solution, solver_value = IPInstances.solve(instance)
+                println("Optimal value with no initial solution? ",
+                    @test ipgbs_value == solver_value)
+                init_solution = IPInstances.guess_initial_solution(instance)
+                _, init_value = optimize(instance, solution=init_solution)
+                println("Optimal value starting from arbitrary solution? ",
+                    @test init_value == solver_value)
+                _, opt_value = optimize(instance, solution=solver_solution)
+                println("Optimal value starting from the optimal solution? ",
+                    @test opt_value == solver_value)
+                println()
+            end
+        end
+    end
 end

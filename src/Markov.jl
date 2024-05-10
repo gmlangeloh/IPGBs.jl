@@ -126,6 +126,28 @@ struct ProjectAndLiftState
     optimal_solution::Vector{Int}
     has_optimal_solution::Bool
     stats::ProjectAndLiftStats
+    completion::Symbol
+    optimize::Bool
+    truncation_type::Symbol
+    quiet::Bool
+end
+
+function ProjectAndLiftState(
+    previous_state :: ProjectAndLiftState,
+    new_relaxation :: IPInstance,
+    new_markov :: Vector{Vector{Int}},
+    new_primals :: Vector{Vector{Int}},
+    new_dual :: Vector{Int},
+    new_optimal :: Vector{Int},
+    is_optimal :: Bool
+)
+    return ProjectAndLiftState(
+        previous_state.original_instance, previous_state.working_instance,
+        previous_state.unlifted, previous_state.nonnegative, new_relaxation,
+        new_markov, new_primals, new_dual, new_optimal, is_optimal,
+        previous_state.stats, previous_state.completion, previous_state.optimize,
+        previous_state.truncation_type, previous_state.quiet
+    )
 end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
@@ -160,11 +182,7 @@ function initial_solution(
             end
         end
     end
-    #println("Solution before initial reduction: ", solution)
-    #println("Reducing basis:")
-    #display(GBTools.tomatrix(markov))
     BinomialSets.reduce!(solution, markov)
-    #println("Initial dual solution (after reduction): ", solution)
     @assert is_feasible_solution(instance, solution)
     return solution
 end
@@ -191,16 +209,14 @@ function optimize_with_markov(
     primal_solutions :: Vector{Vector{Int}},
     dual_solution:: Vector{Int},
     relaxation :: IPInstance,
-    permuted_markov :: Vector{Vector{Int}};
-    optimize :: Bool = false,
-    quiet :: Bool = true
+    permuted_markov :: Vector{Vector{Int}}
 )
     if pl.has_optimal_solution
         return pl.optimal_solution, true
     end
     is_optimal = false
     opt_solution = pl.optimal_solution
-    if optimize
+    if pl.optimize
         all_solutions = Vector{Int}[]
         push!(all_solutions, dual_solution)
         #TODO: For now, I won't try to reuse this Gröbner basis. Might be worthwhile
@@ -218,7 +234,7 @@ function optimize_with_markov(
         for i in 1:length(dual_solution)
             dual_solution[i] = res[1][i]
         end
-        if !quiet
+        if !pl.quiet
             println("GROUP => ", relaxation.C[1, :]' * dual_solution)
         end
         update_optimize_stats(pl.stats, t)
@@ -246,7 +262,10 @@ The group relaxation Markov basis is obtained through the Hermite Normal Form al
 """
 function initialize_project_and_lift(
     instance :: IPInstance;
+    completion :: Symbol = :IPGBs,
     optimize :: Bool = false,
+    truncation_type :: Symbol = :LP,
+    quiet :: Bool = true,
     solution :: Vector{Int} = zeros(Int, instance.n)
 )::ProjectAndLiftState
     # Update instance to include upper bounds for efficiency if possible
@@ -281,7 +300,8 @@ function initialize_project_and_lift(
     return ProjectAndLiftState(
         instance, opt_instance, unlifted, nonnegative, relaxation,
         permuted_markov, primal_solutions, relaxation_solution,
-        zeros(Int, instance.n), false, ProjectAndLiftStats()
+        zeros(Int, instance.n), false, ProjectAndLiftStats(),
+        completion, optimize, truncation_type, quiet
     )
 end
 
@@ -323,77 +343,80 @@ function lift_variables!(
 end
 
 """
-    bounded_case(
-    s :: ProjectAndLiftState,
-    i :: Int;
-    completion :: Symbol = :Buchberger,
-    truncation_type :: Symbol = :None
+    lift_bounded(
+    pl :: ProjectAndLiftState,
+    i :: Int
 ) :: Vector{Vector{Int}}
 
-
+    TODO: Description
 """
 function lift_bounded(
     pl :: ProjectAndLiftState,
-    i :: Int;
-    completion :: Symbol = :Buchberger,
-    truncation_type :: Symbol = :None,
-    quiet :: Bool = true
+    i :: Int
 ) :: Vector{Vector{Int}}
     #Compute a GB in the adequate monomial order
     @info "P&L bounded case" i length(pl.markov)
     update_objective!(pl.relaxation, i, relaxation_index(pl.unlifted, pl.relaxation))
-    if completion == :Buchberger
+    if pl.completion == :Buchberger
         #This will automatically lift pl.dual_solutions
         #TODO: Using quick truncation breaks something here. It may be a bug in my code,
         #or some implicit hypothesis that I'm not meeting. Figure this out later!
         markov = IPGBs.groebner_basis(
             pl.relaxation, pl.markov, solutions=[pl.dual_solution],
-            truncation_type=truncation_type, use_quick_truncation=false,
-            quiet = quiet
+            truncation_type=pl.truncation_type, use_quick_truncation=false,
+            quiet = pl.quiet
         )
-    elseif completion == :FourTi2
+    elseif pl.completion == :FourTi2
         gb, sol, _ = FourTi2.groebnernf(pl.relaxation, pl.markov, pl.dual_solution)
         markov = GBTools.tovector(gb)
         copyto!(pl.dual_solution, sol)
     else
-        error("Unknown completion algorithm: $completion")
+        error("Unknown completion algorithm: $(pl.completion)")
     end
     @info "Markov size after lifting: " length(markov)
     return markov
 end
 
 """
-    unbounded_case(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) :: Vector{Vector{Int}}
+    lift_unbounded(
+    pl_state :: ProjectAndLiftState,
+    i :: Int,
+    ray :: Vector{Int}
+) :: Vector{Vector{Int}}
 
-
+    TODO: Description
 """
-function lift_unbounded(s :: ProjectAndLiftState, i :: Int, ray :: Vector{Int}) :: Vector{Vector{Int}}
+function lift_unbounded(
+    pl_state :: ProjectAndLiftState,
+    i :: Int,
+    ray :: Vector{Int}
+) :: Vector{Vector{Int}}
     @info "P&L unbounded case" ray
-    if !(ray in s.markov)
-        push!(s.markov, ray)
-        lift_solution_unbounded!(s.dual_solution, ray)
+    if !(ray in pl_state.markov)
+        push!(pl_state.markov, ray)
+        lift_solution_unbounded!(pl_state.dual_solution, ray)
     end
-    i_index = findfirst(isequal(i), s.unlifted)
-    deleteat!(s.unlifted, i_index)
-    s.nonnegative[i] = true
-    return s.markov
+    i_index = findfirst(isequal(i), pl_state.unlifted)
+    deleteat!(pl_state.unlifted, i_index)
+    pl_state.nonnegative[i] = true
+    return pl_state.markov
 end
 
 function relax_and_reorder(
-    pl :: ProjectAndLiftState,
+    pl_state :: ProjectAndLiftState,
     markov :: Vector{Vector{Int}}
 )
     #Before taking the relaxation, we bring the Markov basis and known solutions back into
     #the original variable ordering
-    lifted_markov = apply_permutation(markov, pl.relaxation.inverse_permutation)
-    dual_solution = pl.dual_solution[pl.relaxation.inverse_permutation]
-    primal_solutions = apply_permutation(pl.primal_solutions, pl.relaxation.inverse_permutation)
+    lifted_markov = apply_permutation(markov, pl_state.relaxation.inverse_permutation)
+    dual_solution = pl_state.dual_solution[pl_state.relaxation.inverse_permutation]
+    primal_solutions = apply_permutation(pl_state.primal_solutions, pl_state.relaxation.inverse_permutation)
     #Now we take the relaxation with respect to the non-negativity constraints specified in pl
-    relaxation = nonnegativity_relaxation(pl.working_instance, pl.nonnegative)
+    relaxation = nonnegativity_relaxation(pl_state.working_instance, pl_state.nonnegative)
     #And we permute the Markov basis and solutions back to the new variable ordering
     lifted_markov = apply_permutation(lifted_markov, relaxation.permutation)
     dual_solution = dual_solution[relaxation.permutation]
-    primal_solutions = apply_permutation(pl.primal_solutions, relaxation.permutation)
+    primal_solutions = apply_permutation(pl_state.primal_solutions, relaxation.permutation)
     return relaxation, lifted_markov, primal_solutions, dual_solution
 end
 
@@ -411,56 +434,49 @@ One iteration involves lifting a previously unlifted variable, either through
 a linear program or a Gröbner Basis computation.
 """
 function next(
-    pl::ProjectAndLiftState;
-    completion :: Symbol = :Buchberger,
-    truncation_type::Symbol = :LP,
-    optimize :: Bool = false,
-    quiet :: Bool = true
+    pl_state :: ProjectAndLiftState
 )::ProjectAndLiftState
-    negative(u) = most_negative(u, pl.dual_solution)
-    next_variable = optimize ? negative : first_variable
-    i = next_variable(pl.unlifted) #Pick some variable to lift
-    relaxation_i = relaxation_index(i, pl.relaxation)
-    ray = unboundedness_proof(pl.relaxation, relaxation_i)
+    negative(u) = most_negative(u, pl_state.dual_solution)
+    next_variable = pl_state.optimize ? negative : first_variable
+    i = next_variable(pl_state.unlifted) #Pick some variable to lift
+    relaxation_i = relaxation_index(i, pl_state.relaxation)
+    ray = unboundedness_proof(pl_state.relaxation, relaxation_i)
     if isempty(ray)
-        lifted_markov, t, _, _, _ = @timed lift_bounded(
-            pl, relaxation_i, completion=completion,
-            truncation_type=truncation_type, quiet = quiet
-        )
+        lifted_markov, t, _, _, _ = @timed lift_bounded(pl_state, relaxation_i)
     else
-        lifted_markov, t, _, _, _ = @timed lift_unbounded(pl, i, ray)
+        lifted_markov, t, _, _, _ = @timed lift_unbounded(pl_state, i, ray)
     end
-    stats_after_lift(pl.stats, t)
-    return lift_and_relax(
-        pl, lifted_markov, optimize=optimize, truncation_type=truncation_type
-    )
+    stats_after_lift(pl_state.stats, t)
+    return lift_and_relax(pl_state, lifted_markov)
 end
 
 function lift_and_relax(
-    pl :: ProjectAndLiftState,
-    markov :: Vector{Vector{Int}};
-    optimize::Bool=false,
-    quiet :: Bool = true,
-    truncation_type::Symbol = :LP
+    pl_state :: ProjectAndLiftState,
+    markov :: Vector{Vector{Int}}
 ) :: ProjectAndLiftState
-    lift_variables!(pl, markov)
-    relaxation, lifted_markov, primals, dual = relax_and_reorder(pl, markov)
-    lifted_markov = truncate_markov(lifted_markov, relaxation, truncation_type)
+    lift_variables!(pl_state, markov)
+    relaxation, lifted_markov, primals, dual = relax_and_reorder(pl_state, markov)
+    lifted_markov = truncate_markov(lifted_markov, relaxation, pl_state.truncation_type)
     opt_solution, is_optimal = optimize_with_markov(
-        pl, primals, dual, relaxation, lifted_markov, optimize=optimize, quiet=quiet
+        pl_state, primals, dual, relaxation, lifted_markov
     )
     return ProjectAndLiftState(
-        pl.original_instance, pl.working_instance, pl.unlifted, pl.nonnegative,
-        relaxation, lifted_markov, primals, dual, opt_solution, is_optimal, pl.stats
+        pl_state, relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
     )
 end
 
-"""
-    is_finished(state::ProjectAndLiftState) :: Bool
+all_lifted(pl_state :: ProjectAndLiftState) = isempty(pl_state.unlifted)
 
-Check whether the project-and-lift algorithm is ready to terminate at `state`.
 """
-is_finished(pl::ProjectAndLiftState) = isempty(pl.unlifted) || pl.has_optimal_solution
+    is_finished(pl_state::ProjectAndLiftState)
+
+Check whether the project-and-lift algorithm is ready to terminate at `pl_state`.
+"""
+function is_finished(
+    pl_state::ProjectAndLiftState
+)
+    return all_lifted(pl_state) || pl_state.has_optimal_solution
+end
 
 """
     project_and_lift(instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
@@ -478,20 +494,23 @@ function project_and_lift(
     quiet :: Bool = true,
     solution :: Vector{Int} = zeros(Int, instance.n)
 )::Tuple{Vector{Vector{Int}}, Bool, Vector{Int}, Float64}
-    pl = initialize_project_and_lift(instance, optimize=optimize, solution=solution)
+    pl_state = initialize_project_and_lift(
+        instance, completion=completion, truncation_type=truncation_type, optimize=optimize,
+        quiet=quiet, solution=solution
+    )
     #Lift as many variables as possible before starting
-    pl = lift_and_relax(pl, pl.markov, optimize=optimize, truncation_type=truncation_type, quiet=quiet)
+    pl_state = lift_and_relax(pl_state, pl_state.markov)
     #Main loop: lift all remaining variables via LP or GBs
-    while !is_finished(pl)
-        pl = next(pl, completion=completion, truncation_type=truncation_type, optimize=optimize, quiet=quiet)
+    while !is_finished(pl_state)
+        pl_state = next(pl_state)
     end
-    @assert all(is_feasible_solution(instance, solution, pl.relaxation.inverse_permutation) for solution in pl.primal_solutions)
-    @assert !optimize || is_feasible_solution(instance, pl.dual_solution, pl.relaxation.inverse_permutation)
-    @assert !pl.has_optimal_solution || is_feasible_solution(instance, pl.optimal_solution)
+    @assert all(is_feasible_solution(instance, solution, pl_state.relaxation.inverse_permutation) for solution in pl_state.primal_solutions)
+    @assert !pl_state.optimize || is_feasible_solution(instance, pl_state.dual_solution, pl_state.relaxation.inverse_permutation)
+    @assert !pl_state.has_optimal_solution || is_feasible_solution(instance, pl_state.optimal_solution)
     #Update solution and best known value
-    print_stats(pl, quiet)
-    optimal_value = instance.C[1, :]' * pl.optimal_solution
-    return pl.markov, pl.has_optimal_solution, pl.optimal_solution, optimal_value
+    print_stats(pl_state, quiet)
+    optimal_value = instance.C[1, :]' * pl_state.optimal_solution
+    return pl_state.markov, pl_state.has_optimal_solution, pl_state.optimal_solution, optimal_value
 end
 
 """
@@ -621,11 +640,16 @@ function optimize(
     solution :: Vector{Int} = Int[],
     quiet :: Bool = true
 ) :: Tuple{Vector{Int}, Int}
+    initial_solution = copy(solution)
     instance = IPInstance(filepath)
+    if !isempty(initial_solution) && !is_feasible_solution(IPInstance(filepath), initial_solution)
+        throw(ArgumentError("Initial solution is not feasible."))
+    elseif isempty(initial_solution)
+        initial_solution = zeros(Int, instance.n)
+    end
     return optimize(
         instance, completion=completion, truncation_type=truncation_type,
-        solution=isempty(solution) ? zeros(Int, instance.n) : solution,
-        quiet = quiet
+        solution=initial_solution, quiet = quiet
     )
 end
 
