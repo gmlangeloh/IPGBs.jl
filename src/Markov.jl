@@ -182,9 +182,23 @@ function initial_solution(
             end
         end
     end
-    BinomialSets.reduce!(solution, markov)
+    #BinomialSets.reduce!(solution, markov)
+    #TODO Reduce using BinomialSets
+    old_obj = instance.C[1, :]
+    obj = SolverTools.cone_element(markov)
+    instance.C[1, :] = obj
+    bs = BinomialSet(markov, instance, Binomial)
+    binomial_sol = to_gbelement(solution, bs.order, Binomial, false)
+    initialize_binomials(instance, bs.order)
+    BinomialSets.reduce!(binomial_sol, bs, is_monomial_reduction=true)
+    copyto!(solution, element(binomial_sol))
+    instance.C[1, :] = old_obj
     @assert is_feasible_solution(instance, solution)
     return solution
+end
+
+function relaxation_feasible(pl_state :: ProjectAndLiftState)
+    return pl_state.dual_solution[pl_state.relaxation.inverse_permutation]
 end
 
 function lift_solution_unbounded!(
@@ -290,7 +304,8 @@ function initialize_project_and_lift(
     markov = Vector{Int}[]
     for row in eachrow(Array(uhnf_basis))
         v = Vector{Int}(row)
-        push!(markov, lift_vector(v, proj_basis, opt_instance.lattice_basis))
+        lifted = lift_vector(v, proj_basis, opt_instance.lattice_basis)
+        push!(markov, lifted)
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)
     permuted_markov = apply_permutation(markov, relaxation.permutation)
@@ -326,16 +341,17 @@ function can_lift(markov :: Vector{Vector{Int}}, i :: Int)
 end
 
 function lift_variables!(
-    pl :: ProjectAndLiftState,
+    pl_state :: ProjectAndLiftState,
     markov :: Vector{Vector{Int}}
 )
     i = 1
-    while i <= length(pl.unlifted)
-        variable = pl.unlifted[i]
+    while i <= length(pl_state.unlifted)
+        variable = pl_state.unlifted[i]
         #Markov is permuted here, so we need to take that into account
-        if can_lift(markov, relaxation_index(variable, pl.relaxation))
-            pl.nonnegative[variable] = true
-            deleteat!(pl.unlifted, i)
+        rel_idx = relaxation_index(variable, pl_state.relaxation)
+        if can_lift(markov, rel_idx)
+            pl_state.nonnegative[variable] = true
+            deleteat!(pl_state.unlifted, i)
         else
             i += 1
         end
@@ -351,27 +367,27 @@ end
     TODO: Description
 """
 function lift_bounded(
-    pl :: ProjectAndLiftState,
+    pl_state :: ProjectAndLiftState,
     i :: Int
 ) :: Vector{Vector{Int}}
     #Compute a GB in the adequate monomial order
-    @info "P&L bounded case" i length(pl.markov)
-    update_objective!(pl.relaxation, i, relaxation_index(pl.unlifted, pl.relaxation))
-    if pl.completion == :Buchberger
+    @info "P&L bounded case" i length(pl_state.markov)
+    update_objective!(pl_state.relaxation, i, relaxation_index(pl_state.unlifted, pl_state.relaxation))
+    if pl_state.completion == :Buchberger
         #This will automatically lift pl.dual_solutions
         #TODO: Using quick truncation breaks something here. It may be a bug in my code,
         #or some implicit hypothesis that I'm not meeting. Figure this out later!
         markov = IPGBs.groebner_basis(
-            pl.relaxation, pl.markov, solutions=[pl.dual_solution],
-            truncation_type=pl.truncation_type, use_quick_truncation=false,
-            quiet = pl.quiet
+            pl_state.relaxation, pl_state.markov, solutions=[pl_state.dual_solution],
+            truncation_type=pl_state.truncation_type, use_quick_truncation=false,
+            quiet = pl_state.quiet
         )
-    elseif pl.completion == :FourTi2
-        gb, sol, _ = FourTi2.groebnernf(pl.relaxation, pl.markov, pl.dual_solution)
+    elseif pl_state.completion == :FourTi2
+        gb, sol, _ = FourTi2.groebnernf(pl_state.relaxation, pl_state.markov, pl_state.dual_solution)
         markov = GBTools.tovector(gb)
-        copyto!(pl.dual_solution, sol)
+        copyto!(pl_state.dual_solution, sol)
     else
-        error("Unknown completion algorithm: $(pl.completion)")
+        error("Unknown completion algorithm: $(pl_state.completion)")
     end
     @info "Markov size after lifting: " length(markov)
     return markov
@@ -491,6 +507,7 @@ function project_and_lift(
     completion :: Symbol = :Buchberger,
     truncation_type::Symbol = :LP,
     optimize :: Bool = false,
+    feasible :: Bool = false,
     quiet :: Bool = true,
     solution :: Vector{Int} = zeros(Int, instance.n)
 )::Tuple{Vector{Vector{Int}}, Bool, Vector{Int}, Float64}
@@ -501,13 +518,18 @@ function project_and_lift(
     #Lift as many variables as possible before starting
     pl_state = lift_and_relax(pl_state, pl_state.markov)
     #Main loop: lift all remaining variables via LP or GBs
+    # Since computing a feasible solution is essentially free, we do that as well
     while !is_finished(pl_state)
         pl_state = next(pl_state)
     end
     @assert all(is_feasible_solution(instance, solution, pl_state.relaxation.inverse_permutation) for solution in pl_state.primal_solutions)
-    @assert !pl_state.optimize || is_feasible_solution(instance, pl_state.dual_solution, pl_state.relaxation.inverse_permutation)
+    @assert is_feasible_solution(instance, relaxation_feasible(pl_state))
     @assert !pl_state.has_optimal_solution || is_feasible_solution(instance, pl_state.optimal_solution)
-    #Update solution and best known value
+    #Update best known solution and value
+    if feasible && !pl_state.has_optimal_solution
+        pl_state.optimal_solution = relaxation_feasible(pl_state)
+        pl_state.has_optimal_solution = true
+    end
     print_stats(pl_state, quiet)
     optimal_value = instance.C[1, :]' * pl_state.optimal_solution
     return pl_state.markov, pl_state.has_optimal_solution, pl_state.optimal_solution, optimal_value

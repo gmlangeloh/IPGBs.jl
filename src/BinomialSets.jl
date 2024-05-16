@@ -44,39 +44,28 @@ end
 
 function BinomialSet(
     basis :: Vector{T},
-    C :: Array{S},
-    A :: Matrix{Int},
-    b :: Vector{Int},
-    unbounded :: Union{Vector{Bool}, Nothing} = nothing,
-    R :: DataType = T
-) where {T <: AbstractVector{Int}, S <: Real}
+    ip :: IPInstance,
+    S :: DataType = T
+) where {T <: AbstractVector{Int}}
     is_minimization = !is_implicit(T)
-    if !(S <: Float64)
-        C = Float64.(C)
+    if isnothing(unbounded_variables(ip))
+        unbounded = fill(false, ip.n)
+    else
+        unbounded = unbounded_variables(ip)
     end
-    if isnothing(unbounded)
-        unbounded = fill(false, size(A, 2))
-    end
-    order = MonomialOrder(C, A, b, unbounded, is_minimization)
+    order = MonomialOrder(ip.C, ip.A, ip.b, unbounded, is_minimization)
     oriented_basis = T[]
+    initialize_binomials(ip, order)
     for g in basis
         oriented_g = copy(g)
         orientate!(oriented_g, order)
         push!(oriented_basis, oriented_g)
     end
-    if R == Binomial
-        new_oriented = [to_gbelement(v, order, R, false) for v in oriented_basis]
-        return BinomialSet{R, MonomialOrder}(new_oriented, order, is_minimization)
+    if S == Binomial
+        new_oriented = [to_gbelement(v, order, S, false) for v in oriented_basis]
+        return BinomialSet{S, MonomialOrder}(new_oriented, order, is_minimization)
     end
     return BinomialSet{T, MonomialOrder}(oriented_basis, order, is_minimization)
-end
-
-function BinomialSet(
-    basis :: Vector{T},
-    ip :: IPInstance,
-    S :: DataType = T
-) where {T <: AbstractVector{Int}}
-    return BinomialSet(basis, ip.C, ip.A, ip.b, unbounded_variables(ip), S)
 end
 
 """
