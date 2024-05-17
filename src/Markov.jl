@@ -114,7 +114,7 @@ update_optimize_stats(stats :: ProjectAndLiftStats, t :: Float64) = stats.optimi
     `optimal_solution`: The optimal solution for the original problem, if known (original indexing)
     `has_optimal_solution`: Whether the optimal solution is known.
 """
-struct ProjectAndLiftState
+mutable struct ProjectAndLiftState
     original_instance::IPInstance
     working_instance::IPInstance
     unlifted::Vector{Int}
@@ -137,17 +137,24 @@ function ProjectAndLiftState(
     new_relaxation :: IPInstance,
     new_markov :: Vector{Vector{Int}},
     new_primals :: Vector{Vector{Int}},
-    new_dual :: Vector{Int},
-    new_optimal :: Vector{Int},
-    is_optimal :: Bool
+    new_dual :: Vector{Int}
 )
     return ProjectAndLiftState(
         previous_state.original_instance, previous_state.working_instance,
         previous_state.unlifted, previous_state.nonnegative, new_relaxation,
-        new_markov, new_primals, new_dual, new_optimal, is_optimal,
-        previous_state.stats, previous_state.completion, previous_state.optimize,
+        new_markov, new_primals, new_dual, previous_state.optimal_solution,
+        previous_state.has_optimal_solution, previous_state.stats,
+        previous_state.completion, previous_state.optimize,
         previous_state.truncation_type, previous_state.quiet
     )
+end
+
+function set_optimal_solution!(
+    pl_state :: ProjectAndLiftState,
+    solution :: Vector{Int}
+)
+    pl_state.optimal_solution = solution
+    pl_state.has_optimal_solution = true
 end
 
 function Base.show(io :: IO, state :: ProjectAndLiftState)
@@ -218,52 +225,42 @@ end
 
 project_to_instance(v :: Vector{Int}, instance :: IPInstance) = v[1:instance.n]
 
-function optimize_with_markov(
-    pl :: ProjectAndLiftState,
-    primal_solutions :: Vector{Vector{Int}},
-    dual_solution:: Vector{Int},
-    relaxation :: IPInstance,
-    permuted_markov :: Vector{Vector{Int}}
-)
-    if pl.has_optimal_solution
-        return pl.optimal_solution, true
+function optimize_relaxation!(pl_state :: ProjectAndLiftState)
+    if pl_state.has_optimal_solution || !pl_state.optimize
+        return
     end
     is_optimal = false
-    opt_solution = pl.optimal_solution
-    if pl.optimize
-        all_solutions = Vector{Int}[]
-        push!(all_solutions, dual_solution)
-        #TODO: For now, I won't try to reuse this Gröbner basis. Might be worthwhile
-        # to try doing that eventually, though (easier Markov bases later?)
-        #TODO: truncation_type = :Simple or :Heuristic breaks things here for some reason
-        #Figure out why and check if the conditions for using :Simple have to be changed
-        #_, t, _, _, _ = @timed groebner_basis(
-        #    permuted_markov, relaxation, all_solutions,
-        #    truncation_type=:LP, use_quick_truncation=false, quiet=quiet
-        #)
-        #TODO: Replace this 4ti2 call by my own commands. Currently, IPGBs is really slow
-        #at this, for some reason
-        res, t, _, _, _ = @timed FourTi2.minimize(relaxation, solution=dual_solution)
-        #res, t, _, _, _ = @timed FourTi2.groebnernf(relaxation, permuted_markov, dual_solution)
-        for i in 1:length(dual_solution)
-            dual_solution[i] = res[1][i]
-        end
-        if !pl.quiet
-            println("GROUP => ", relaxation.C[1, :]' * dual_solution)
-        end
-        update_optimize_stats(pl.stats, t)
-        pop!(all_solutions)
-        orig_dual = dual_solution[relaxation.inverse_permutation]
-        # Any dual solution feasible for the original problem is optimal.
-        if is_feasible_solution(pl.working_instance, orig_dual)
-            opt_solution = project_to_instance(orig_dual, pl.original_instance)
-            is_optimal = true
-        end
-        # TODO: Keep truncation bounds updated in opt_instance and relaxation
-        # Need to update both opt_instance and corresponding solution slacks...
-        #bkv = minimum([opt_instance.C[1, :]' * s for s in primal_solutions])
+    opt_solution = pl_state.optimal_solution
+    all_solutions = Vector{Int}[]
+    #TODO: Question: Should I actually use the primal solutions here?
+    # They are obviously feasible for the relaxation, but I'm not sure
+    # optimizing them here does anything...
+    # - in particular, they may not be feasible for the original problem
+    for solution in pl_state.primal_solutions
+        push!(all_solutions, solution)
     end
-    return opt_solution, is_optimal
+    push!(all_solutions, pl_state.dual_solution)
+    #TODO: For now, I won't try to reuse this Gröbner basis. Might be worthwhile
+    # to try doing that eventually, though (easier Markov bases later?)
+    #TODO: truncation_type = :Simple or :Heuristic breaks things here for some reason
+    #Figure out why and check if the conditions for using :Simple have to be changed
+    _, t, _, _, _ = @timed groebner_basis(
+        pl_state.relaxation, pl_state.markov, solutions=all_solutions,
+        truncation_type=:LP, use_quick_truncation=false, quiet=pl_state.quiet
+    )
+    update_optimize_stats(pl_state.stats, t)
+    orig_dual = pl_state.dual_solution[pl_state.relaxation.inverse_permutation]
+    # Any dual solution feasible for the original problem is optimal.
+    if is_feasible_solution(pl_state.working_instance, orig_dual)
+        opt_solution = project_to_instance(orig_dual, pl_state.original_instance)
+        is_optimal = true
+    end
+    # TODO: Keep truncation bounds updated in opt_instance and relaxation
+    # Need to update both opt_instance and corresponding solution slacks...
+    #bkv = minimum([opt_instance.C[1, :]' * s for s in primal_solutions])
+    if is_optimal
+        set_optimal_solution!(pl_state, opt_solution)
+    end
 end
 
 """
@@ -285,13 +282,14 @@ function initialize_project_and_lift(
     # Update instance to include upper bounds for efficiency if possible
     opt_instance = instance
     primal_solutions = Vector{Int}[]
-    if optimize && is_feasible_solution(instance, solution)
-        # In this case, we should use the given solution as an upper bound
-        # GBs are smaller this way.
-        val = round(Int, instance.C[1, :]' * solution)
-        opt_instance = add_constraint(instance, round.(Int, instance.C[1, :]), val)
-        push!(primal_solutions, solution)
-    end
+    #TODO: Add upper bounds later!!! Currently, this doesn't work
+    #if optimize && is_feasible_solution(instance, solution)
+    #    # In this case, we should use the given solution as an upper bound
+    #    # GBs are smaller this way.
+    #    val = round(Int, instance.C[1, :]' * solution)
+    #    opt_instance = add_constraint(instance, round.(Int, instance.C[1, :]), val)
+    #    push!(primal_solutions, solution)
+    #end
     # Compute a group relaxation with its corresponding Markov basis
     init_basis_algorithm = optimize ? :SimplexBasis : :Any
     uhnf_basis, proj_basis, unlifted = lattice_basis_projection(
@@ -473,12 +471,9 @@ function lift_and_relax(
     lift_variables!(pl_state, markov)
     relaxation, lifted_markov, primals, dual = relax_and_reorder(pl_state, markov)
     lifted_markov = truncate_markov(lifted_markov, relaxation, pl_state.truncation_type)
-    opt_solution, is_optimal = optimize_with_markov(
-        pl_state, primals, dual, relaxation, lifted_markov
-    )
-    return ProjectAndLiftState(
-        pl_state, relaxation, lifted_markov, primals, dual, opt_solution, is_optimal
-    )
+    new_state = ProjectAndLiftState(pl_state, relaxation, lifted_markov, primals, dual)
+    optimize_relaxation!(new_state)
+    return new_state
 end
 
 all_lifted(pl_state :: ProjectAndLiftState) = isempty(pl_state.unlifted)

@@ -8,6 +8,11 @@ using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Orders
 
+#TODO: Find an efficient alternative to using these globals.
+# - They are used to avoid passing the instance and order to every function.
+# - On the other hand, they lead to very weird bugs whenever Binomials are used
+#and initialize_binomials isn't properly called (globals may be uninitialized or with
+#values from previous calls).
 element_end :: Int = 0
 nonnegative_end :: Int = 0 #Index of the last non-negative variable of the current IP problem
 bounded_end :: Int = 0 #Index of the last bounded variable of the current IP problem
