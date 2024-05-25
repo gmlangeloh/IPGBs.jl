@@ -66,7 +66,19 @@ end
 #
 
 first_variable(sigma) = minimum(sigma)
-most_negative(sigma, solution) = argmin(solution[sigma])
+
+function most_negative(sigma, solution)
+    min_value = 0
+    min_index = 0
+    for i in sigma
+        if solution[i] < min_value
+            min_value = solution[i]
+            min_index = i
+        end
+    end
+    @assert min_value < 0
+    return min_index
+end
 
 #
 # ---------------------------------------
@@ -246,7 +258,7 @@ function optimize_relaxation!(pl_state :: ProjectAndLiftState)
     #Figure out why and check if the conditions for using :Simple have to be changed
     _, t, _, _, _ = @timed groebner_basis(
         pl_state.relaxation, pl_state.markov, solutions=all_solutions,
-        truncation_type=:LP, use_quick_truncation=false, quiet=pl_state.quiet
+        quiet=pl_state.quiet, truncation_type=pl_state.truncation_type
     )
     update_optimize_stats(pl_state.stats, t)
     orig_dual = pl_state.dual_solution[pl_state.relaxation.inverse_permutation]
@@ -291,7 +303,7 @@ function initialize_project_and_lift(
     #    push!(primal_solutions, solution)
     #end
     # Compute a group relaxation with its corresponding Markov basis
-    init_basis_algorithm = optimize ? :SimplexBasis : :Any
+    init_basis_algorithm = :Any #optimize ? :SimplexBasis : :Any
     uhnf_basis, proj_basis, unlifted = lattice_basis_projection(
         opt_instance, init_basis_algorithm
     )
@@ -325,6 +337,8 @@ end
 """
 relaxation_index(i :: Int, r :: IPInstance) = r.inverse_permutation[i]
 relaxation_index(v :: Vector{Int}, r :: IPInstance) = [ relaxation_index(i, r) for i in v]
+
+original_index(i :: Int, r :: IPInstance) = r.permutation[i]
 
 """
     can_lift(markov :: Vector{Vector{Int}}, i :: Int)
@@ -450,12 +464,22 @@ a linear program or a Gröbner Basis computation.
 function next(
     pl_state :: ProjectAndLiftState
 )::ProjectAndLiftState
-    negative(u) = most_negative(u, pl_state.dual_solution)
-    next_variable = pl_state.optimize ? negative : first_variable
-    i = next_variable(pl_state.unlifted) #Pick some variable to lift
-    relaxation_i = relaxation_index(i, pl_state.relaxation)
+    #Find out which variable to lift next
+    if pl_state.optimize
+        #Lift the variable with the most negative value in the dual solution
+        #Heuristically, this should help making the dual solution feasible,
+        #leading to early termination
+        relaxation_unlifted = relaxation_index(pl_state.unlifted, pl_state.relaxation)
+        relaxation_i = most_negative(relaxation_unlifted, pl_state.dual_solution)
+        i = original_index(relaxation_i, pl_state.relaxation)
+    else
+        #Any variable is fine, lift the first one
+        i = first_variable(pl_state.unlifted)
+        relaxation_i = relaxation_index(i, pl_state.relaxation)
+    end
+    #Now figure out whether i is bounded or unbounded by linear programming
     ray = unboundedness_proof(pl_state.relaxation, relaxation_i)
-    if isempty(ray)
+    if isempty(ray) #No ray means the variable is bounded
         lifted_markov, t, _, _, _ = @timed lift_bounded(pl_state, relaxation_i)
     else
         lifted_markov, t, _, _, _ = @timed lift_unbounded(pl_state, i, ray)
@@ -629,7 +653,7 @@ end
 
 function optimize(
     instance :: IPInstance;
-    completion :: Symbol = :FourTi2,
+    completion :: Symbol = :Buchberger,
     truncation_type :: Symbol = :LP,
     solution :: Vector{Int} = zeros(Int, instance.n),
     quiet :: Bool = true
@@ -652,7 +676,7 @@ end
 
 function optimize(
     filepath :: String;
-    completion :: Symbol = :FourTi2,
+    completion :: Symbol = :Buchberger,
     truncation_type :: Symbol = :LP,
     solution :: Vector{Int} = Int[],
     quiet :: Bool = true
