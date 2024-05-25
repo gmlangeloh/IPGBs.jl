@@ -5,7 +5,21 @@ using MIPMatrixTools.GBTools
 using MIPMatrixTools.IPInstances
 using MIPMatrixTools.CombinatorialOptimizationInstances
 
+using JuMP
 import Random
+
+function compare_to_solver(ipgbs_value, ipgbs_status, solver_value, solver_status)
+    #If both status are OPTIMAL, compare the values
+    #Otherwise, pass if both status are the same
+    same_status = ipgbs_status == solver_status
+    if !same_status
+        return false
+    end
+    if ipgbs_status == MOI.OPTIMAL
+        return ipgbs_value == solver_value
+    end
+    return true #Other status should pass automatically
+end
 
 """
 Returns the GB given by my implementation of Buchberger's algorithm and the

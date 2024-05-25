@@ -25,6 +25,8 @@ using IPGBs.Orders
 
 using IPGBs.FourTi2
 
+using JuMP
+
 """
     truncate_markov(markov :: Vector{Vector{Int}}, instance :: IPInstance, truncation_type :: Symbol) :: Vector{Vector{Int}}
 
@@ -657,10 +659,10 @@ function optimize(
     truncation_type :: Symbol = :LP,
     solution :: Vector{Int} = zeros(Int, instance.n),
     quiet :: Bool = true
-) :: Tuple{Vector{Int}, Int}
+) :: Tuple{Vector{Int}, Int, TerminationStatusCode}
     initial_solution = copy(solution)
     if !is_bounded(instance)
-        return initial_solution, 0
+        return initial_solution, 0, DUAL_INFEASIBLE
     end
     if !quiet
         lp_val = IPInstances.linear_relaxation(instance)
@@ -671,7 +673,7 @@ function optimize(
         optimize=true, solution=initial_solution, quiet = quiet
     )
     @assert is_opt
-    return opt_sol, opt_val
+    return opt_sol, opt_val, OPTIMAL
 end
 
 function optimize(
@@ -680,7 +682,7 @@ function optimize(
     truncation_type :: Symbol = :LP,
     solution :: Vector{Int} = Int[],
     quiet :: Bool = true
-) :: Tuple{Vector{Int}, Int}
+) :: Tuple{Vector{Int}, Int, TerminationStatusCode}
     initial_solution = copy(solution)
     instance = IPInstance(filepath)
     if !isempty(initial_solution) && !is_feasible_solution(IPInstance(filepath), initial_solution)

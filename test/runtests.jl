@@ -51,17 +51,17 @@ include("./test_functions.jl")
                 println("Optimization test for ", filename)
                 instance = IPInstance(filename)
                 #Optimize with IPGBs and with a traditional IP solver, then compare
-                _, ipgbs_value = optimize(instance)
-                solver_solution, solver_value = IPInstances.solve(instance)
+                _, ipgbs_value, ipgbs_status = optimize(instance)
+                solver_solution, solver_value, solver_status = IPInstances.solve(instance)
                 println("Optimal value with no initial solution? ",
-                    @test ipgbs_value == solver_value)
+                    @test compare_to_solver(ipgbs_value, ipgbs_status, solver_value, solver_status))
                 init_solution = IPInstances.guess_initial_solution(instance)
-                _, init_value = optimize(instance, solution=init_solution)
+                _, init_value, init_status = optimize(instance, solution=init_solution)
                 println("Optimal value starting from arbitrary solution? ",
-                    @test init_value == solver_value)
-                _, opt_value = optimize(instance, solution=solver_solution)
+                    @test compare_to_solver(init_value, init_status, solver_value, solver_status))
+                _, opt_value, opt_status = optimize(instance, solution=solver_solution)
                 println("Optimal value starting from the optimal solution? ",
-                    @test opt_value == solver_value)
+                    @test compare_to_solver(opt_value, opt_status, solver_value, solver_status))
                 println()
             end
         end
