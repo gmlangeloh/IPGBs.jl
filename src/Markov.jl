@@ -240,7 +240,7 @@ end
 project_to_instance(v :: Vector{Int}, instance :: IPInstance) = v[1:instance.n]
 
 function optimize_relaxation!(pl_state :: ProjectAndLiftState)
-    if pl_state.has_optimal_solution || !pl_state.optimize
+    if !pl_state.optimize || pl_state.has_optimal_solution
         return
     end
     is_optimal = false
@@ -256,11 +256,14 @@ function optimize_relaxation!(pl_state :: ProjectAndLiftState)
     push!(all_solutions, pl_state.dual_solution)
     #TODO: For now, I won't try to reuse this Gröbner basis. Might be worthwhile
     # to try doing that eventually, though (easier Markov bases later?)
-    #TODO: truncation_type = :Simple or :Heuristic breaks things here for some reason
-    #Figure out why and check if the conditions for using :Simple have to be changed
+    #TODO: The Binary Truncation Criterion as currently implemented cannot be used
+    # in group relaxations. Maybe it can only be used for variables with
+    # non-negative constraints? This is an interesting extension to explore.
+    # quick_truncation appears to have a similar problem...
     _, t, _, _, _ = @timed groebner_basis(
         pl_state.relaxation, pl_state.markov, solutions=all_solutions,
-        quiet=pl_state.quiet, truncation_type=pl_state.truncation_type
+        quiet=pl_state.quiet, truncation_type=pl_state.truncation_type,
+        use_binary_truncation=false, use_quick_truncation=false
     )
     update_optimize_stats(pl_state.stats, t)
     orig_dual = pl_state.dual_solution[pl_state.relaxation.inverse_permutation]
@@ -305,7 +308,7 @@ function initialize_project_and_lift(
     #    push!(primal_solutions, solution)
     #end
     # Compute a group relaxation with its corresponding Markov basis
-    init_basis_algorithm = :Any #optimize ? :SimplexBasis : :Any
+    init_basis_algorithm = optimize ? :SimplexBasis : :Any
     uhnf_basis, proj_basis, unlifted = lattice_basis_projection(
         opt_instance, init_basis_algorithm
     )
@@ -324,12 +327,14 @@ function initialize_project_and_lift(
     primal_solutions = apply_permutation(primal_solutions, relaxation.permutation)
     #Find initial dual solution if possible
     relaxation_solution = initial_solution(relaxation, permuted_markov)
-    return ProjectAndLiftState(
+    pl_state = ProjectAndLiftState(
         instance, opt_instance, unlifted, nonnegative, relaxation,
         permuted_markov, primal_solutions, relaxation_solution,
         zeros(Int, instance.n), false, ProjectAndLiftStats(),
         completion, optimize, truncation_type, quiet
     )
+    optimize_relaxation!(pl_state)
+    return pl_state
 end
 
 """
@@ -394,7 +399,7 @@ function lift_bounded(
         markov = IPGBs.groebner_basis(
             pl_state.relaxation, pl_state.markov, solutions=[pl_state.dual_solution],
             truncation_type=pl_state.truncation_type, use_quick_truncation=false,
-            quiet = pl_state.quiet
+            quiet = pl_state.quiet, use_binary_truncation=false
         )
     elseif pl_state.completion == :FourTi2
         gb, sol, _ = FourTi2.groebnernf(pl_state.relaxation, pl_state.markov, pl_state.dual_solution)
