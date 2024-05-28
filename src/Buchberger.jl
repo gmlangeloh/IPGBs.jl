@@ -93,6 +93,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     auto_reduce_freq :: Float64
     cache_tree_size :: Int
     prev_gb_size :: Int
+    unbounded_problem :: Bool
 
     function BuchbergerAlgorithm(
         markov :: Vector{Vector{Int}},
@@ -132,11 +133,21 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         if should_truncate
             @debug "Truncating generating set with algorithm: $(truncation_type)"
         end
+        is_unbounded = false
         for gen in generating_set
+            #Guarantee supports are computed to get the correct answers wrt filters
+            GBElements.compute_supports(gen)
             if is_zero(gen)
                nontruncated_gens = [gen]
                truncated_gens = T[]
                break
+            elseif no_positive_filter(gen)
+                #In this case, the problem is unbounded. Return the zero binomial
+                #to indicate that
+                nontruncated_gens = [to_gbelement(zeros(Int, instance.n), order, T)]
+                truncated_gens = T[]
+                is_unbounded = true
+                break
             end
             truncated = GBElements.truncate(
                 gen, instance.A, instance.b, instance.u, model, constrs,
@@ -169,7 +180,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
             binomial_gen_set, state, init_solutions, solutions, should_truncate,
             truncation_type, use_quick_truncation, use_binary_truncation, stats,
             preallocated, 0, model, vars, constrs, instance, truncated_gens, weight,
-            max_weight, auto_reduce_type, auto_reduce_freq, cache_tree_size, 0
+            max_weight, auto_reduce_type, auto_reduce_freq, cache_tree_size, 0,
+            is_unbounded
         )
     end
 end
@@ -289,6 +301,9 @@ end
 function GBAlgorithms.optimize_solutions!(
     algorithm :: BuchbergerAlgorithm{T}
 ) where {T <: GBElement}
+    if algorithm.unbounded_problem
+        return
+    end
     for i in eachindex(algorithm.solutions)
         solution = algorithm.solutions[i]
         BinomialSets.reduce!(solution, current_basis(algorithm), is_monomial_reduction=true)

@@ -262,6 +262,43 @@ function groebner(
     return gb
 end
 
+function make_project(
+    instance :: IPInstance;
+    markov :: Union{Nothing,Vector{Vector{Int}}} = nothing,
+    project_name :: String = "tmp"
+)
+    nonnegative = IPInstances.nonnegative_variables(instance)
+    int_objective = IPInstances.integer_objective(instance)
+    truncation_sol = MatrixTools.initial_solution(instance.A, instance.b)
+    _4ti2_clear(project_name)
+    #Write the project files
+    matrix_file = project_name * ".mat"
+    _4ti2_write(instance.A, matrix_file)
+    obj_file = project_name * ".cost"
+    _4ti2_write(int_objective, obj_file)
+    if isempty(nonnegative)
+        nonnegative = fill(true, size(instance.A, 2))
+    end
+    write_4ti2_sign(nonnegative, project_name)
+    if !isnothing(markov)
+        markov_file = project_name * ".mar"
+        M = zeros(Int, length(markov), length(markov[1]))
+        for i in eachindex(markov)
+            for j in eachindex(markov[i])
+                M[i, j] = markov[i][j]
+            end
+        end
+        _4ti2_write(M, markov_file)
+    end
+    #Set options for truncated bases
+    truncation_opt = ""
+    if length(truncation_sol) > 0
+        truncation_file = project_name * ".zsol"
+        _4ti2_write(truncation_sol, truncation_file)
+        truncation_opt = "--truncation=lp"
+    end
+end
+
 function groebner(
     instance :: IPInstance;
     markov :: Union{Nothing,Vector{Vector{Int}}} = nothing,

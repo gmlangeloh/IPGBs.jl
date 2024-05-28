@@ -6,7 +6,7 @@ TODO: make GBElements a consistent interface
 module GBElements
 #TODO: this is way too long, clean it up or at least break it into more exports
 export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative, is_monomial,
-positive_support, negative_support, positive_filter, negative_filter, positive_binaries, negative_binaries
+positive_support, negative_support, positive_filter, negative_filter, positive_binaries, negative_binaries, no_positive_filter
 
 using MIPMatrixTools.SolverTools
 
@@ -179,7 +179,7 @@ function supports(
     end
     pos_bitset_length = length(nonnegative(g))
     neg_bitset_length = length(bounded(g))
-    return FastBitSet(pos_bitset_length, pos_supp), 
+    return FastBitSet(pos_bitset_length, pos_supp),
         FastBitSet(neg_bitset_length, neg_supp),
         pos_supp,
         neg_supp
@@ -189,6 +189,8 @@ positive_support(g :: AbstractVector{Int}) = supports(g)[1]
 negative_support(g :: AbstractVector{Int}) = supports(g)[2]
 positive_filter(g :: AbstractVector{Int}) = supports(g)[3]
 negative_filter(g :: AbstractVector{Int}) = supports(g)[4]
+
+no_positive_filter(g :: AbstractVector{Int}) = isempty(positive_filter(g))
 
 const EMPTY_BITSET :: FastBitSet = FastBitSet(0)
 positive_binaries(:: AbstractVector{Int}) = EMPTY_BITSET

@@ -189,4 +189,6 @@ GBElements.negative_filter(g :: Binomial) = g.negative_filter
 GBElements.positive_binaries(g :: Binomial) = g.positive_binaries
 GBElements.negative_binaries(g :: Binomial) = g.negative_binaries
 
+GBElements.no_positive_filter(g :: Binomial) = isempty(g.positive_filter)
+
 end
