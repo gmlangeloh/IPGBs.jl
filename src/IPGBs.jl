@@ -31,6 +31,7 @@ include("./Markov.jl")
 include("./StandardDecomposition.jl")
 include("./Optimize.jl")
 include("./Walkback.jl")
+include("./FeasibleGraphs.jl")
 
 using .GBAlgorithms
 import .Markov: markov_basis, optimize
