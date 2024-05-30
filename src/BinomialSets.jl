@@ -86,6 +86,15 @@ function binomials(fourti2_basis :: Matrix{Int})
     return [ fourti2_basis[i, :] for i in 1:size(fourti2_basis, 1) ]
 end
 
+function inverse_set(
+    bs :: BinomialSet{T, S}
+) :: BinomialSet{T, S} where {T <: AbstractVector{Int}, S <: GBOrder}
+    inverted_elements = [ copy(element(g)) for g in bs.basis ]
+    inverted_order = inverse_order(bs.order)
+    inverted_basis = [ to_gbelement(v, inverted_order, T) for v in inverted_elements ]
+    return BinomialSet{T, S}(inverted_basis, inverted_order, bs.minimization_form)
+end
+
 has_order(:: BinomialSet) = true
 has_order(:: AbstractVector) = false
 

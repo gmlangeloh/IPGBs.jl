@@ -30,7 +30,7 @@ end
 
 function enumerate_solutions(
     instance :: IPInstance,
-    gb :: BinomialSet
+    gb :: BinomialSet #Inverted GB
 ) :: Set{Vector{Int}}
 
     #Step 0: Verify that the polyhedron of `instance` is bounded
@@ -49,6 +49,7 @@ function enumerate_solutions(
     optimize_with!(opt_sol, gb) #Tiebreak using `gb`
 
     #Step 2: Walk backwards through the gb-skeleton
+    inv_gb = BinomialSets.inverse_set(gb)
     feasible_solutions = Set{Vector{Int}}()
     solution_queue = Vector{Vector{Int}}()
     push!(solution_queue, opt_sol)
@@ -58,11 +59,11 @@ function enumerate_solutions(
             continue
         end
         push!(feasible_solutions, current_sol)
-        reducers = enumerate_reducers(current_sol, gb, reduction_tree(gb), negative=true)
+        reducers = enumerate_reducers(current_sol, inv_gb, reduction_tree(inv_gb))
         for reducer in reducers
             bin_sol = to_gbelement(current_sol, order(gb), Binomial, false)
-            GBElements.reduce!(bin_sol, reducer, negative=true)
-            new_sol = copy(element(bin_sol))
+            result = bin_sol - reducer
+            new_sol = copy(element(result))
             if !(new_sol in feasible_solutions)
                 push!(solution_queue, new_sol)
             end

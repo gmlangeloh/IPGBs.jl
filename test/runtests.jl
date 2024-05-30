@@ -32,6 +32,8 @@ include("./test_functions.jl")
         end
     end
 
+    include("./walkback_tests.jl")
+
     @testset "Guessing initial solutions" begin
         for filename in readdir("test_instances", join=true)
             if endswith(filename, ".mps")

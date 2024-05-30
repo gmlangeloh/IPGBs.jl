@@ -1,6 +1,6 @@
 module Orders
 
-export GBOrder, MonomialOrder, is_inverted, order_costs
+export GBOrder, MonomialOrder, is_inverted, order_costs, inverse_order
 
 import LinearAlgebra: I
 
@@ -168,6 +168,14 @@ function MonomialOrder(
     return MonomialOrder(instance.C, instance.A, instance.b, unbounded_variables(instance), true, num_vars)
 end
 
+function inverse_order(
+    order :: MonomialOrder
+) :: MonomialOrder
+    return MonomialOrder(
+        -order.cost_matrix, :None, order.is_minimization, order.num_costs
+    )
+end
+
 """
     lex_order(n :: Int) :: MonomialOrder
 
@@ -196,7 +204,7 @@ function order_costs(
     order :: MonomialOrder,
     v :: AbstractVector{Int}
 ) :: Vector{Int}
-    return [ round(Int, order.cost_matrix[:, j]' * v) 
+    return [ round(Int, order.cost_matrix[:, j]' * v)
         for j in 1:order.num_costs]
 end
 
