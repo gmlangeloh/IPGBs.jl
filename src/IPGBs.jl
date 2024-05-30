@@ -6,7 +6,6 @@ export groebner_basis, markov_basis, optimize
 include("./Globals.jl")
 include("./FastBitSets.jl")
 include("./ZDDs.jl")
-include("./FastestBitSets.jl")
 include("./cbitsets/CBitSets.jl")
 include("./Statistics.jl")
 include("./Orders.jl")
