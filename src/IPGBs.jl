@@ -29,6 +29,8 @@ include("./Buchberger.jl")
 include("./SignatureAlgorithms.jl")
 include("./Markov.jl")
 include("./StandardDecomposition.jl")
+include("./Optimize.jl")
+include("./Walkback.jl")
 
 using .GBAlgorithms
 import .Markov: markov_basis, optimize
