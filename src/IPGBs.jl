@@ -33,7 +33,8 @@ include("./Walkback.jl")
 include("./FeasibleGraphs.jl")
 
 using .GBAlgorithms
-import .Markov: markov_basis, optimize
+import .Markov: markov_basis
+import .Optimize: optimize, optimize_with!
 import .Buchberger: BuchbergerAlgorithm
 import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial

@@ -8,7 +8,7 @@ Two methods are implemented:
 """
 module Markov
 
-export markov_basis
+export markov_basis, project_and_lift
 
 using MIPMatrixTools.GBTools
 using MIPMatrixTools.IPInstances
@@ -24,8 +24,6 @@ using IPGBs.GBElements
 using IPGBs.Orders
 
 using IPGBs.FourTi2
-
-using JuMP
 
 """
     truncate_markov(
@@ -747,49 +745,6 @@ function markov_basis(
     instance = IPInstance(A, b, C, u)
     return markov_basis(
         instance, algorithm = algorithm, truncation_type = truncation_type, quiet = quiet
-    )
-end
-
-function optimize(
-    instance :: IPInstance;
-    completion :: Symbol = :IPGBs,
-    truncation_type :: Symbol = :LP,
-    solution :: Vector{Int} = zeros(Int, instance.n),
-    quiet :: Bool = true
-) :: Tuple{Vector{Int}, Int, TerminationStatusCode}
-    initial_solution = copy(solution)
-    if !is_bounded(instance)
-        return initial_solution, 0, DUAL_INFEASIBLE
-    end
-    if !quiet
-        lp_val = IPInstances.linear_relaxation(instance)
-        println("LP => ", lp_val)
-    end
-    _, is_opt, opt_sol, opt_val = project_and_lift(
-        instance, completion=completion, truncation_type=truncation_type,
-        optimize=true, solution=initial_solution, quiet = quiet
-    )
-    @assert is_opt
-    return opt_sol, opt_val, OPTIMAL
-end
-
-function optimize(
-    filepath :: String;
-    completion :: Symbol = :IPGBs,
-    truncation_type :: Symbol = :LP,
-    solution :: Vector{Int} = Int[],
-    quiet :: Bool = true
-) :: Tuple{Vector{Int}, Int, TerminationStatusCode}
-    initial_solution = copy(solution)
-    instance = IPInstance(filepath)
-    if !isempty(initial_solution) && !is_feasible_solution(IPInstance(filepath), initial_solution)
-        throw(ArgumentError("Initial solution is not feasible."))
-    elseif isempty(initial_solution)
-        initial_solution = zeros(Int, instance.n)
-    end
-    return optimize(
-        instance, completion=completion, truncation_type=truncation_type,
-        solution=initial_solution, quiet = quiet
     )
 end
 

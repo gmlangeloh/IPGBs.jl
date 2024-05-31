@@ -4,8 +4,11 @@ using IPGBs
 using IPGBs.Binomials
 using IPGBs.BinomialSets
 using IPGBs.GBElements
+using IPGBs.Markov
 
 using MIPMatrixTools.IPInstances
+
+using JuMP
 
 export optimize_with!
 
@@ -39,6 +42,49 @@ function optimize_with!(
     bin_sol = to_gbelement(solution, order(test_set), Binomial, false)
     BinomialSets.reduce!(bin_sol, test_set, is_monomial_reduction = true)
     copyto!(solution, element(bin_sol))
+end
+
+function optimize(
+    instance :: IPInstance;
+    completion :: Symbol = :IPGBs,
+    truncation_type :: Symbol = :LP,
+    solution :: Vector{Int} = zeros(Int, instance.n),
+    quiet :: Bool = true
+) :: Tuple{Vector{Int}, Int, TerminationStatusCode}
+    initial_solution = copy(solution)
+    if !is_bounded(instance)
+        return initial_solution, 0, DUAL_INFEASIBLE
+    end
+    if !quiet
+        lp_val = IPInstances.linear_relaxation(instance)
+        println("LP => ", lp_val)
+    end
+    _, is_opt, opt_sol, opt_val = project_and_lift(
+        instance, completion=completion, truncation_type=truncation_type,
+        optimize=true, solution=initial_solution, quiet = quiet
+    )
+    @assert is_opt
+    return opt_sol, opt_val, OPTIMAL
+end
+
+function optimize(
+    filepath :: String;
+    completion :: Symbol = :IPGBs,
+    truncation_type :: Symbol = :LP,
+    solution :: Vector{Int} = Int[],
+    quiet :: Bool = true
+) :: Tuple{Vector{Int}, Int, TerminationStatusCode}
+    initial_solution = copy(solution)
+    instance = IPInstance(filepath)
+    if !isempty(initial_solution) && !is_feasible_solution(IPInstance(filepath), initial_solution)
+        throw(ArgumentError("Initial solution is not feasible."))
+    elseif isempty(initial_solution)
+        initial_solution = zeros(Int, instance.n)
+    end
+    return optimize(
+        instance, completion=completion, truncation_type=truncation_type,
+        solution=initial_solution, quiet = quiet
+    )
 end
 
 end
