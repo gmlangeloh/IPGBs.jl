@@ -14,23 +14,26 @@ using JuMP
 export enumerate_solutions
 
 function enumerate_solutions(
-    instance :: IPInstance
+    instance :: IPInstance;
+    max_solutions :: Int = 0
 ) :: Set{Vector{Int}}
     gb = groebner_basis(instance)
-    return enumerate_solutions(instance, gb)
+    return enumerate_solutions(instance, gb, max_solutions=max_solutions)
 end
 
 function enumerate_solutions(
     instance :: IPInstance,
-    gb :: Vector{Vector{Int}}
+    gb :: Vector{Vector{Int}};
+    max_solutions :: Int = 0
 ) :: Set{Vector{Int}}
     binomial_gb = BinomialSet(gb, instance, Binomial)
-    return enumerate_solutions(instance, binomial_gb)
+    return enumerate_solutions(instance, binomial_gb, max_solutions=max_solutions)
 end
 
 function enumerate_solutions(
     instance :: IPInstance,
-    gb :: BinomialSet #Inverted GB
+    gb :: BinomialSet; #Inverted GB
+    max_solutions :: Int = 0
 ) :: Set{Vector{Int}}
 
     #Step 0: Verify that the polyhedron of `instance` is bounded
@@ -53,7 +56,9 @@ function enumerate_solutions(
     feasible_solutions = Set{Vector{Int}}()
     solution_queue = Vector{Vector{Int}}()
     push!(solution_queue, opt_sol)
-    while !isempty(solution_queue)
+    while !isempty(solution_queue) &&
+        (max_solutions == 0 || length(feasible_solutions) < max_solutions)
+
         current_sol = popfirst!(solution_queue)
         if current_sol in feasible_solutions
             continue

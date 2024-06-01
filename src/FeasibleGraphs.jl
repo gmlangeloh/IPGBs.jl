@@ -14,13 +14,24 @@ using Random
 
 export feasible_graph, plot_feasible_graph
 
-function feasible_graph(instance :: IPInstance)
+function feasible_graph(instance :: IPInstance; max_vertices :: Int = 0)
     gb = groebner_basis(instance)
-    return feasible_graph(instance, gb)
+    return feasible_graph(instance, gb, max_vertices = max_vertices)
 end
 
-function feasible_graph(instance :: IPInstance, gb :: Vector{Vector{Int}})
-    feasible_solutions = enumerate_solutions(instance)
+function feasible_graph(
+    instance :: IPInstance,
+    arc_set :: Vector{Vector{Int}};
+    max_vertices :: Int = 0
+)
+    feasible_solutions = enumerate_solutions(instance, max_solutions=max_vertices)
+    return feasible_graph(feasible_solutions, arc_set)
+end
+
+function feasible_graph(
+    feasible_solutions :: Set{Vector{Int}},
+    arc_set :: Vector{Vector{Int}}
+)
     graph = MetaDiGraph(length(feasible_solutions))
     edge_indices = Int[]
     vector_sols = [ sol for sol in feasible_solutions ]
@@ -32,7 +43,7 @@ function feasible_graph(instance :: IPInstance, gb :: Vector{Vector{Int}})
             if i == j
                 continue
             end
-            k = findfirst(isequal(vector_sols[i] - vector_sols[j]), gb)
+            k = findfirst(isequal(vector_sols[i] - vector_sols[j]), arc_set)
             if !isnothing(k)
                 add_edge!(graph, i, j)
                 push!(edge_indices, k)
@@ -42,23 +53,31 @@ function feasible_graph(instance :: IPInstance, gb :: Vector{Vector{Int}})
     return graph, edge_indices
 end
 
-function plot_feasible_graph(instance :: IPInstance)
-    graph, edge_indices = feasible_graph(instance)
+function plot_feasible_graph(instance :: IPInstance; max_vertices :: Int = 0)
+    graph, edge_indices = feasible_graph(instance, max_vertices = max_vertices)
     plot_feasible_graph(graph, edge_indices)
 end
 
 function plot_feasible_graph(
     instance :: IPInstance,
+    arc_set :: Vector{Vector{Int}};
+    max_vertices :: Int = 0
+)
+    graph, edge_indices = feasible_graph(instance, arc_set, max_vertices = max_vertices)
+    plot_feasible_graph(graph, edge_indices)
+end
+
+function plot_feasible_graph(
+    feasible_solutions :: Vector{Vector{Int}},
     arc_set :: Vector{Vector{Int}}
 )
-    graph, edge_indices = feasible_graph(instance, arc_set)
+    graph, edge_indices = feasible_graph(feasible_solutions, arc_set)
     plot_feasible_graph(graph, edge_indices)
 end
 
 function random_colors(n)
-    Random.seed!(1)
     colors = []
-    for i in 1:n
+    for _ in 1:n
         r = rand(0:255)
         g = rand(0:255)
         b = rand(0:255)
@@ -78,12 +97,12 @@ function plot_feasible_graph(
     edge_indices :: Vector{Int};
     full_labels :: Bool = false
 )
-    colors = random_colors(length(edge_indices))
+    colors = random_colors(maximum(edge_indices))
     labels = [string(i) for i in 1:nv(graph)]
     if full_labels
         labels = [string(get_prop(graph, i, :label)) for i in 1:nv(graph)]
     end
-    f, ax, p = graphplot(
+    f, ax, _ = graphplot(
         graph,
         nlabels=labels,
         edge_color=[colors[i] for i in edge_indices],
