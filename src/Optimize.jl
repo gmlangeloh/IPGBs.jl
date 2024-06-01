@@ -10,7 +10,7 @@ using MIPMatrixTools.IPInstances
 
 using JuMP
 
-export optimize_with!
+export optimize_with!, gb_heuristic, gb_heuristic!
 
 """
     optimize_with(
@@ -32,7 +32,7 @@ function optimize_with!(
     test_set :: Vector{Vector{Int}}
 )
     binomial_gb = BinomialSet(test_set, instance, Binomial)
-    optimize_with!(solution, instance, binomial_gb)
+    optimize_with!(solution, binomial_gb)
 end
 
 function optimize_with!(
@@ -85,6 +85,38 @@ function optimize(
         instance, completion=completion, truncation_type=truncation_type,
         solution=initial_solution, quiet = quiet
     )
+end
+
+function gb_heuristic!(
+    solution :: Vector{Int},
+    instance :: IPInstance;
+    time_limit :: Float64 = 0.0,
+    gb_size_limit :: Int = 0
+)
+    limited_gb = groebner_basis(
+        instance, time_limit=time_limit, gb_size_limit=gb_size_limit
+    )
+    optimize_with!(solution, instance, limited_gb)
+end
+
+function gb_heuristic(
+    instance :: IPInstance;
+    time_limit :: Float64 = 0.0,
+    gb_size_limit :: Int = 0
+) :: Vector{Int}
+    #TODO: Later, replace this by a method that always finds a feasible solution
+    solution = IPInstances.guess_initial_solution(instance)
+    gb_heuristic!(solution, instance, time_limit=time_limit, gb_size_limit=gb_size_limit)
+    return solution
+end
+
+function gb_heuristic(
+    filepath :: String;
+    time_limit :: Float64 = 0.0,
+    gb_size_limit :: Int = 0
+) :: Vector{Int}
+    instance = IPInstance(filepath)
+    return gb_heuristic(instance, time_limit=time_limit, gb_size_limit=gb_size_limit)
 end
 
 end

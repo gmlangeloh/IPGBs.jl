@@ -1,7 +1,7 @@
 #TODO: re-export the relevant functions: the 4ti2 interface and my GB
 #implementations
 module IPGBs
-export groebner_basis, markov_basis, optimize
+export groebner_basis, markov_basis, optimize, gb_heuristic, gb_heuristic!
 
 include("./Globals.jl")
 include("./FastBitSets.jl")
@@ -34,7 +34,7 @@ include("./FeasibleGraphs.jl")
 
 using .GBAlgorithms
 import .Markov: markov_basis
-import .Optimize: optimize, optimize_with!
+import .Optimize: optimize, optimize_with!, gb_heuristic, gb_heuristic!
 import .Buchberger: BuchbergerAlgorithm
 import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial
