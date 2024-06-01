@@ -170,6 +170,22 @@ function print_algorithm_stats(
     end
 end
 
+function stop_early(
+    algorithm :: GBAlgorithm,
+    time_limit :: Float64,
+    gb_size_limit :: Int
+) :: Bool
+    if time_limit > 0.0 && time() - algorithm.start_time > time_limit
+        @info "Time limit ($time_limit) reached."
+        return true
+    end
+    if gb_size_limit > 0 && length(current_basis(algorithm)) >= gb_size_limit
+        @info "Gröbner basis size limit ($gb_size_limit) reached."
+        return true
+    end
+    return false
+end
+
 """
     run(algorithm :: GBAlgorithm, quiet :: Bool) :: Vector{Vector{Int}}
 
@@ -177,9 +193,12 @@ Return the Gröbner Basis obtained by running `algorithm`.
 """
 function run(
     algorithm :: GBAlgorithm;
-    quiet :: Bool = false
+    quiet :: Bool = false,
+    time_limit :: Float64 = 0.0,
+    gb_size_limit :: Int = 0
 ) :: Vector{Vector{Int}}
     #Main loop: process all relevant S-pairs
+    algorithm.start_time = time()
     while true
         pair = next_pair!(algorithm)
         if isnothing(pair) #All S-pairs were processed, terminate algorithm.
@@ -203,6 +222,9 @@ function run(
             end
         else
             process_zero_reduction!(algorithm, binomial, pair)
+        end
+        if stop_early(algorithm, time_limit, gb_size_limit)
+            break
         end
     end
     print_algorithm_stats(algorithm, quiet)

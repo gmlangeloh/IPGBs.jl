@@ -141,6 +141,8 @@ end
     cache_tree_size :: Int = 100
     debug :: Bool = false
     info :: Bool = false
+    time_limit :: Float64 = 0.0
+    gb_size_limit :: Int = 0
 end
 
 """
@@ -206,7 +208,10 @@ function groebner_basis(
             cache_tree_size = opt.cache_tree_size, debug = opt.debug, info = opt.info
         )
     end
-    gb = GBAlgorithms.run(algorithm, quiet = opt.quiet)
+    gb = GBAlgorithms.run(
+        algorithm, quiet = opt.quiet, time_limit = opt.time_limit,
+        gb_size_limit = opt.gb_size_limit
+    )
     @debug "IPGBs finished, GB:" gb
     return gb
 end

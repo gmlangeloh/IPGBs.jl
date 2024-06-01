@@ -94,6 +94,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
     cache_tree_size :: Int
     prev_gb_size :: Int
     unbounded_problem :: Bool
+    start_time :: Float64
 
     function BuchbergerAlgorithm(
         markov :: Vector{Vector{Int}},
@@ -181,7 +182,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
             truncation_type, use_quick_truncation, use_binary_truncation, stats,
             preallocated, 0, model, vars, constrs, instance, truncated_gens, weight,
             max_weight, auto_reduce_type, auto_reduce_freq, cache_tree_size, 0,
-            is_unbounded
+            is_unbounded, 0.0
         )
     end
 end
