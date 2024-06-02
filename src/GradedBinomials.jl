@@ -23,7 +23,6 @@ module GradedBinomials
 export GradedBinomial, lattice_generator_graded, fourti2_form
 
 using StaticArrays
-using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Orders
 
@@ -545,7 +544,7 @@ Computes bitsets with the positive and negative supports of `g`.
 """
 function GBElements.supports(
     g :: GradedBinomial
-) :: Tuple{FastBitSet, FastBitSet}
+) :: Tuple{BitSet, BitSet}
     pos_supp = Vector(g.head)
     neg_supp = Vector(g.tail)
     n = length(g)
@@ -563,8 +562,7 @@ function GBElements.supports(
     for i in g.tail
         push!(pos_supp, i + n + m)
     end
-    bitset_length = 2n + m
-    return FastBitSet(bitset_length, pos_supp), FastBitSet(bitset_length, neg_supp)
+    return FastBitSet(pos_supp), FastBitSet(neg_supp)
 end
 
 """

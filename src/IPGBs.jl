@@ -5,8 +5,6 @@ export groebner_basis, markov_basis, optimize, gb_heuristic, gb_heuristic!
 
 include("./Globals.jl")
 include("./FastBitSets.jl")
-include("./ZDDs.jl")
-include("./cbitsets/CBitSets.jl")
 include("./Statistics.jl")
 include("./Orders.jl")
 include("./MonomialHeaps.jl")

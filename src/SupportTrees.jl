@@ -10,7 +10,6 @@ export ReductionTree, SupportTree, CacheTree, find_reducer, add_binomial!,
 using LRUCache
 
 using IPGBs
-using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Statistics
 

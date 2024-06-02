@@ -4,7 +4,6 @@ export initialize_binomials, Binomial
 
 using MIPMatrixTools.IPInstances
 
-using IPGBs.FastBitSets
 using IPGBs.GBElements
 using IPGBs.Orders
 
@@ -21,7 +20,7 @@ cost_end :: Int = 0 #Index of the last cost value
 binary_variables :: Vector{Bool} = Bool[] #1 if the variable is binary in the IP
 
 const EMPTY_FILTER :: Vector{Int} = Int[]
-const EMPTY_BITSET :: FastBitSet = FastBitSet(0)
+const EMPTY_BITSET :: BitSet = BitSet()
 
 function initialize_binomials(instance :: IPInstance, order :: MonomialOrder)
     global element_end = instance.n
@@ -41,13 +40,13 @@ mutable struct Binomial <: GBElement
     #The following fields are used to efficiently obtain the indices
     #of non-zero entries of the binomial.
     computed_supports :: Bool
-    positive_support :: FastBitSet
-    negative_support :: FastBitSet
+    positive_support :: BitSet
+    negative_support :: BitSet
     positive_filter :: Vector{Int}
     negative_filter :: Vector{Int}
 
-    positive_binaries :: FastBitSet
-    negative_binaries :: FastBitSet
+    positive_binaries :: BitSet
+    negative_binaries :: BitSet
 
     function Binomial(v :: Vector{Int})
         #By default, we do not compute the supports. They are computed lazily.
@@ -178,8 +177,8 @@ function GBElements.compute_binaries(g :: Binomial)
             end
         end
     end
-    g.positive_binaries = FastBitSet(length(element(g)), pos_bin)
-    g.negative_binaries = FastBitSet(length(element(g)), neg_bin)
+    g.positive_binaries = BitSet(pos_bin)
+    g.negative_binaries = BitSet(neg_bin)
 end
 
 GBElements.positive_support(g :: Binomial) = g.positive_support

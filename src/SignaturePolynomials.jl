@@ -11,7 +11,6 @@ export Signature, SigPoly, SigBasis, ModuleMonomialOrdering,
     signature, SignaturePair, regular_spair, SigLead
 
 using IPGBs.BinomialSets
-using IPGBs.FastBitSets
 using IPGBs.FastComparator
 using IPGBs.GBElements
 using IPGBs.Binomials

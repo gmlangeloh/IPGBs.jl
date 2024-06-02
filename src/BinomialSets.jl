@@ -7,7 +7,6 @@ export BinomialSet, order, binomials, reduction_tree,
 
 using MIPMatrixTools.IPInstances
 
-using IPGBs.FastBitSets
 using IPGBs.Orders
 using IPGBs.GBElements
 using IPGBs.SupportTrees
@@ -327,6 +326,23 @@ function sbinomial(
     orientate!(r, order(bs))
     return r
 end
+
+#It is critical to implement this efficiently, as it is called many times.
+#isempty(intersect(b1, b2)) is not enough!
+function disjoint(b1 :: BitSet, b2 :: BitSet)
+    #Specialization of _matched_map of Julia / base / bitset.jl
+    l1 = length(b1.bits)
+    l2 = length(b2.bits)
+    bdiff = b2.offset - b1.offset
+    @inbounds for i = max(1, 1+bdiff):min(l1, l2+bdiff)
+        if b1.bits[i] & b2.bits[i-bdiff] != 0
+            return false
+        end
+    end
+    return true
+end
+
+#disjoint(b1 :: BitSet, b2 :: BitSet) = isempty(intersect(b1, b2))
 
 """
 Returns true if (i, j) should be discarded.

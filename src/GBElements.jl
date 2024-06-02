@@ -10,7 +10,6 @@ positive_support, negative_support, positive_filter, negative_filter, positive_b
 
 using MIPMatrixTools.SolverTools
 
-using IPGBs.FastBitSets
 using IPGBs.Orders
 
 using JuMP
@@ -164,7 +163,7 @@ Computes bitsets with positive and negative supports of `g`.
 """
 function supports(
     g :: AbstractVector{Int}
-) :: Tuple{FastBitSet, FastBitSet, Vector{Int}, Vector{Int}}
+) :: Tuple{BitSet, BitSet, Vector{Int}, Vector{Int}}
     pos_supp = Int[]
     neg_supp = Int[]
     for i in eachindex(nonnegative(g))
@@ -177,12 +176,7 @@ function supports(
             push!(neg_supp, i)
         end
     end
-    pos_bitset_length = length(nonnegative(g))
-    neg_bitset_length = length(bounded(g))
-    return FastBitSet(pos_bitset_length, pos_supp),
-        FastBitSet(neg_bitset_length, neg_supp),
-        pos_supp,
-        neg_supp
+    return BitSet(pos_supp), BitSet(neg_supp), pos_supp, neg_supp
 end
 
 positive_support(g :: AbstractVector{Int}) = supports(g)[1]
@@ -192,7 +186,7 @@ negative_filter(g :: AbstractVector{Int}) = supports(g)[4]
 
 no_positive_filter(g :: AbstractVector{Int}) = isempty(positive_filter(g))
 
-const EMPTY_BITSET :: FastBitSet = FastBitSet(0)
+const EMPTY_BITSET :: BitSet = BitSet()
 positive_binaries(:: AbstractVector{Int}) = EMPTY_BITSET
 negative_binaries(:: AbstractVector{Int}) = EMPTY_BITSET
 
