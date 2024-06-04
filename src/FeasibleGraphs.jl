@@ -1,6 +1,7 @@
 module FeasibleGraphs
 
 using IPGBs
+using IPGBs.Orders
 using IPGBs.Walkback
 using MIPMatrixTools.IPInstances
 
@@ -9,6 +10,7 @@ using Graphs
 using GraphMakie
 using LayeredLayouts
 using Makie
+using Makie.Colors
 using MetaGraphs
 using Random
 
@@ -25,7 +27,17 @@ function feasible_graph(
     max_vertices :: Int = 0
 )
     feasible_solutions = enumerate_solutions(instance, max_solutions=max_vertices)
-    return feasible_graph(feasible_solutions, arc_set)
+    #Orient arc_set according to instance
+    oriented_arcs = Vector{Vector{Int}}()
+    order = MonomialOrder(instance)
+    for arc in arc_set
+        if Orders.is_inverted_generic(order, arc)
+            push!(oriented_arcs, -arc)
+        else
+            push!(oriented_arcs, arc)
+        end
+    end
+    return feasible_graph(feasible_solutions, oriented_arcs)
 end
 
 function feasible_graph(
@@ -53,26 +65,32 @@ function feasible_graph(
     return graph, edge_indices
 end
 
-function plot_feasible_graph(instance :: IPInstance; max_vertices :: Int = 0)
+function plot_feasible_graph(
+    instance :: IPInstance;
+    max_vertices :: Int = 0,
+    full_labels :: Bool = false
+)
     graph, edge_indices = feasible_graph(instance, max_vertices = max_vertices)
-    plot_feasible_graph(graph, edge_indices)
+    plot_feasible_graph(graph, edge_indices, full_labels = full_labels)
 end
 
 function plot_feasible_graph(
     instance :: IPInstance,
     arc_set :: Vector{Vector{Int}};
-    max_vertices :: Int = 0
+    max_vertices :: Int = 0,
+    full_labels :: Bool = false
 )
     graph, edge_indices = feasible_graph(instance, arc_set, max_vertices = max_vertices)
-    plot_feasible_graph(graph, edge_indices)
+    plot_feasible_graph(graph, edge_indices, full_labels = full_labels)
 end
 
 function plot_feasible_graph(
     feasible_solutions :: Vector{Vector{Int}},
-    arc_set :: Vector{Vector{Int}}
+    arc_set :: Vector{Vector{Int}};
+    full_labels :: Bool = false
 )
     graph, edge_indices = feasible_graph(feasible_solutions, arc_set)
-    plot_feasible_graph(graph, edge_indices)
+    plot_feasible_graph(graph, edge_indices, full_labels = full_labels)
 end
 
 function random_colors(n)
@@ -97,7 +115,8 @@ function plot_feasible_graph(
     edge_indices :: Vector{Int};
     full_labels :: Bool = false
 )
-    colors = random_colors(maximum(edge_indices))
+    #colors = random_colors(maximum(edge_indices))
+    hsv_colors = HSV.(range(0, 360, length(edge_indices)), 10, 10)
     labels = [string(i) for i in 1:nv(graph)]
     if full_labels
         labels = [string(get_prop(graph, i, :label)) for i in 1:nv(graph)]
@@ -105,7 +124,7 @@ function plot_feasible_graph(
     f, ax, _ = graphplot(
         graph,
         nlabels=labels,
-        edge_color=[colors[i] for i in edge_indices],
+        edge_color=[hsv_colors[i] for i in edge_indices],
         layout=dag_layout,
     )
     hidedecorations!(ax); hidespines!(ax)

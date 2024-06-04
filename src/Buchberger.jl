@@ -164,7 +164,11 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
             nontruncated_gens, order, minimization
         )
         auto_reduce_once!(binomial_gen_set)
-        weight, max_weight = truncation_weight(instance)
+        weight = Int[]
+        max_weight = 0
+        if use_quick_truncation
+            weight, max_weight = truncation_weight(instance)
+        end
         #Initialize the state of the algorithm (no pairs processed yet)
         state = BuchbergerState(length(binomial_gen_set))
         stats = BuchbergerStats()

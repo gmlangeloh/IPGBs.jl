@@ -211,7 +211,7 @@ function initial_solution(
     instance :: IPInstance,
     markov :: Vector{Vector{Int}}
 ) :: Vector{Int}
-    solution = copy(instance.fiber_solution)
+    solution = copy(fiber_solution(instance))
     #Make the solution feasible for the initial state (group relaxation)
     for i in eachindex(solution)
         if IPInstances.is_nonnegative(i, instance) && solution[i] < 0
@@ -355,7 +355,7 @@ function initialize_project_and_lift(
     markov = Vector{Int}[]
     for row in eachrow(Array(uhnf_basis))
         v = Vector{Int}(row)
-        lifted = lift_vector(v, proj_basis, opt_instance.lattice_basis)
+        lifted = lift_vector(v, proj_basis, lattice_basis(opt_instance))
         push!(markov, lifted)
     end
     relaxation = nonnegativity_relaxation(opt_instance, nonnegative)

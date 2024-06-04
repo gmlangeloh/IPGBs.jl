@@ -89,34 +89,42 @@ end
 
 function gb_heuristic!(
     solution :: Vector{Int},
-    instance :: IPInstance;
+    instance :: IPInstance,
+    markov :: Union{Nothing, Vector{Vector{Int}}} = nothing;
     time_limit :: Float64 = 0.0,
     gb_size_limit :: Int = 0
 )
     limited_gb = groebner_basis(
-        instance, time_limit=time_limit, gb_size_limit=gb_size_limit
+        instance, markov, time_limit=time_limit, gb_size_limit=gb_size_limit,
+        use_quick_truncation=false
     )
     optimize_with!(solution, instance, limited_gb)
 end
 
 function gb_heuristic(
-    instance :: IPInstance;
+    instance :: IPInstance,
+    markov :: Union{Nothing, Vector{Vector{Int}}} = nothing;
     time_limit :: Float64 = 0.0,
     gb_size_limit :: Int = 0
 ) :: Vector{Int}
     #TODO: Later, replace this by a method that always finds a feasible solution
     solution = IPInstances.guess_initial_solution(instance)
-    gb_heuristic!(solution, instance, time_limit=time_limit, gb_size_limit=gb_size_limit)
+    gb_heuristic!(
+        solution, instance, markov, time_limit=time_limit, gb_size_limit=gb_size_limit
+    )
     return solution
 end
 
 function gb_heuristic(
-    filepath :: String;
+    filepath :: String,
+    markov :: Union{Nothing, Vector{Vector{Int}}} = nothing;
     time_limit :: Float64 = 0.0,
     gb_size_limit :: Int = 0
 ) :: Vector{Int}
     instance = IPInstance(filepath)
-    return gb_heuristic(instance, time_limit=time_limit, gb_size_limit=gb_size_limit)
+    return gb_heuristic(
+        instance, markov, time_limit=time_limit, gb_size_limit=gb_size_limit
+    )
 end
 
 end
