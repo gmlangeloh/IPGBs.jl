@@ -5,8 +5,7 @@ export BinomialSet, order, binomials, reduction_tree,
     auto_reduce_once!, is_minimization, change_ordering!, is_groebner_basis,
     is_truncated_groebner_basis
 
-using MIPMatrixTools.IPInstances
-
+using IPGBs.IPInstances
 using IPGBs.Orders
 using IPGBs.GBElements
 using IPGBs.SupportTrees

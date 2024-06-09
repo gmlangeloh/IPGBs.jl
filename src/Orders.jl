@@ -4,9 +4,9 @@ export GBOrder, MonomialOrder, is_inverted, order_costs, inverse_order
 
 import LinearAlgebra: I
 
-using MIPMatrixTools.GBTools
-using MIPMatrixTools.IPInstances
-using MIPMatrixTools.SolverTools
+using IPGBs.GBTools
+using IPGBs.IPInstances
+using IPGBs.SolverTools
 
 using IPGBs
 

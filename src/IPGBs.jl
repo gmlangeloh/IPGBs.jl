@@ -4,6 +4,12 @@ module IPGBs
 export groebner_basis, markov_basis, optimize, gb_heuristic, gb_heuristic!
 
 include("./Globals.jl")
+include("./GBTools.jl")
+include("./MatrixTools.jl")
+include("./SolverTools.jl")
+include("./IPInstances.jl")
+include("./CombinatorialOptimizationInstances.jl")
+
 include("./FastBitSets.jl")
 include("./Statistics.jl")
 include("./Orders.jl")
@@ -31,6 +37,8 @@ include("./Walkback.jl")
 include("./FeasibleGraphs.jl")
 
 using .GBAlgorithms
+using .GBTools
+using .IPInstances
 import .Markov: markov_basis
 import .Optimize: optimize, optimize_with!, gb_heuristic, gb_heuristic!
 import .Buchberger: BuchbergerAlgorithm
@@ -40,8 +48,6 @@ import .GradedBinomials: GradedBinomial
 
 using JuMP
 using Random
-using MIPMatrixTools.GBTools
-using MIPMatrixTools.IPInstances
 
 """
 Simple truncation works when the data in A, b are all non-negative.

@@ -1,8 +1,7 @@
 using CPLEX
 using IPGBs
 using JuMP
-using MIPMatrixTools
-using MIPMatrixTools.IPInstances
+using IPGBs.IPInstances
 
 function test_optimize(path; init_sol = nothing)
     #model = read_from_file(path)

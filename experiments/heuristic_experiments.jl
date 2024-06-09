@@ -1,6 +1,6 @@
 using IPGBs
-using MIPMatrixTools.IPInstances
-using MIPMatrixTools.MatrixTools
+using IPGBs.IPInstances
+using IPGBs.MatrixTools
 
 using Graphs
 using JuMP

@@ -3,7 +3,7 @@ module FeasibleGraphs
 using IPGBs
 using IPGBs.Orders
 using IPGBs.Walkback
-using MIPMatrixTools.IPInstances
+using IPGBs.IPInstances
 
 using CairoMakie
 using Graphs
@@ -124,6 +124,7 @@ function plot_feasible_graph(
     f, ax, _ = graphplot(
         graph,
         nlabels=labels,
+        arrow_size=25,
         edge_color=[hsv_colors[i] for i in edge_indices],
         layout=dag_layout,
     )

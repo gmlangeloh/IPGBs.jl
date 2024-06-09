@@ -5,11 +5,10 @@ where all data is non-negative. Based on Thomas and Weismantel (1997).
 module Buchberger
 export BuchbergerAlgorithm
 
-using MIPMatrixTools.GBTools
-using MIPMatrixTools.IPInstances
-using MIPMatrixTools.SolverTools
-
 using IPGBs
+using IPGBs.GBTools
+using IPGBs.IPInstances
+using IPGBs.SolverTools
 using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.Binomials

@@ -2,9 +2,8 @@ module Binomials
 
 export initialize_binomials, Binomial
 
-using MIPMatrixTools.IPInstances
-
 using IPGBs.GBElements
+using IPGBs.IPInstances
 using IPGBs.Orders
 
 #TODO: Find an efficient alternative to using these globals.

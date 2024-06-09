@@ -1,3 +1,5 @@
+using Makie
+using GLMakie
 using StatsKit
 
 function get_line_value(line :: String)
@@ -253,6 +255,101 @@ function main()
     return sum_df, percent_df
 end
 
+function scatter_time_plot_ipgbs()
+    data = read_output_data()
+    df = make_dataframe(data)
+    f = Figure()
+    ax = Axis(f[1, 1], xlabel="log(IPGBs time(no BTC))", ylabel="log(IPGBs time (with BTC))")
+    limits!(ax, -3, 8, -3, 8)
+    xs = [-3, 8]
+    ys = [-3, 8]
+    lines!(ax, xs, ys)
+    names = problem_from_instance_name.(df[:, "instance"])
+    cs = Int[]
+    int_map = Dict{String, Int}()
+    last_color = 1
+    for name in names
+        if !haskey(int_map, name)
+            int_map[name] = last_color
+            last_color += 1
+            push!(cs, int_map[name])
+        else
+            push!(cs, int_map[name])
+        end
+    end
+    insts = unique(df.instance)
+    println(insts)
+    color_list = cgrad(:darktest, 1:last_color)
+    visited_names = Set{String}()
+    for inst_name in insts
+        name = problem_from_instance_name(inst_name)
+        if name in visited_names
+            continue
+        end
+        push!(visited_names, name)
+        #println(color_list[int_map[name]])
+        scatter!(
+            ax,
+            log.(df[problem_from_instance_name.(df.instance) .== name, "no_trunc_time"]),
+            log.(df[problem_from_instance_name.(df.instance) .== name, "with_trunc_time"]),
+            color=color_list[int_map[name]],
+            label="$name"
+        )
+    end
+    axislegend(ax, position=:rb)
+    ax.xlabelsize = 34
+    ax.ylabelsize = 34
+    ax.aspect = DataAspect()
+    return f
+end
+
+function scatter_time_plot_comparison()
+    data = read_output_data()
+    df = make_dataframe(data)
+    f = Figure()
+    ax = Axis(f[1, 1], xlabel="log(IPGBs time)", ylabel="log(4ti2 time)")
+    limits!(ax, -3, 8, -3, 8)
+    xs = [-3, 8]
+    ys = [-3, 8]
+    lines!(ax, xs, ys)
+    names = problem_from_instance_name.(df[:, "instance"])
+    cs = Int[]
+    int_map = Dict{String, Int}()
+    last_color = 1
+    for name in names
+        if !haskey(int_map, name)
+            int_map[name] = last_color
+            last_color += 1
+            push!(cs, int_map[name])
+        else
+            push!(cs, int_map[name])
+        end
+    end
+    insts = unique(df.instance)
+    println(insts)
+    color_list = cgrad(:darktest, 1:last_color)
+    visited_names = Set{String}()
+    for inst_name in insts
+        name = problem_from_instance_name(inst_name)
+        if name in visited_names
+            continue
+        end
+        push!(visited_names, name)
+        #println(color_list[int_map[name]])
+        scatter!(
+            ax,
+            log.(df[problem_from_instance_name.(df.instance) .== name, "no_trunc_time"]),
+            log.(df[problem_from_instance_name.(df.instance) .== name, "fti2_time"]),
+            color=color_list[int_map[name]],
+            label="$name"
+        )
+    end
+    axislegend(ax, position=:rb)
+    ax.xlabelsize = 34
+    ax.ylabelsize = 34
+    ax.aspect = DataAspect()
+    return f
+end
 function relative_deviation(v, opt)
     return 100 * (v - opt) / opt
 end

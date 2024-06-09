@@ -2,9 +2,8 @@
 
 using IPGBs
 using IPGBs.FourTi2
-using MIPMatrixTools
-using MIPMatrixTools.CombinatorialOptimizationInstances
-using MIPMatrixTools.IPInstances
+using IPGBs.CombinatorialOptimizationInstances
+using IPGBs.IPInstances
 
 #Here, m is the number of variables (sets), n is the number of constraints (elements)
 function try_packing(n, m, p)

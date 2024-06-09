@@ -5,8 +5,8 @@ export GBAlgorithm, run, current_basis, update!, stats, order, increment,
 
 using JuMP
 
-using MIPMatrixTools.GBTools
-using MIPMatrixTools.IPInstances
+using IPGBs.GBTools
+using IPGBs.IPInstances
 
 using IPGBs
 using IPGBs.BinomialSets

@@ -2,7 +2,7 @@
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "064f68d5aa0f47b3cdddf157a23aa445be26f2b8"
+project_hash = "2f39f7c698ed645ce97e5f3e15c1618831cb098a"
 
 [[deps.AbstractAlgebra]]
 deps = ["GroupsCore", "InteractiveUtils", "LinearAlgebra", "MacroTools", "Preferences", "Random", "RandomExtensions", "SparseArrays", "Test"]
@@ -862,12 +862,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "1fd0a97409e418b78c53fac671cf4622efdf0f21"
 uuid = "d00139f3-1899-568f-a2f0-47f597d42d70"
 version = "5.1.2+0"
-
-[[deps.MIPMatrixTools]]
-deps = ["AbstractAlgebra", "CPLEX", "Clp", "JuMP", "LinearAlgebra", "Random"]
-path = "/home/gmlangeloh/.julia/dev/MIPMatrixTools"
-uuid = "92da6944-dd09-4426-96b3-5659caebed13"
-version = "1.0.0-DEV"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]

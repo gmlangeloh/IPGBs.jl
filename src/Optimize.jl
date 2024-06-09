@@ -6,7 +6,7 @@ using IPGBs.BinomialSets
 using IPGBs.GBElements
 using IPGBs.Markov
 
-using MIPMatrixTools.IPInstances
+using IPGBs.IPInstances
 
 using JuMP
 

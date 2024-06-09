@@ -1,9 +1,8 @@
 using IPGBs
+using IPGBs.CombinatorialOptimizationInstances
 using IPGBs.FourTi2
-
-using MIPMatrixTools.GBTools
-using MIPMatrixTools.IPInstances
-using MIPMatrixTools.CombinatorialOptimizationInstances
+using IPGBs.GBTools
+using IPGBs.IPInstances
 
 using JuMP
 import Random

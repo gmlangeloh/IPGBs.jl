@@ -10,18 +10,17 @@ module Markov
 
 export markov_basis, project_and_lift
 
-using MIPMatrixTools.GBTools
-using MIPMatrixTools.IPInstances
-using MIPMatrixTools.MatrixTools
-using MIPMatrixTools.SolverTools
-
 using IPGBs
 using IPGBs.Binomials
 using IPGBs.BinomialSets
 using IPGBs.Buchberger
 using IPGBs.GBAlgorithms
 using IPGBs.GBElements
+using IPGBs.GBTools
+using IPGBs.IPInstances
+using IPGBs.MatrixTools
 using IPGBs.Orders
+using IPGBs.SolverTools
 
 using IPGBs.FourTi2
 

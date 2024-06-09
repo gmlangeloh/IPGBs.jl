@@ -10,9 +10,9 @@ using DelimitedFiles
 using JuMP
 using LinearAlgebra
 
-using MIPMatrixTools.GBTools
-using MIPMatrixTools.IPInstances
-using MIPMatrixTools.MatrixTools
+using IPGBs.GBTools
+using IPGBs.IPInstances
+using IPGBs.MatrixTools
 
 """
 Internal use.

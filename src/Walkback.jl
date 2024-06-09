@@ -4,10 +4,10 @@ using IPGBs
 using IPGBs.Binomials
 using IPGBs.BinomialSets
 using IPGBs.GBElements
+using IPGBs.IPInstances
 using IPGBs.Optimize
+using IPGBs.SolverTools
 using IPGBs.SupportTrees
-using MIPMatrixTools.IPInstances
-using MIPMatrixTools.SolverTools
 
 using JuMP
 

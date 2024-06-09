@@ -8,9 +8,8 @@ module GBElements
 export GBElement, degree_reducible, filter, simple_truncation, is_zero, leading_term, head, has_signature, singular_top_reducible, signature_reducible, fullform, CriticalPair, BinomialPair, first, second, build, is_implicit, orientate!, is_negative_disjoint, model_truncation, truncate, ipgbs_form, to_gbelement, weight, data, element, costs, bounded, nonnegative, is_monomial,
 positive_support, negative_support, positive_filter, negative_filter, positive_binaries, negative_binaries, no_positive_filter
 
-using MIPMatrixTools.SolverTools
-
 using IPGBs.Orders
+using IPGBs.SolverTools
 
 using JuMP
 

@@ -4,7 +4,7 @@ using IPGBs.BinomialSets
 using IPGBs.Buchberger
 using IPGBs.FourTi2
 using IPGBs.GBAlgorithms
-using MIPMatrixTools.GBTools
+using IPGBs.GBTools
 using Test
 
 include("./test_functions.jl")
