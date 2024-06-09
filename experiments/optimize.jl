@@ -1,11 +1,9 @@
-using CPLEX
 using IPGBs
 using JuMP
 using IPGBs.IPInstances
 
 function test_optimize(path; init_sol = nothing)
     #model = read_from_file(path)
-    #set_optimizer(model, CPLEX.Optimizer)
     #set_silent(model)
     #optimize!(model)
     #value = round(Int, objective_value(model))
@@ -16,7 +14,6 @@ function test_optimize(path; init_sol = nothing)
     end
     #val = ret[2]
     #println("IPGBs opt: ", val, " time: ", t)
-    #println("Cplex opt: ", value)
     #return ret[1]
 end
 

@@ -8,6 +8,7 @@ using LinearAlgebra
 
 #TODO: Finish removing dependency on AbstractAlgebra. Use only MatrixTools
 using AbstractAlgebra
+using GLPK
 using JuMP
 
 using IPGBs
@@ -120,6 +121,7 @@ mutable struct IPInstance
     model :: JuMP.Model
     model_vars :: Vector{JuMP.VariableRef}
     model_cons :: Vector{JuMP.ConstraintRef} #TODO: not a concrete type, fix this
+    optimizer :: DataType
 
     #Lattice-related information
     lattice_basis :: Generic.MatSpaceElem{Int} #Row basis
@@ -136,7 +138,8 @@ mutable struct IPInstance
         u::Vector{<:Union{Int,Nothing}},
         nonnegative::Union{Nothing,Vector{Bool}} = nothing;
         apply_normalization::Bool = true,
-        invert_objective::Bool = true
+        invert_objective::Bool = true,
+        optimizer :: DataType = GLPK.Optimizer
     ) where {T<:Real}
         m, n = size(A)
         @assert m == length(b)
@@ -183,7 +186,7 @@ mutable struct IPInstance
         new(A, b, C, u,
             bounded_end, nonnegative_end, permutation, inverse_perm,
             binaries, m, n, new_m, new_n, true,
-            model, model_vars, model_cons,
+            model, model_vars, model_cons, optimizer,
             basis, rnk, fiber_sol, false, bounded
         )
     end
@@ -362,7 +365,11 @@ function extract_objective(
     return c
 end
 
-function IPInstance(model::JuMP.Model; infer_binary :: Bool = true)
+function IPInstance(
+    model::JuMP.Model;
+    infer_binary :: Bool = true,
+    optimizer :: DataType = GLPK.Optimizer
+)
     #Extract A, b, c from the model.
     n = num_variables(model)
     x = all_variables(model)
@@ -469,12 +476,16 @@ function IPInstance(model::JuMP.Model; infer_binary :: Bool = true)
     c = hcat(c, Zs)
     #Build the IPInstance object. The matrices here are already normalized,
     #so no additional normalization is necessary
-    return IPInstance(A, b, c, u, apply_normalization=false)
+    return IPInstance(A, b, c, u, apply_normalization=false, optimizer=optimizer)
 end
 
-function IPInstance(path :: String; infer_binary :: Bool = true)
+function IPInstance(
+    path :: String;
+    infer_binary :: Bool = true,
+    optimizer :: DataType = GLPK.Optimizer
+)
     model = read_from_file(path)
-    return IPInstance(model, infer_binary=infer_binary)
+    return IPInstance(model, infer_binary=infer_binary, optimizer=optimizer)
 end
 
 """

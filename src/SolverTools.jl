@@ -4,13 +4,11 @@ Includes various LP and IP functions using external solvers and JuMP.
 module SolverTools
 
 using JuMP
-using Clp
-using CPLEX
+using GLPK
 
 using IPGBs
 
-const LP_SOLVER = Clp
-const GENERAL_SOLVER = CPLEX
+const SOLVER = GLPK.Optimizer
 
 """
     cone_element(
@@ -28,7 +26,7 @@ function cone_element(
         return Float64[]
     end
     n = length(rays[1])
-    model = Model(GENERAL_SOLVER.Optimizer)
+    model = Model(SOLVER)
     @variable(model, x[1:n] >= 0)
     for ray in rays
         @constraint(model, ray' * x >= 0)
@@ -142,7 +140,7 @@ function optimal_row_span(
 ) where {T<:Real}
     m, n = size(A)
     @assert(n == size(C, 2))
-    model = Model(GENERAL_SOLVER.Optimizer)
+    model = Model(SOLVER)
     set_silent(model)
     @variable(model, x[1:n] >= 0)
     constraints = []
@@ -199,7 +197,7 @@ function jump_model(
     var_type::DataType
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     m, n = size(A)
-    model = Model(GENERAL_SOLVER.Optimizer)
+    model = Model(SOLVER)
     set_silent(model)
     if var_type == Int #use the original IP, not the linear relaxation
         @variable(model, x[1:n], Int)
@@ -297,7 +295,7 @@ function bounded_variables(A :: Matrix{Int}, nonnegative :: Vector{Bool})
     bounded = Bool[]
     #Find some feasible RHS. This does not depend on the variable
     #we are trying to bound.
-    model = Model(GENERAL_SOLVER.Optimizer)
+    model = Model(SOLVER)
     set_silent(model)
     @variable(model, x[1:n])
     @variable(model, y[1:m])
@@ -316,7 +314,7 @@ function bounded_variables(A :: Matrix{Int}, nonnegative :: Vector{Bool})
     #Bounded for some feasible RHS = bounded for all feasible RHS
     #This has to be done for each variable separately, but we can reuse
     #the JuMP LP model for efficiency.
-    opt_model = Model(GENERAL_SOLVER.Optimizer)
+    opt_model = Model(SOLVER)
     set_silent(opt_model)
     @variable(opt_model, z[1:n])
     for k in 1:n
@@ -431,7 +429,7 @@ function is_bounded_polyhedron(
     A :: Matrix{Int}
 ) :: Bool
     m, n = size(A)
-    model = Model(GENERAL_SOLVER.Optimizer)
+    model = Model(SOLVER)
     set_silent(model)
     @variable(model, x[1:n] >= 0)
     @constraint(model, A * x == zeros(Int, m))
@@ -456,7 +454,7 @@ c_σ = 0 and c^T u = -u_i for all u in ker(A).
 """
 function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
     m, n = size(A)
-    model = Model(GENERAL_SOLVER.Optimizer)
+    model = Model(SOLVER)
     set_silent(model)
     @variable(model, x[1:m])
     @objective(model, Max, 0)
@@ -497,7 +495,7 @@ function optimal_weight_vector(
     b :: Vector{Int},
     unbounded :: Vector{Bool}
 ) :: Tuple{Vector{Float64}, Float64}
-    model = Model(GENERAL_SOLVER.Optimizer)
+    model = Model(SOLVER)
     set_silent(model)
     m, n = size(A)
     @assert length(b) == n

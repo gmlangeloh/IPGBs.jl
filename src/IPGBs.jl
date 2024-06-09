@@ -1,5 +1,3 @@
-#TODO: re-export the relevant functions: the 4ti2 interface and my GB
-#implementations
 module IPGBs
 export groebner_basis, markov_basis, optimize, gb_heuristic, gb_heuristic!
 
@@ -46,6 +44,7 @@ import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial
 import .GradedBinomials: GradedBinomial
 
+using GLPK
 using JuMP
 using Random
 
@@ -102,7 +101,11 @@ function groebner_basis(
     markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
     kwargs...
 ) :: Vector{Vector{Int}}
-    instance = IPInstance(filepath)
+    optimizer = GLPK.Optimizer
+    if :optimizer in keys(kwargs)
+        optimizer = kwargs[:optimizer]
+    end
+    instance = IPInstance(filepath, optimizer=optimizer)
     return groebner_basis(instance, markov_basis; kwargs...)
 end
 
@@ -111,7 +114,11 @@ function groebner_basis(
     markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
     kwargs...
 ) :: Vector{Vector{Int}}
-    instance = IPInstance(model)
+    optimizer = GLPK.Optimizer
+    if :optimizer in keys(kwargs)
+        optimizer = kwargs[:optimizer]
+    end
+    instance = IPInstance(model, optimizer=optimizer)
     return groebner_basis(instance, markov_basis; kwargs...)
 end
 
@@ -127,7 +134,11 @@ function groebner_basis(
     if :apply_normalization in keys(kwargs)
         normalize = kwargs[:apply_normalization]
     end
-    instance = IPInstance(A, b, C, u, apply_normalization=normalize)
+    optimizer = GLPK.Optimizer
+    if :optimizer in keys(kwargs)
+        optimizer = kwargs[:optimizer]
+    end
+    instance = IPInstance(A, b, C, u, apply_normalization=normalize, optimizer=optimizer)
     return groebner_basis(instance, markov_basis; kwargs...)
 end
 
