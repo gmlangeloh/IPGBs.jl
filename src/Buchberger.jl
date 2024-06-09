@@ -112,10 +112,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         info :: Bool = false
     )
         #Build order and generating set
-        order = MonomialOrder(
-            instance.C, instance.A, instance.b,
-            unbounded_variables(instance), minimization
-        )
+        order = MonomialOrder(instance)
         initialize_binomials(instance, order)
         generating_set = [to_gbelement(m, order, T) for m in markov]
         init_solutions = [to_gbelement(s, order, T, false) for s in solutions]
@@ -125,7 +122,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         #Initialize a feasibility model in case we want to use model truncation
         model, vars, constrs = SolverTools.feasibility_model(
             instance.A, instance.b, instance.u, nonnegative_vars(instance),
-            trunc_var_type
+            trunc_var_type, optimizer=instance.optimizer
         )
         #Truncate elements in the generating set
         nontruncated_gens = T[]

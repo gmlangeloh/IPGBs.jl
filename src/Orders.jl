@@ -10,6 +10,8 @@ using IPGBs.SolverTools
 
 using IPGBs
 
+using GLPK
+
 """
 This is specialized by MonomialOrder in case of Buchberger's algorithm and by
 ModuleMonomialOrder in case of Signature-based algorithms.
@@ -48,12 +50,13 @@ Assumes the given LP is bounded and feasible.
 function positive_first_row!(
     C :: Matrix{Float64},
     A :: Matrix{Int},
-    b :: Vector{Int}
+    b :: Vector{Int};
+    optimizer = GLPK.Optimizer
 )
     n = size(C, 2)
     @assert n == size(A, 2)
     if any(C[1, j] < 0 for j in 1:n)
-        d = SolverTools.positive_row_span(A, b)
+        d = SolverTools.positive_row_span(A, b, optimizer=optimizer)
         if !isnothing(d)
             lambda = 1 + maximum(-C[1, j] / d[j] for j in 1:n)
             for j in 1:n
@@ -75,9 +78,10 @@ function projection_order(
     C :: Matrix{Float64},
     A :: Matrix{Int},
     b :: Vector{Int},
-    num_vars :: Int
+    num_vars :: Int;
+    optimizer = GLPK.Optimizer
 ) :: Matrix{Float64}
-    s = SolverTools.optimal_row_span(A, b, C)
+    s = SolverTools.optimal_row_span(A, b, C, optimizer=optimizer)
     projected_obj = copy(C)
     projected_obj[1, :] -= s
     #TODO This assertion may fail when the LP above is degenerate
@@ -105,7 +109,8 @@ function normalize_order(
     A::Matrix{Int},
     b::Vector{Int},
     num_vars::Int,
-    unbounded::Vector{Bool}
+    unbounded::Vector{Bool};
+    optimizer = GLPK.Optimizer
 )::Tuple{Matrix{Float64}, Int}
     cost_matrix = zeros(Float64, num_vars, num_vars)
     #Add cost vector bounding the unbounded components
@@ -118,10 +123,10 @@ function normalize_order(
     end
     if num_vars == size(A, 2)
         cost_matrix = tiebreak(old_C)
-        positive_first_row!(cost_matrix, A, b)
+        positive_first_row!(cost_matrix, A, b, optimizer=optimizer)
     else
         #Compute order projected into the first num_vars
-        proj = projection_order(old_C, A, b, num_vars)
+        proj = projection_order(old_C, A, b, num_vars, optimizer=optimizer)
         cost_matrix = tiebreak(proj)
     end
     #Store the transpose to exploit the fact Julia stores matrices
@@ -140,6 +145,7 @@ mutable struct MonomialOrder <: GBOrder
     tiebreaker :: Symbol
     is_minimization :: Bool
     num_costs :: Int
+    optimizer :: DataType
 end
 
 function MonomialOrder(
@@ -148,31 +154,44 @@ function MonomialOrder(
     b::Vector{Int},
     unbounded::Vector{Bool},
     is_minimization::Bool,
-    num_vars :: Union{Nothing, Int} = nothing
+    num_vars :: Union{Nothing, Int} = nothing;
+    optimizer = GLPK.Optimizer
 )
     max_vars = size(A, 2)
     if !isnothing(num_vars)
         max_vars = num_vars
     end
-    C, num_costs = normalize_order(costs, A, b, max_vars, unbounded)
-    return MonomialOrder(C, :invlex, is_minimization, num_costs)
+    C, num_costs = normalize_order(costs, A, b, max_vars, unbounded, optimizer=optimizer)
+    return MonomialOrder(C, :invlex, is_minimization, num_costs, optimizer)
 end
 
-MonomialOrder(C :: Matrix{S}, A :: Matrix{Int}, b :: Vector{Int}, unbounded :: Vector{Bool}, min, nvars = nothing) where {S <: Real} =
-    MonomialOrder(Float64.(C), A, b, unbounded, min, nvars)
+function MonomialOrder(
+    C :: Matrix{Int},
+    A :: Matrix{Int},
+    b :: Vector{Int},
+    unbounded :: Vector{Bool},
+    min,
+    nvars = nothing;
+    optimizer = GLPK.Optimizer
+)
+    MonomialOrder(Float64.(C), A, b, unbounded, min, nvars, optimizer=optimizer)
+end
 
 function MonomialOrder(
     instance :: IPInstance,
     num_vars :: Union{Nothing, Int} = nothing
 )
-    return MonomialOrder(instance.C, instance.A, instance.b, unbounded_variables(instance), true, num_vars)
+    return MonomialOrder(
+        instance.C, instance.A, instance.b, unbounded_variables(instance), true, num_vars,
+        optimizer=instance.optimizer
+    )
 end
 
 function inverse_order(
     order :: MonomialOrder
 ) :: MonomialOrder
     return MonomialOrder(
-        -order.cost_matrix, :None, order.is_minimization, order.num_costs
+        -order.cost_matrix, :None, order.is_minimization, order.num_costs, order.optimizer
     )
 end
 

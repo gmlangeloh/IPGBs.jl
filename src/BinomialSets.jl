@@ -51,7 +51,9 @@ function BinomialSet(
     else
         unbounded = unbounded_variables(ip)
     end
-    order = MonomialOrder(ip.C, ip.A, ip.b, unbounded, is_minimization)
+    order = MonomialOrder(
+        ip.C, ip.A, ip.b, unbounded, is_minimization, optimizer=ip.optimizer
+    )
     oriented_basis = T[]
     initialize_binomials(ip, order)
     for g in basis

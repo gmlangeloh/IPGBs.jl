@@ -160,10 +160,12 @@ mutable struct IPInstance
         new_m, new_n = size(A)
         C = Float64.(C)
         #Create a JuMP model to compute bounded variables
-        model, model_vars, model_cons = SolverTools.relaxation_model(A, b, C, u, nonnegative)
+        model, model_vars, model_cons = SolverTools.relaxation_model(
+            A, b, C, u, nonnegative, optimizer=optimizer
+        )
         #Compute a permutation of variables of the given instance such that
         #vars appear in order: bounded, non-negative, unrestricted
-        bounded = SolverTools.bounded_variables(A, nonnegative)
+        bounded = SolverTools.bounded_variables(A, nonnegative, optimizer=optimizer)
         permutation, bounded_end, nonnegative_end = compute_permutation(bounded, nonnegative)
         inverse_perm = invperm(permutation)
         binaries = [ u[i] == 1 for i in 1:length(u)]
@@ -173,7 +175,9 @@ mutable struct IPInstance
         u = u[permutation]
         nonnegative = nonnegative[permutation]
         #Update the JuMP model with the permutation info
-        model, model_vars, model_cons = SolverTools.relaxation_model(A, b, C, u, nonnegative)
+        model, model_vars, model_cons = SolverTools.relaxation_model(
+            A, b, C, u, nonnegative, optimizer=optimizer
+        )
         #Checks feasibility of the linear relaxation
         @assert SolverTools.is_feasible(model)
         #Compute boundedness of variables using the model
@@ -497,7 +501,7 @@ end
 function solve(instance :: IPInstance) :: Tuple{Vector{Int}, Int, TerminationStatusCode}
     return SolverTools.solve(
         instance.A, instance.b, instance.C, instance.u,
-        nonnegative_variables(instance), Int
+        nonnegative_variables(instance), Int, optimizer=instance.optimizer
     )
 end
 
@@ -783,7 +787,7 @@ function truncation_weight(
     A = Array(Int.(lattice_basis(instance)))
     b = fiber_solution(instance)
     unbounded = map(x -> !x, instance.originally_bounded)
-    return SolverTools.optimal_weight_vector(A, b, unbounded)
+    return SolverTools.optimal_weight_vector(A, b, unbounded, optimizer=instance.optimizer)
 end
 
 """
@@ -806,7 +810,7 @@ function update_objective!(
     j :: Int,
     sigma :: Vector{Int}
 )
-    c = SolverTools.bounded_objective(instance.A, j, sigma)
+    c = SolverTools.bounded_objective(instance.A, j, sigma, optimizer=instance.optimizer)
     #We take the negative here to normalize the problem to minimization form
     instance.C[1, :] = c
     #To ease debugging: check whether c has the specified properties, that is,
@@ -911,7 +915,7 @@ function unboundedness_proof(
     i :: Int
 ) :: Vector{Int}
     model, vars, _ = SolverTools.unboundedness_ip_model(
-        instance.A, nonnegative_variables(instance), i
+        instance.A, nonnegative_variables(instance), i, optimizer=instance.optimizer
     )
     JuMP.optimize!(model)
     if JuMP.termination_status(model) != JuMP.MOI.OPTIMAL
@@ -1070,7 +1074,8 @@ function random_ipinstance(
         instance = IPInstance(A, b, C, u, invert_objective=false)
         #Check feasibility
         model, _, _ = SolverTools.feasibility_model(
-            instance.A, instance.b, instance.u, nonnegative_vars(instance), Int
+            instance.A, instance.b, instance.u, nonnegative_vars(instance), Int,
+            optimizer=instance.optimizer
         )
         feasible = SolverTools.is_feasible(model)
         SolverTools.set_jump_objective!(model, :Min, vec(instance.C))

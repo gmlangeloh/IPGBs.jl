@@ -50,7 +50,7 @@ function truncate_markov(
     end
     model, _, constrs = SolverTools.feasibility_model(
         instance.A, instance.b, instance.u, nonnegative_vars(instance),
-        trunc_var_type
+        trunc_var_type, optimizer=instance.optimizer
     )
     for v in markov
         truncated = GBElements.truncate(
@@ -228,7 +228,7 @@ function initial_solution(
     end
     #TODO: Refactor, use optimize_with!
     old_obj = instance.C[1, :]
-    obj = SolverTools.cone_element(markov)
+    obj = SolverTools.cone_element(markov, optimizer=instance.optimizer)
     instance.C[1, :] = obj
     bs = BinomialSet(markov, instance, Binomial)
     binomial_sol = to_gbelement(solution, bs.order, Binomial, false)

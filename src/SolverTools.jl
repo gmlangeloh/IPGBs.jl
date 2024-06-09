@@ -20,13 +20,14 @@ Return a point in the cone spanned by the rays in `rays` if it exists.
 The point is computed via linear programming.
 """
 function cone_element(
-    rays :: Vector{Vector{T}}
+    rays :: Vector{Vector{T}};
+    optimizer = SOLVER
 ) :: Vector{Float64} where {T <: Real}
     if isempty(rays)
         return Float64[]
     end
     n = length(rays[1])
-    model = Model(SOLVER)
+    model = Model(optimizer)
     @variable(model, x[1:n] >= 0)
     for ray in rays
         @constraint(model, ray' * x >= 0)
@@ -136,11 +137,12 @@ function optimal_row_span(
     A::Matrix{Int},
     b::Vector{Int},
     C::Array{T},
-    sense::Symbol = :Min
+    sense::Symbol = :Min;
+    optimizer = SOLVER
 ) where {T<:Real}
     m, n = size(A)
     @assert(n == size(C, 2))
-    model = Model(SOLVER)
+    model = Model(optimizer)
     set_silent(model)
     @variable(model, x[1:n] >= 0)
     constraints = []
@@ -169,10 +171,11 @@ linear programming.
 """
 function positive_row_span(
     A::Matrix{Int},
-    b::Vector{Int}
+    b::Vector{Int};
+    optimizer=SOLVER
 )::Union{Vector{Float64},Nothing}
     obj = ones(Float64, 1, size(A, 2))
-    return optimal_row_span(A, b, obj, :Max)
+    return optimal_row_span(A, b, obj, :Max, optimizer=optimizer)
 end
 
 """
@@ -194,10 +197,11 @@ function jump_model(
     C::Array{Float64},
     u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
-    var_type::DataType
+    var_type::DataType;
+    optimizer = SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     m, n = size(A)
-    model = Model(SOLVER)
+    model = Model(optimizer)
     set_silent(model)
     if var_type == Int #use the original IP, not the linear relaxation
         @variable(model, x[1:n], Int)
@@ -234,9 +238,10 @@ function solve(
     C::Array{Float64},
     u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
-    var_type::DataType
+    var_type::DataType;
+    optimizer=SOLVER
 ):: Tuple{Vector{Int}, Int, TerminationStatusCode}
-    model, x, _ = jump_model(A, b, C, u, nonnegative, var_type)
+    model, x, _ = jump_model(A, b, C, u, nonnegative, var_type, optimizer=optimizer)
     optimize!(model)
     if !has_values(model)
         return zeros(Int, length(x)), 0, termination_status(model)
@@ -259,9 +264,10 @@ function relaxation_model(
     b::Vector{Int},
     C::Array{Float64},
     u::Vector{<: Union{Int, Nothing}},
-    nonnegative::Vector{Bool}
+    nonnegative::Vector{Bool};
+    optimizer = SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
-    return jump_model(A, b, C, u, nonnegative, Real)
+    return jump_model(A, b, C, u, nonnegative, Real, optimizer=optimizer)
 end
 
 """
@@ -278,24 +284,29 @@ Implement it this way later!
 function unboundedness_ip_model(
     A::Array{Int,2},
     nonnegative::Vector{Bool},
-    i::Int
+    i::Int;
+    optimizer = SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     #Get model with 0 in RHS and objective function
     m, n = size(A)
     b = zeros(Int, m)
     C = zeros(Float64, 1, n)
     u = [nothing for _ in 1:n]
-    model, vars, constrs = jump_model(A, b, C, u, nonnegative, Int)
+    model, vars, constrs = jump_model(A, b, C, u, nonnegative, Int, optimizer=optimizer)
     @constraint(model, vars[i] >= 1)
     return model, vars, constrs
 end
 
-function bounded_variables(A :: Matrix{Int}, nonnegative :: Vector{Bool})
+function bounded_variables(
+    A :: Matrix{Int},
+    nonnegative :: Vector{Bool};
+    optimizer = SOLVER
+)
     m, n = size(A)
     bounded = Bool[]
     #Find some feasible RHS. This does not depend on the variable
     #we are trying to bound.
-    model = Model(SOLVER)
+    model = Model(optimizer)
     set_silent(model)
     @variable(model, x[1:n])
     @variable(model, y[1:m])
@@ -357,7 +368,11 @@ function set_jump_objective!(
     end
 end
 
-set_jump_objective!(model::JuMP.Model, direction::Symbol, c::Vector{T}) where {T<:Real} = set_jump_objective!(model, direction, c, all_variables(model))
+function set_jump_objective!(
+    model::JuMP.Model, direction::Symbol, c::Vector{T}
+) where {T<:Real}
+    set_jump_objective!(model, direction, c, all_variables(model))
+end
 
 """
     feasibility_model(A :: Matrix{Int}, b :: Vector{Int}, u :: Vector{<: Union{Int, Nothing}}, nonnegative :: Vector{Bool}, var_type :: DataType)
@@ -371,10 +386,11 @@ function feasibility_model(
     b::Vector{Int},
     u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
-    var_type::DataType
+    var_type::DataType;
+    optimizer = SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     feasibility_obj = zeros(Float64, 1, size(A, 2))
-    return jump_model(A, b, feasibility_obj, u, nonnegative, var_type)
+    return jump_model(A, b, feasibility_obj, u, nonnegative, var_type, optimizer=optimizer)
 end
 
 """
@@ -426,10 +442,11 @@ function is_bounded(
 end
 
 function is_bounded_polyhedron(
-    A :: Matrix{Int}
+    A :: Matrix{Int};
+    optimizer = SOLVER
 ) :: Bool
     m, n = size(A)
-    model = Model(SOLVER)
+    model = Model(optimizer)
     set_silent(model)
     @variable(model, x[1:n] >= 0)
     @constraint(model, A * x == zeros(Int, m))
@@ -452,9 +469,9 @@ In this case of P&L, the latter holds and if y is a solution it follows that
 c = b - A^T y satisfies:
 c_σ = 0 and c^T u = -u_i for all u in ker(A).
 """
-function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int})
+function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int}; optimizer = SOLVER)
     m, n = size(A)
-    model = Model(SOLVER)
+    model = Model(optimizer)
     set_silent(model)
     @variable(model, x[1:m])
     @objective(model, Max, 0)
@@ -493,9 +510,10 @@ end
 function optimal_weight_vector(
     A :: Matrix{Int},
     b :: Vector{Int},
-    unbounded :: Vector{Bool}
+    unbounded :: Vector{Bool};
+    optimizer = SOLVER
 ) :: Tuple{Vector{Float64}, Float64}
-    model = Model(SOLVER)
+    model = Model(optimizer)
     set_silent(model)
     m, n = size(A)
     @assert length(b) == n

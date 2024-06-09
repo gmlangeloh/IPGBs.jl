@@ -37,7 +37,7 @@ function enumerate_solutions(
 ) :: Set{Vector{Int}}
 
     #Step 0: Verify that the polyhedron of `instance` is bounded
-    if !SolverTools.is_bounded_polyhedron(instance.A)
+    if !SolverTools.is_bounded_polyhedron(instance.A, optimizer=instance.optimizer)
         throw(ArgumentError(
             "The polyhedron of `instance` is unbounded,
             there may be infinite feasible solutions.")
