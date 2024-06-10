@@ -1,5 +1,5 @@
 module IPGBs
-export groebner_basis, markov_basis, optimize, gb_heuristic, gb_heuristic!
+export groebner_basis, markov_basis, optimize, gb_heuristic, gb_heuristic!, moip_gb_solve
 
 include("./Globals.jl")
 include("./GBTools.jl")
@@ -34,6 +34,11 @@ include("./Optimize.jl")
 include("./Walkback.jl")
 include("./FeasibleGraphs.jl")
 
+include("./SingleObjective.jl")
+include("./MultiObjectiveTools.jl")
+include("./MultiObjectiveStats.jl")
+include("./MultiObjectiveAlgorithms.jl")
+
 using .GBAlgorithms
 using .GBTools
 using .IPInstances
@@ -43,6 +48,7 @@ import .Buchberger: BuchbergerAlgorithm
 import .SignatureAlgorithms: SignatureAlgorithm
 import .Binomials: Binomial
 import .GradedBinomials: GradedBinomial
+import .MultiObjectiveAlgorithms: moip_gb_solve
 
 using GLPK
 using JuMP
