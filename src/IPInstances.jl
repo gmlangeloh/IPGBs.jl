@@ -816,7 +816,7 @@ function update_objective!(
     #To ease debugging: check whether c has the specified properties, that is,
     #1. c[sigma] == 0 and
     #2. c' * u == -u[i] for all u in the lattice basis
-    @assert iszero(c[sigma])
+    @assert all(IPGBs.is_approx_zero.(c[sigma]))
     for i in 1:size(lattice_basis(instance), 1)
         u = reshape(Array(lattice_basis(instance)[i, :]), instance.n)
         @assert abs(c' * u + u[j]) < 1e-6

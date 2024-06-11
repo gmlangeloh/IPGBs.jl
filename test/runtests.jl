@@ -87,6 +87,7 @@ include("./test_functions.jl")
                     println("Is the Pareto set nondominated? ",
                         @test is_nondominated_set(Ys, maximization=false)
                     )
+                    println()
                 end
             end
         end
