@@ -5,6 +5,9 @@ using IPGBs.Buchberger
 using IPGBs.FourTi2
 using IPGBs.GBAlgorithms
 using IPGBs.GBTools
+using IPGBs.MultiObjectiveAlgorithms
+using IPGBs.MultiObjectiveTools
+using MultiObjectiveInstances
 using Test
 
 include("./test_functions.jl")
@@ -65,6 +68,26 @@ include("./test_functions.jl")
                 println("Optimal value starting from the optimal solution? ",
                     @test compare_to_solver(opt_value, opt_status, solver_value, solver_status))
                 println()
+            end
+        end
+    end
+
+    @testset "MOIP tests" begin
+        for filename in readdir("test_instances_moip", join=true)
+            if endswith(filename, ".dat")
+                #TODO Write the actual tests
+                instance = MultiObjectiveInstances.read_from_file(filename)
+                initial_solution = MultiObjectiveInstances.Knapsack.knapsack_initial(instance)
+                for solver in ["4ti2", "IPGBs"]
+                    println("MOIP test for ", filename, " with solver ", solver)
+                    Xs, Ys, _ = moip_gb_solve(instance, initial_solution, solver=solver)
+                    println("Is the efficient set feasible? ",
+                        @test is_efficient_set_feasible(Xs, instance.A, instance.b)
+                    )
+                    println("Is the Pareto set nondominated? ",
+                        @test is_nondominated_set(Ys, maximization=false)
+                    )
+                end
             end
         end
     end

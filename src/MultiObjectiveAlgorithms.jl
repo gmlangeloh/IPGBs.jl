@@ -157,7 +157,7 @@ mutable struct MOIPGBState
             proj_name = proj_prefix * "_" * string(i)
         end
         new(instance, ip, solver, proj_name, i, copy(init_sol), stats,
-            BinomialSet(Vector{Int}[], ip.C, ip.A, ip.b), 0, efficient,
+            BinomialSet(Vector{Int}[], ip), 0, efficient,
             nondominated, ideal, nadir, vars, slacks
         )
     end
@@ -443,6 +443,15 @@ function moip_gb_solve(
         end
     end
     return terminate(state)
+end
+
+function moip_knapsack_solve(
+    filename :: String;
+    solver :: String = "4ti2"
+)::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
+    instance = MultiObjectiveInstances.read_from_file(filename)
+    initial_solution = knapsack_initial(instance)
+    return moip_gb_solve(instance, initial_solution, solver=solver)
 end
 
 end
