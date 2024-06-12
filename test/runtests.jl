@@ -75,7 +75,6 @@ include("./test_functions.jl")
     @testset "MOIP tests" begin
         for filename in readdir("test_instances_moip", join=true)
             if endswith(filename, ".dat")
-                #TODO Write the actual tests
                 instance = MultiObjectiveInstances.read_from_file(filename)
                 initial_solution = MultiObjectiveInstances.Knapsack.knapsack_initial(instance)
                 for solver in ["4ti2", "IPGBs"]
@@ -87,6 +86,16 @@ include("./test_functions.jl")
                     println("Is the Pareto set nondominated? ",
                         @test is_nondominated_set(Ys, maximization=false)
                     )
+                    if size(instance.A, 2) < 15
+                        #Compare the results to the very slow enumeration algorithm
+                        X2s, Y2s = moip_walkback(instance)
+                        println("Same nondominated set as enumeration? ",
+                            @test Ys == Y2s
+                        )
+                        println("Same efficient set as enumeration? ",
+                            @test Set(Xs) == Set(X2s)
+                        )
+                    end
                     println()
                 end
             end

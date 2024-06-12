@@ -3,7 +3,7 @@ A module to solve multi-objective integer programming problems using
 epsilon-constraint methods and test sets / Gröbner Bases.
 """
 module MultiObjectiveAlgorithms
-export moip_gb_solve
+export moip_gb_solve, moip_walkback
 
 using IPGBs
 using IPGBs.BinomialSets
@@ -11,6 +11,7 @@ using IPGBs.FourTi2
 using IPGBs.IPInstances
 using IPGBs.MatrixTools
 using IPGBs.Orders
+using IPGBs.Walkback
 
 using MultiObjectiveInstances
 
@@ -452,6 +453,32 @@ function moip_knapsack_solve(
     instance = MultiObjectiveInstances.read_from_file(filename)
     initial_solution = knapsack_initial(instance)
     return moip_gb_solve(instance, initial_solution, solver=solver)
+end
+
+function moip_walkback(
+    instance :: MultiObjectiveInstance
+)::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
+    #Enumerate all feasible solutions for this instance
+    ip = initial_ip_instance(instance)
+    feasibles = enumerate_solutions(ip)
+    #Then keep adding them into a nondominated set and checking if it remains
+    #nondominated. If it doesn't, remove the dominated solutions from the set
+    feasible_vector = [ x for x in feasibles ]
+    nondominated_points = Vector{Int}[]
+    efficient_points = Vector{Int}[]
+    for x in feasible_vector
+        y = round.(Int, ip.C * x)
+        if is_nondominated(y, nondominated_points, maximization=false)
+            remove_dominated!(nondominated_points, efficient_points, y, maximization=false)
+            push!(nondominated_points, y)
+            push!(efficient_points, x)
+        end
+    end
+    pareto = Set{Vector{Int}}()
+    for nondominated in nondominated_points
+        push!(pareto, nondominated)
+    end
+    return efficient_points, pareto, Stats()
 end
 
 end

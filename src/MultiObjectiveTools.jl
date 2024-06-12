@@ -2,7 +2,8 @@
 Some useful functions to deal with multi-objective optimization problems.
 """
 module MultiObjectiveTools
-export check_size_consistency, is_nondominated, is_nondominated_set, contained_by, is_efficient_set_feasible
+export check_size_consistency, is_nondominated, is_nondominated_set, contained_by,
+is_efficient_set_feasible, remove_dominated!
 
 function check_size_consistency(
     A :: Matrix{Int},
@@ -61,13 +62,63 @@ function is_nondominated(
     return nothing
 end
 
+function is_nondominated(
+    y :: Vector{Int},
+    pareto :: Vector{Vector{Int}};
+    maximization :: Bool = true
+) :: Bool
+    if isempty(pareto)
+        return true
+    end
+    n = length(y)
+    for p in pareto
+        if maximization
+            if all(i -> y[i] <= p[i], 1:n)
+                return false
+            end
+        else
+            if all(i -> p[i] <= y[i], 1:n)
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function remove_dominated!(
+    Y :: Vector{Vector{Int}},
+    X :: Vector{Vector{Int}},
+    y :: Vector{Int};
+    maximization :: Bool = true
+)
+    #Remove all points of `pareto` that are dominated by `y`
+    i = 1
+    while i <= length(Y)
+        if maximization
+            if all(j -> Y[i][j] <= y[j], 1:length(y))
+                deleteat!(Y, i)
+                deleteat!(X, i)
+            else
+                i += 1
+            end
+        else
+            if all(j -> y[j] <= Y[i][j], 1:length(y))
+                deleteat!(Y, i)
+                deleteat!(X, i)
+            else
+                i += 1
+            end
+        end
+    end
+end
+
 function is_nondominated_set(
-    pareto :: Set{Vector{Int}}; 
+    pareto :: Set{Vector{Int}};
     maximization :: Bool = true
 ) :: Bool
     vector = pareto_vector(pareto)
     return all(
-        i -> isnothing(is_nondominated(i, vector, maximization=maximization)), 
+        i -> isnothing(is_nondominated(i, vector, maximization=maximization)),
         1:length(pareto)
     )
 end
@@ -152,8 +203,8 @@ function is_feasible(x :: Vector{Int}, A :: Matrix{Int}, b :: Vector{Int}) :: Bo
 end
 
 function is_efficient_set_feasible(
-    efficient_set :: Vector{Vector{Int}}, 
-    A :: Matrix{Int}, 
+    efficient_set :: Vector{Vector{Int}},
+    A :: Matrix{Int},
     b :: Vector{Int}
 ) :: Bool
     return all(x -> is_feasible(x, A, b), efficient_set)
