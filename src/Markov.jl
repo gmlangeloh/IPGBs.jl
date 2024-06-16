@@ -24,6 +24,8 @@ using IPGBs.SolverTools
 
 using IPGBs.FourTi2
 
+using JuMP
+
 """
     truncate_markov(
     markov::Vector{Vector{Int}},
@@ -742,6 +744,30 @@ function markov_basis(
     quiet :: Bool = true
 )::Vector{Vector{Int}}
     instance = IPInstance(A, b, C, u)
+    return markov_basis(
+        instance, algorithm = algorithm, truncation_type = truncation_type, quiet = quiet
+    )
+end
+
+function markov_basis(
+    model :: JuMP.Model;
+    algorithm :: Symbol = :Any,
+    truncation_type :: Symbol = :None,
+    quiet :: Bool = true
+)
+    instance = IPInstance(model)
+    return markov_basis(
+        instance, algorithm = algorithm, truncation_type = truncation_type, quiet = quiet
+    )
+end
+
+function markov_basis(
+    filename :: String;
+    algorithm :: Symbol = :Any,
+    truncation_type :: Symbol = :None,
+    quiet :: Bool = true
+)
+    instance = IPInstance(filename)
     return markov_basis(
         instance, algorithm = algorithm, truncation_type = truncation_type, quiet = quiet
     )

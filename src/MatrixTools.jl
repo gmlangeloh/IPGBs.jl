@@ -182,18 +182,21 @@ function lift_vector(
     return reshape(Array(res), length(res))
 end
 
+function is_full_row_rank(A :: Matrix{Int})
+    return LinearAlgebra.rank(A) == size(A, 1)
+end
+
 # This should preferably be called when the matrix does not include upper bound constraints
 #on the variables, otherwise we get numerical issues.
 function li_rows(A :: Matrix{Int}, b :: Vector{Int}; tol = 1e-10)
-    U, S, V = svd(A)
-    nonzero_singular_values = findall(x -> abs(x) > tol, S)
-    #Obtain the LI rows of A by taking the rows of V corresponding to the nonzero singular values
-    #A == U * diagm(S) * V'
-    Uli = U[nonzero_singular_values, nonzero_singular_values]
-    Vli = V[:, nonzero_singular_values]'
-    Sli = diagm(S[nonzero_singular_values])
-    li_A = round.(Int, Uli * Sli * Vli)
-    li_b = b[nonzero_singular_values]
+    At = transpose(A)
+    qra = qr(At, ColumnNorm())
+    li_A = zeros(Int, rank(A), size(A, 2))
+    new_indices = sort(qra.p[1:rank(A)])
+    li_cols = At[:, new_indices]
+    transpose!(li_A, li_cols)
+    li_b = b[new_indices]
+    @assert is_full_row_rank(li_A)
     return li_A, li_b
 end
 
