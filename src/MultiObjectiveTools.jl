@@ -223,7 +223,7 @@ function ideal_point(
     sense = Int(objective_sense(model))
     ideal = Int[]
     for i in 1:num_objectives(instance)
-        @objective(model, OptimizationSense(1 - sense), instance.C[i, :]' * vars)
+        @objective(model, OptimizationSense(sense), instance.C[i, :]' * vars)
         optimize!(model)
         if termination_status(model) != MOI.OPTIMAL
             throw(ArgumentError("Ideal point is unbounded"))

@@ -218,6 +218,13 @@ function Base.show(io::IO, instance::IPInstance)
     print(io, final)
 end
 
+function Base.copy(instance :: IPInstance)
+    return IPInstance(
+        copy(instance.A), copy(instance.b), copy(instance.C), copy(instance.u),
+        nonnegative_vars(instance), apply_normalization=false, invert_objective=false
+    )
+end
+
 function in_kernel(v :: Vector{Int}, instance :: IPInstance)
     return iszero(instance.A * v)
 end

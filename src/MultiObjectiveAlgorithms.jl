@@ -184,7 +184,7 @@ function initialize(
     slacks = Int[]
     return MOIPGBState(
         #TODO: Maybe I should already start with an epsilon constraint here
-        instance, instance, 1, initial_solution, solver, ideal, nadir, vars, slacks
+        instance, copy(instance), 1, initial_solution, solver, ideal, nadir, vars, slacks
     )
 end
 
