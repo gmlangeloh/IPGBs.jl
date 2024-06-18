@@ -201,7 +201,11 @@ function jump_model(
     optimizer = SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     m, n = size(A)
-    model = Model(optimizer)
+    if isnothing(optimizer)
+        model = Model()
+    else
+        model = Model(optimizer)
+    end
     set_silent(model)
     if var_type == Int #use the original IP, not the linear relaxation
         @variable(model, x[1:n], Int)

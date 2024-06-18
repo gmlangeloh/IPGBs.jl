@@ -270,7 +270,7 @@ end
 function new_first_objective(
     instance :: IPInstance,
     first_objective :: Int
-)
+) :: Matrix{Int}
     obj_permutation = collect(1:num_objectives(instance))
     obj_permutation[first_objective] = 1
     obj_permutation[1] = first_objective
@@ -288,15 +288,14 @@ Return a JuMP Model corresponding to the IPInstance.
 The JuMP Model keeps all objectives in its objective function matrix.
 """
 function jump_model(
-    instance :: IPInstance,
-    first_objective :: Int = 1;
-    optimizer :: DataType = GLPK.Optimizer
+    instance :: IPInstance;
+    optimizer = GLPK.Optimizer
 )
-    C = new_first_objective(instance, first_objective)
-    return SolverTools.jump_model(
-        instance.A, instance.b, C, instance.u,
+    model, x, constrs = SolverTools.jump_model(
+        instance.A, instance.b, instance.C, instance.u,
         nonnegative_vars(instance), Int, optimizer=optimizer
     )
+    return model, x, constrs
 end
 
 """

@@ -241,7 +241,9 @@ function next_objective(
     # Take the initial ip from the instance again
     # Then order its objectives accordingly and add relevant epsilon constraints
     # Finally, add ideal and nadir bounds as needed
-    model, x = IPInstances.jump_model(state.instance, new_objective)
+    model, x = IPInstances.jump_model(state.instance, optimizer=nothing)
+    C = IPInstances.new_first_objective(state.instance, new_objective)
+    @objective(model, Min, C * x)
     orig_vars = collect(1:length(x))
     epsilon_vars = generate_epsilon_constraints(model, x, state, new_objective)
     #generate_ideal_bounds(model, x, state, new_objective)
