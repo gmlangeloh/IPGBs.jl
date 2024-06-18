@@ -2,7 +2,7 @@ module IPInstances
 
 export IPInstance, nonnegative_vars, is_bounded, unboundedness_proof, update_objective!, nonnegativity_relaxation, group_relaxation, truncation_weight, projection, project_vector, unbounded_variables, is_feasible_solution, add_constraint, lattice_basis_projection, in_kernel,
 apply_permutation, fiber_solution, lattice_basis
-export has_slacks, nonnegative_data_only
+export has_slacks, nonnegative_data_only, multiobjective_from_file, num_objectives
 
 using LinearAlgebra
 
@@ -224,6 +224,72 @@ end
 
 function in_kernel(vs :: Vector{Vector{Int}}, instance :: IPInstance)
     return all(v -> in_kernel(v, instance), vs)
+end
+
+function multiobjective_from_file(filename :: String)
+    parse_line(l) = parse.(Int, split(l))
+    f = open(filename, "r")
+    line_index = 1
+    m, n, p = (0, 0, 0)
+    objective_rows = Vector{Int}[]
+    constraint_rows = Vector{Int}[]
+    rhs = Int[]
+    for line in eachline(f)
+        data = parse_line(line)
+        if line_index == 1
+            m = data[1]
+            n = data[2]
+            p = data[3]
+        elseif line_index <= p + 1
+            push!(objective_rows, copy(data))
+        elseif line_index <= p + m + 1
+            push!(constraint_rows, copy(data))
+        elseif line_index <= p + m + 2
+            rhs = copy(data)
+        end
+        line_index += 1
+    end
+    close(f)
+    A = foldl(vcat, map(row -> reshape(row, 1, length(row)), constraint_rows))
+    C = foldl(vcat, map(row -> reshape(row, 1, length(row)), objective_rows))
+    b = rhs
+    return IPInstance(A, b, C, fill(nothing, n), apply_normalization=false)
+end
+
+function num_objectives(instance :: IPInstance)
+    return size(instance.C, 1)
+end
+
+function new_first_objective(
+    instance :: IPInstance,
+    first_objective :: Int
+)
+    obj_permutation = collect(1:num_objectives(instance))
+    obj_permutation[first_objective] = 1
+    obj_permutation[1] = first_objective
+    return instance.C[obj_permutation, :]
+end
+
+"""
+    initial_jump_model(
+    instance :: IPInstance,
+    first_objective :: Int = 1
+)
+
+Return a JuMP Model corresponding to the IPInstance.
+
+The JuMP Model keeps all objectives in its objective function matrix.
+"""
+function jump_model(
+    instance :: IPInstance,
+    first_objective :: Int = 1;
+    optimizer :: DataType = GLPK.Optimizer
+)
+    C = new_first_objective(instance, first_objective)
+    return SolverTools.jump_model(
+        instance.A, instance.b, C, instance.u,
+        nonnegative_vars(instance), Int, optimizer=optimizer
+    )
 end
 
 """

@@ -7,7 +7,6 @@ using IPGBs.GBAlgorithms
 using IPGBs.GBTools
 using IPGBs.MultiObjectiveAlgorithms
 using IPGBs.MultiObjectiveTools
-using MultiObjectiveInstances
 using Test
 
 include("./test_functions.jl")
@@ -75,8 +74,8 @@ include("./test_functions.jl")
     @testset "MOIP tests" begin
         for filename in readdir("test_instances_moip", join=true)
             if endswith(filename, ".dat")
-                instance = MultiObjectiveInstances.read_from_file(filename)
-                initial_solution = MultiObjectiveInstances.Knapsack.knapsack_initial(instance)
+                instance = multiobjective_from_file(filename)
+                initial_solution = IPInstances.guess_initial_solution(instance)
                 for solver in ["4ti2", "IPGBs"]
                     println("MOIP test for ", filename, " with solver ", solver)
                     Xs, Ys, _ = moip_gb_solve(instance, initial_solution, solver=solver)

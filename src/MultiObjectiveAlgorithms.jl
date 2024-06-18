@@ -13,13 +13,12 @@ using IPGBs.MatrixTools
 using IPGBs.Orders
 using IPGBs.Walkback
 
-using MultiObjectiveInstances
-
 using IPGBs.MultiObjectiveTools
 using IPGBs.SingleObjective
 using IPGBs.MultiObjectiveStats
 
 using JuMP
+using GLPK
 using LinearAlgebra
 using Random
 
@@ -123,7 +122,7 @@ function gbelems_with_positive_slack(
 end
 
 mutable struct MOIPGBState
-    instance :: MultiObjectiveInstance #Full multiobjective instance
+    instance :: IPInstance #Original multiobjective instance
     ip :: IPInstance #epsilon-constraint IP model for the current problem
     solver::String
     identifier::String
@@ -174,68 +173,18 @@ objective_function(state::MOIPGBState) =
 num_variables(state::MOIPGBState) = state.ip.n
 num_constraints(state::MOIPGBState) = state.ip.m
 
-#TODO: I should probably move this function somewhere else
-function new_first_objective(
-    instance :: MultiObjectiveInstance,
-    first_objective :: Int
-) :: Array{Int, 2}
-    obj_permutation = collect(1:num_objectives(instance))
-    obj_permutation[first_objective] = 1
-    obj_permutation[1] = first_objective
-    return instance.C[obj_permutation, :]
-end
-
-"""
-    initial_jump_model(
-    instance :: MultiObjectiveInstance,
-    first_objective :: Int = 1
-)
-
-Return a JuMP Model corresponding to the MultiObjectiveInstance.
-
-The MultiObjectiveInstance is assumed to be in the form
-min C * x
-s.t. Ax = b
-x >= 0, x Integer.
-
-The JuMP Model keeps all objectives in its objective function matrix.
-"""
-function initial_jump_model(
-    instance :: MultiObjectiveInstance,
-    first_objective :: Int = 1
-)
-    model = JuMP.Model()
-    n = MultiObjectiveInstances.num_variables(instance)
-    m = MultiObjectiveInstances.num_constraints(instance)
-    @variable(model, x[1:n] >= 0, Int)
-    #For now, simply give IPInstances the whole C matrix with all objectives
-    C = new_first_objective(instance, first_objective)
-    A = instance.A
-    b = instance.b
-    @objective(model, Min, C * x)
-    #Write down the constraints according to the matrix A and rhs b
-    for i in 1:m
-        @constraint(model, sum(A[i, j] * x[j] for j in 1:n) == b[i])
-    end
-    #Epsilon constraints will be added later as needed
-    return model, x
-end
-
-initial_ip_instance(instance, first_objective = 1) =
-    IPInstance(initial_jump_model(instance, first_objective)[1])
-
 function initialize(
-    instance :: MultiObjectiveInstance,
+    instance :: IPInstance,
     initial_solution :: Vector{Int},
     solver :: String
 ) :: MOIPGBState
     ideal = ideal_point(instance, STD_CLASSICAL_SOLVER)
     nadir = nadir_bound(instance, STD_CLASSICAL_SOLVER)
-    ip = initial_ip_instance(instance)
-    vars = collect(1:MultiObjectiveInstances.num_variables(instance))
+    vars = collect(1:instance.n)
     slacks = Int[]
     return MOIPGBState(
-        instance, ip, 1, initial_solution, solver, ideal, nadir, vars, slacks
+        #TODO: Maybe I should already start with an epsilon constraint here
+        instance, instance, 1, initial_solution, solver, ideal, nadir, vars, slacks
     )
 end
 
@@ -292,7 +241,7 @@ function next_objective(
     # Take the initial ip from the instance again
     # Then order its objectives accordingly and add relevant epsilon constraints
     # Finally, add ideal and nadir bounds as needed
-    model, x = initial_jump_model(state.instance, new_objective)
+    model, x = IPInstances.jump_model(state.instance, new_objective)
     orig_vars = collect(1:length(x))
     epsilon_vars = generate_epsilon_constraints(model, x, state, new_objective)
     #generate_ideal_bounds(model, x, state, new_objective)
@@ -345,8 +294,8 @@ function push_efficient_point!(state :: MOIPGBState, point :: Vector{Int})
 end
 
 const TEST_SET_SOLVERS = ["4ti2", "IPGBs"]
-const CLASSICAL_SOLVERS = ["CPLEX", "Gurobi", "Cbc"]
-const STD_CLASSICAL_SOLVER = "Cbc"
+const CLASSICAL_SOLVERS = ["GLPK", "CPLEX", "Gurobi", "Cbc"]
+const STD_CLASSICAL_SOLVER = GLPK.Optimizer
 use_test_sets(s::MOIPGBState) = s.solver in TEST_SET_SOLVERS
 updated_test_set(s::MOIPGBState) = s.test_set_iter == s.objective_index
 has_test_set(s::MOIPGBState) = !isempty(s.test_set) && updated_test_set(s)
@@ -413,10 +362,10 @@ end
 
 """
     moip_gb_solve(
-    instance::MultiObjectiveInstance,
+    instance::IPInstance,
     initial_solution::Vector{Int};
     solver::String="4ti2"
-)::Tuple{Vector{Vector{Int}},Set{Vector{Int}},Stats}
+)::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
 
 Pareto front for multi-objective `instance` given `initial_solution`, using `solver`.
 
@@ -424,7 +373,7 @@ If `solver` is a test-set based solver, applies the project-and-lift algorithm t
 obtain a solution.
 """
 function moip_gb_solve(
-    instance::MultiObjectiveInstance,
+    instance::IPInstance,
     initial_solution::Vector{Int};
     solver::String="4ti2"
 )::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
@@ -450,24 +399,23 @@ function moip_knapsack_solve(
     filename :: String;
     solver :: String = "4ti2"
 )::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
-    instance = MultiObjectiveInstances.read_from_file(filename)
-    initial_solution = knapsack_initial(instance)
+    instance = multiobjective_from_file(filename)
+    initial_solution = IPInstances.guess_initial_solution(instance)
     return moip_gb_solve(instance, initial_solution, solver=solver)
 end
 
 function moip_walkback(
-    instance :: MultiObjectiveInstance
+    instance :: IPInstance
 )::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
     #Enumerate all feasible solutions for this instance
-    ip = initial_ip_instance(instance)
-    feasibles = enumerate_solutions(ip)
+    feasibles = enumerate_solutions(instance)
     #Then keep adding them into a nondominated set and checking if it remains
     #nondominated. If it doesn't, remove the dominated solutions from the set
     feasible_vector = [ x for x in feasibles ]
     nondominated_points = Vector{Int}[]
     efficient_points = Vector{Int}[]
     for x in feasible_vector
-        y = round.(Int, ip.C * x)
+        y = round.(Int, instance.C * x)
         if is_nondominated(y, nondominated_points, maximization=false)
             remove_dominated!(nondominated_points, efficient_points, y, maximization=false)
             push!(nondominated_points, y)

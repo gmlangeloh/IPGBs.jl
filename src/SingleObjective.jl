@@ -7,8 +7,6 @@ x >= 0
 module SingleObjective
 export usesolver, linear_relaxation, feasible_solution
 
-using MultiObjectiveInstances
-
 using JuMP
 using GLPK
 

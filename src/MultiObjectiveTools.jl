@@ -3,7 +3,12 @@ Some useful functions to deal with multi-objective optimization problems.
 """
 module MultiObjectiveTools
 export check_size_consistency, is_nondominated, is_nondominated_set, contained_by,
-is_efficient_set_feasible, remove_dominated!
+is_efficient_set_feasible, remove_dominated!, ideal_point, nadir_bound
+
+using IPGBs.IPInstances
+
+using JuMP
+using GLPK
 
 function check_size_consistency(
     A :: Matrix{Int},
@@ -208,6 +213,44 @@ function is_efficient_set_feasible(
     b :: Vector{Int}
 ) :: Bool
     return all(x -> is_feasible(x, A, b), efficient_set)
+end
+
+function ideal_point(
+    instance :: IPInstance,
+    optimizer :: DataType = GLPK.Optimizer
+) :: Vector{Int}
+    model, vars, _ = IPInstances.jump_model(instance, optimizer=optimizer)
+    sense = Int(objective_sense(model))
+    ideal = Int[]
+    for i in 1:num_objectives(instance)
+        @objective(model, OptimizationSense(1 - sense), instance.C[i, :]' * vars)
+        optimize!(model)
+        if termination_status(model) != MOI.OPTIMAL
+            throw(ArgumentError("Ideal point is unbounded"))
+        end
+        push!(ideal, round(Int, objective_value(model)))
+    end
+    @objective(model, OptimizationSense(sense), instance.C[1, :]' * vars)
+    return ideal
+end
+
+function nadir_bound(
+    instance :: IPInstance,
+    optimizer :: DataType = GLPK.Optimizer
+) :: Vector{Int}
+    model, vars, _ = IPInstances.jump_model(instance, optimizer=optimizer)
+    sense = Int(objective_sense(model))
+    nadir = Int[]
+    for i in 1:num_objectives(instance)
+        @objective(model, OptimizationSense(1 - sense), instance.C[i, :]' * vars)
+        optimize!(model)
+        if termination_status(model) != MOI.OPTIMAL
+            throw(ArgumentError("Nadir bound is unbounded"))
+        end
+        push!(nadir, round(Int, objective_value(model)))
+    end
+    @objective(model, OptimizationSense(sense), instance.C[1, :]' * vars)
+    return nadir
 end
 
 end
