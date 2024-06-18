@@ -10,8 +10,6 @@ commands with either input matrices, as in the original 4ti2 interface, or using
 
 ## Installation
 
-Currently, IPGBs requires a local installation of the IP/LP solver CPLEX and access to it via [CPLEX.jl](https://github.com/jump-dev/CPLEX.jl).
-Furthermore, it depends on the package [MIPMatrixTools.jl](https://github.com/gmlangeloh/MIPMatrixTools.jl), which is currently unlisted in Julia's Pkg.
 IPGBs 4ti2 interface depends on a local installation of 4ti2 and on the desired 4ti2 commands being available in the PATH.
 
 ## Using IPGBs
