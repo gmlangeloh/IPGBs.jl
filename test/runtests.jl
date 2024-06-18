@@ -41,10 +41,16 @@ include("./test_functions.jl")
             if endswith(filename, ".mps")
                 println("Initial solution test for ", filename)
                 instance = IPInstance(filename)
-                solution = IPInstances.guess_initial_solution(instance)
-                println("Guessed feasible solution? ",
-                    @test is_feasible_solution(instance, solution))
-                println()
+                try
+                    solution = IPInstances.guess_initial_solution(instance)
+                    println("Guessed feasible solution? ",
+                        @test is_feasible_solution(instance, solution))
+                    println()
+                catch e
+                    println("Cannot guess initial solution. ",
+                        @test isa(e, ArgumentError))
+                    println()
+                end
             end
         end
     end
@@ -59,10 +65,15 @@ include("./test_functions.jl")
                 solver_solution, solver_value, solver_status = IPInstances.solve(instance)
                 println("Optimal value with no initial solution? ",
                     @test compare_to_solver(ipgbs_value, ipgbs_status, solver_value, solver_status))
-                init_solution = IPInstances.guess_initial_solution(instance)
-                _, init_value, init_status = optimize(instance, solution=init_solution)
-                println("Optimal value starting from arbitrary solution? ",
-                    @test compare_to_solver(init_value, init_status, solver_value, solver_status))
+                try
+                    init_solution = IPInstances.guess_initial_solution(instance)
+                    _, init_value, init_status = optimize(instance, solution=init_solution)
+                    println("Optimal value starting from arbitrary solution? ",
+                        @test compare_to_solver(init_value, init_status, solver_value, solver_status))
+                catch e
+                    println("Cannot guess initial solution. ",
+                        @test isa(e, ArgumentError))
+                end
                 _, opt_value, opt_status = optimize(instance, solution=solver_solution)
                 println("Optimal value starting from the optimal solution? ",
                     @test compare_to_solver(opt_value, opt_status, solver_value, solver_status))

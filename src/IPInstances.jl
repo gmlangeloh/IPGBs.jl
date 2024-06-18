@@ -603,7 +603,10 @@ function guess_initial_solution(
             throw(ArgumentError("Cannot guess initial solution for this instance"))
         end
         solution[(n-m+1):n] = instance.b
-        return solution
+        if is_feasible_solution(instance, solution)
+            return solution
+        end
+        throw(ArgumentError("Cannot guess initial solution for this instance"))
     end
     if n % 2 == 0
         #Guess that half of the variables are binary slacks. Then if we have a guess for
@@ -619,7 +622,10 @@ function guess_initial_solution(
             for i in half+1:n
                 solution[i] = 1 - solution[i - half]
             end
-            return solution
+            if is_feasible_solution(instance, solution)
+                return solution
+            end
+            throw(ArgumentError("Cannot guess initial solution for this instance"))
         end
     end
     throw(ArgumentError("Cannot guess initial solution for this instance"))
