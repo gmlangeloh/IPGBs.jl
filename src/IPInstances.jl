@@ -8,7 +8,6 @@ using LinearAlgebra
 
 #TODO: Finish removing dependency on AbstractAlgebra. Use only MatrixTools
 using AbstractAlgebra
-using GLPK
 using JuMP
 
 using IPGBs
@@ -139,7 +138,7 @@ mutable struct IPInstance
         nonnegative::Union{Nothing,Vector{Bool}} = nothing;
         apply_normalization::Bool = true,
         invert_objective::Bool = true,
-        optimizer :: DataType = GLPK.Optimizer
+        optimizer :: DataType = IPGBs.DEFAULT_SOLVER
     ) where {T<:Real}
         m, n = size(A)
         @assert m == length(b)
@@ -289,7 +288,7 @@ The JuMP Model keeps all objectives in its objective function matrix.
 """
 function jump_model(
     instance :: IPInstance;
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 )
     model, x, constrs = SolverTools.jump_model(
         instance.A, instance.b, instance.C, instance.u,
@@ -444,7 +443,7 @@ end
 function IPInstance(
     model::JuMP.Model;
     infer_binary :: Bool = true,
-    optimizer :: DataType = GLPK.Optimizer
+    optimizer :: DataType = IPGBs.DEFAULT_SOLVER
 )
     #Extract A, b, c from the model.
     n = num_variables(model)
@@ -558,7 +557,7 @@ end
 function IPInstance(
     path :: String;
     infer_binary :: Bool = true,
-    optimizer :: DataType = GLPK.Optimizer
+    optimizer :: DataType = IPGBs.DEFAULT_SOLVER
 )
     model = read_from_file(path)
     return IPInstance(model, infer_binary=infer_binary, optimizer=optimizer)

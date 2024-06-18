@@ -4,13 +4,10 @@ export GBOrder, MonomialOrder, is_inverted, order_costs, inverse_order
 
 import LinearAlgebra: I
 
+using IPGBs
 using IPGBs.GBTools
 using IPGBs.IPInstances
 using IPGBs.SolverTools
-
-using IPGBs
-
-using GLPK
 
 """
 This is specialized by MonomialOrder in case of Buchberger's algorithm and by
@@ -51,7 +48,7 @@ function positive_first_row!(
     C :: Matrix{Float64},
     A :: Matrix{Int},
     b :: Vector{Int};
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 )
     n = size(C, 2)
     @assert n == size(A, 2)
@@ -79,7 +76,7 @@ function projection_order(
     A :: Matrix{Int},
     b :: Vector{Int},
     num_vars :: Int;
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Matrix{Float64}
     s = SolverTools.optimal_row_span(A, b, C, optimizer=optimizer)
     projected_obj = copy(C)
@@ -110,7 +107,7 @@ function normalize_order(
     b::Vector{Int},
     num_vars::Int,
     unbounded::Vector{Bool};
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 )::Tuple{Matrix{Float64}, Int}
     cost_matrix = zeros(Float64, num_vars, num_vars)
     #Add cost vector bounding the unbounded components
@@ -155,7 +152,7 @@ function MonomialOrder(
     unbounded::Vector{Bool},
     is_minimization::Bool,
     num_vars :: Union{Nothing, Int} = nothing;
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 )
     max_vars = size(A, 2)
     if !isnothing(num_vars)
@@ -172,7 +169,7 @@ function MonomialOrder(
     unbounded :: Vector{Bool},
     min,
     nvars = nothing;
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 )
     MonomialOrder(Float64.(C), A, b, unbounded, min, nvars, optimizer=optimizer)
 end

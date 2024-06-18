@@ -8,7 +8,8 @@ module SingleObjective
 export usesolver, linear_relaxation, feasible_solution
 
 using JuMP
-using GLPK
+
+using IPGBs
 
 """
 Creates a JuMP model (for the given solver) from `A`, `b` and `c`.
@@ -17,7 +18,7 @@ function makemodel(
     A :: Array{Int, 2},
     b :: Vector{Int},
     c :: Vector{Int};
-    optimizer = GLPK.Optimizer,
+    optimizer = IPGBs.DEFAULT_SOLVER,
     integer :: Bool = true
 ) :: Tuple{JuMP.Model, Array{JuMP.VariableRef}}
     model = Model(optimizer)
@@ -48,7 +49,7 @@ function usesolver(
     b :: Vector{Int},
     c :: Vector{Int};
     initial_solution = Int[],
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Tuple{Vector{Int}, Int}
     model, x = makemodel(A, b, c, optimizer=optimizer)
     if length(initial_solution) > 0
@@ -86,7 +87,7 @@ function lexmin(
     b :: Vector{Int},
     C :: Matrix{Int},
     i :: Int;
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Vector{Int}
     objective = C[i, :]
     model, x = makemodel(A, b, objective, optimizer=optimizer)
@@ -107,7 +108,7 @@ end
 function feasible_solution(
     A :: Matrix{Int},
     b :: Vector{Int};
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Vector{Int}
     n = size(A, 2)
     c = zeros(Int, n)
@@ -126,7 +127,7 @@ function linear_relaxation(
     A :: Array{Int, 2},
     b :: Vector{Int},
     c :: Vector{Int};
-    optimizer = GLPK.Optimizer
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Tuple{Vector{Float64}, Float64}
     model, x = makemodel(A, b, c, optimizer=optimizer, integer=false)
     optimize!(model)

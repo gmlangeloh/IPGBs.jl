@@ -297,7 +297,7 @@ end
 
 const TEST_SET_SOLVERS = ["4ti2", "IPGBs"]
 const CLASSICAL_SOLVERS = ["GLPK", "CPLEX", "Gurobi", "Cbc"]
-const STD_CLASSICAL_SOLVER = GLPK.Optimizer
+const STD_CLASSICAL_SOLVER = IPGBs.DEFAULT_SOLVER
 use_test_sets(s::MOIPGBState) = s.solver in TEST_SET_SOLVERS
 updated_test_set(s::MOIPGBState) = s.test_set_iter == s.objective_index
 has_test_set(s::MOIPGBState) = !isempty(s.test_set) && updated_test_set(s)

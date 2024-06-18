@@ -4,11 +4,8 @@ Includes various LP and IP functions using external solvers and JuMP.
 module SolverTools
 
 using JuMP
-using GLPK
 
 using IPGBs
-
-const SOLVER = GLPK.Optimizer
 
 """
     cone_element(
@@ -21,7 +18,7 @@ The point is computed via linear programming.
 """
 function cone_element(
     rays :: Vector{Vector{T}};
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Vector{Float64} where {T <: Real}
     if isempty(rays)
         return Float64[]
@@ -138,7 +135,7 @@ function optimal_row_span(
     b::Vector{Int},
     C::Array{T},
     sense::Symbol = :Min;
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) where {T<:Real}
     m, n = size(A)
     @assert(n == size(C, 2))
@@ -172,7 +169,7 @@ linear programming.
 function positive_row_span(
     A::Matrix{Int},
     b::Vector{Int};
-    optimizer=SOLVER
+    optimizer=IPGBs.DEFAULT_SOLVER
 )::Union{Vector{Float64},Nothing}
     obj = ones(Float64, 1, size(A, 2))
     return optimal_row_span(A, b, obj, :Max, optimizer=optimizer)
@@ -198,7 +195,7 @@ function jump_model(
     u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
     var_type::DataType;
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     m, n = size(A)
     if isnothing(optimizer)
@@ -243,7 +240,7 @@ function solve(
     u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
     var_type::DataType;
-    optimizer=SOLVER
+    optimizer=IPGBs.DEFAULT_SOLVER
 ):: Tuple{Vector{Int}, Int, TerminationStatusCode}
     model, x, _ = jump_model(A, b, C, u, nonnegative, var_type, optimizer=optimizer)
     optimize!(model)
@@ -269,7 +266,7 @@ function relaxation_model(
     C::Array{Float64},
     u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool};
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     return jump_model(A, b, C, u, nonnegative, Real, optimizer=optimizer)
 end
@@ -289,7 +286,7 @@ function unboundedness_ip_model(
     A::Array{Int,2},
     nonnegative::Vector{Bool},
     i::Int;
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     #Get model with 0 in RHS and objective function
     m, n = size(A)
@@ -304,7 +301,7 @@ end
 function bounded_variables(
     A :: Matrix{Int},
     nonnegative :: Vector{Bool};
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 )
     m, n = size(A)
     bounded = Bool[]
@@ -329,7 +326,7 @@ function bounded_variables(
     #Bounded for some feasible RHS = bounded for all feasible RHS
     #This has to be done for each variable separately, but we can reuse
     #the JuMP LP model for efficiency.
-    opt_model = Model(SOLVER)
+    opt_model = Model(IPGBs.DEFAULT_SOLVER)
     set_silent(opt_model)
     @variable(opt_model, z[1:n])
     for k in 1:n
@@ -391,7 +388,7 @@ function feasibility_model(
     u::Vector{<: Union{Int, Nothing}},
     nonnegative::Vector{Bool},
     var_type::DataType;
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 )::Tuple{JuMP.Model,Vector{VariableRef},Vector{ConstraintRef}}
     feasibility_obj = zeros(Float64, 1, size(A, 2))
     return jump_model(A, b, feasibility_obj, u, nonnegative, var_type, optimizer=optimizer)
@@ -447,7 +444,7 @@ end
 
 function is_bounded_polyhedron(
     A :: Matrix{Int};
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Bool
     m, n = size(A)
     model = Model(optimizer)
@@ -473,7 +470,7 @@ In this case of P&L, the latter holds and if y is a solution it follows that
 c = b - A^T y satisfies:
 c_σ = 0 and c^T u = -u_i for all u in ker(A).
 """
-function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int}; optimizer = SOLVER)
+function bounded_objective(A::Matrix{Int}, i::Int, sigma::Vector{Int}; optimizer = IPGBs.DEFAULT_SOLVER)
     m, n = size(A)
     model = Model(optimizer)
     set_silent(model)
@@ -515,7 +512,7 @@ function optimal_weight_vector(
     A :: Matrix{Int},
     b :: Vector{Int},
     unbounded :: Vector{Bool};
-    optimizer = SOLVER
+    optimizer = IPGBs.DEFAULT_SOLVER
 ) :: Tuple{Vector{Float64}, Float64}
     model = Model(optimizer)
     set_silent(model)

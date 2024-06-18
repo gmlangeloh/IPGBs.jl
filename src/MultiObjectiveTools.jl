@@ -5,6 +5,7 @@ module MultiObjectiveTools
 export check_size_consistency, is_nondominated, is_nondominated_set, contained_by,
 is_efficient_set_feasible, remove_dominated!, ideal_point, nadir_bound
 
+using IPGBs
 using IPGBs.IPInstances
 
 using JuMP
@@ -217,7 +218,7 @@ end
 
 function ideal_point(
     instance :: IPInstance,
-    optimizer :: DataType = GLPK.Optimizer
+    optimizer :: DataType = IPGBs.DEFAULT_SOLVER
 ) :: Vector{Int}
     model, vars, _ = IPInstances.jump_model(instance, optimizer=optimizer)
     sense = Int(objective_sense(model))
@@ -236,7 +237,7 @@ end
 
 function nadir_bound(
     instance :: IPInstance,
-    optimizer :: DataType = GLPK.Optimizer
+    optimizer :: DataType = IPGBs.DEFAULT_SOLVER
 ) :: Vector{Int}
     model, vars, _ = IPInstances.jump_model(instance, optimizer=optimizer)
     sense = Int(objective_sense(model))

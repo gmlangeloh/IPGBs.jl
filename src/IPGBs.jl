@@ -107,7 +107,7 @@ function groebner_basis(
     markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
     kwargs...
 ) :: Vector{Vector{Int}}
-    optimizer = GLPK.Optimizer
+    optimizer = DEFAULT_SOLVER
     if :optimizer in keys(kwargs)
         optimizer = kwargs[:optimizer]
     end
@@ -120,7 +120,7 @@ function groebner_basis(
     markov_basis :: Union{Vector{Vector{Int}}, Nothing} = nothing;
     kwargs...
 ) :: Vector{Vector{Int}}
-    optimizer = GLPK.Optimizer
+    optimizer = DEFAULT_SOLVER
     if :optimizer in keys(kwargs)
         optimizer = kwargs[:optimizer]
     end
@@ -140,7 +140,7 @@ function groebner_basis(
     if :apply_normalization in keys(kwargs)
         normalize = kwargs[:apply_normalization]
     end
-    optimizer = GLPK.Optimizer
+    optimizer = DEFAULT_SOLVER
     if :optimizer in keys(kwargs)
         optimizer = kwargs[:optimizer]
     end
