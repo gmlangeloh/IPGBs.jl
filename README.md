@@ -8,6 +8,8 @@ It also provides a Julia interface to [4ti2](https://github.com/4ti2/4ti2), anot
 Gröbner basis solver. In particular, it allows using the `groebner`, `normalform` and `minimize`
 commands with either input matrices, as in the original 4ti2 interface, or using a JuMP model.
 
+For implementation details and documentation, see [the docs page](https://gmlangeloh.github.io/IPGBs.jl/).
+
 ## Installation
 
 Open a Julia REPL and run:
@@ -58,7 +60,7 @@ directly.
 
 ## Experimental results
 
-Current experimental results for IPGBs can be found in the [IPGBs-Experiments](https://github.com/gmlangeloh/IPGBs-Experiments)`experiments`
+Current experimental results for IPGBs can be found in the [IPGBs-Experiments](https://github.com/gmlangeloh/IPGBs-Experiments)
 repository. It provides .mps files for each instance and logs from which results can be extracted with
 the `generate_tables.jl` script. The script `full_groebner_basis.jl` can be used to
 rerun IPGBs and 4ti2 over all instances in this directory.
