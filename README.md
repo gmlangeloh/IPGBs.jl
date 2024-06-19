@@ -10,7 +10,14 @@ commands with either input matrices, as in the original 4ti2 interface, or using
 
 ## Installation
 
-IPGBs 4ti2 interface depends on a local installation of 4ti2 and on the desired 4ti2 commands being available in the PATH.
+Open a Julia REPL and run:
+
+```julia
+    import Pkg
+    Pkg.add("IPGBs")
+```
+The IPGBs interface to 4ti2 depends on a local installation of 4ti2 and on the desired 4ti2 commands being available in the PATH.
+4ti2 is not otherwise necessary to use any IPGBs functionality aside from the IPGBs.FourTi2 module.
 
 ## Using IPGBs
 
@@ -51,7 +58,7 @@ directly.
 
 ## Experimental results
 
-Current experimental results for IPGBs can be found in the `experiments` directory.
-It provides .mps files for each instance and logs from which results can be extracted with
+Current experimental results for IPGBs can be found in the [IPGBs-Experiments](https://github.com/gmlangeloh/IPGBs-Experiments)`experiments`
+repository. It provides .mps files for each instance and logs from which results can be extracted with
 the `generate_tables.jl` script. The script `full_groebner_basis.jl` can be used to
 rerun IPGBs and 4ti2 over all instances in this directory.
