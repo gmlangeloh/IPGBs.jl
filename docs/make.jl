@@ -18,9 +18,10 @@ makedocs(
     "BinomialSets" => "BinomialSets.md",
     "Binomials" => "Binomials.md",
     "Buchberger" => "Buchberger.md",
-    "FGLM" => "FGLM.md",
     "FastBitSets" => "FastBitSets.md",
     "FastComparator" => "FastComparator.md",
+    "FeasibleGraphs" => "FeasibleGraphs.md",
+    "FGLM" => "FGLM.md",
     "FourTi2" => "FourTi2.md",
     "GBAlgorithms" => "GBAlgorithms.md",
     "GBElements" => "GBElements.md",
@@ -28,15 +29,23 @@ makedocs(
     "GradedBinomials" => "GradedBinomials.md",
     "IPInstances" => "IPInstances.md",
     "Markov" => "Markov.md",
+    "MatrixTools" => "MatrixTools.md",
     "MonomialHeaps" => "MonomialHeaps.md",
+    "MultiObjectiveAlgorithms" => "MultiObjectiveAlgorithms.md",
+    "MultiObjectiveStats" => "MultiObjectiveStats.md",
+    "MultiObjectiveTools" => "MultiObjectiveTools.md",
+    "Optimize" => "Optimize.md",
     "Orders" => "Orders.md",
     "SignatureAlgorithms" => "SignatureAlgorithms.md",
     "SignaturePolynomials" => "SignaturePolynomials.md",
+    "SingleObjective" => "SingleObjective.md",
     "SolverTools" => "SolverTools.md",
     "StandardDecomposition" => "StandardDecomposition.md",
     "Statistics" => "Statistics.md",
+    "SupportMatrixTrees" => "SupportMatrixTrees.md",
     "SupportTrees" => "SupportTrees.md",
-    "TriangleHeaps" => "TriangleHeaps.md"
+    "TriangleHeaps" => "TriangleHeaps.md",
+    "Walkback" => "Walkback.md"
   ]
 )
 
