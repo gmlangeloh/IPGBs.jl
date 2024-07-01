@@ -397,13 +397,14 @@ function moip_gb_solve(
     return terminate(state)
 end
 
-function moip_knapsack_solve(
-    filename :: String;
-    solver :: String = "4ti2"
-)::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
-    instance = multiobjective_from_file(filename)
-    initial_solution = IPInstances.guess_initial_solution(instance)
+function moip_gb_solve(instance :: IPInstance; solver :: String = "4ti2")
+    initial_solution = IPInstances.initial_solution(instance)
     return moip_gb_solve(instance, initial_solution, solver=solver)
+end
+
+function moip_gb_solve(filepath :: String; solver :: String = "4ti2")
+    instance = multiobjective_from_file(filepath)
+    return moip_gb_solve(instance, solver=solver)
 end
 
 function moip_walkback(
@@ -429,6 +430,11 @@ function moip_walkback(
         push!(pareto, nondominated)
     end
     return efficient_points, pareto, Stats()
+end
+
+function moip_walkback(filepath :: String)
+    instance = multiobjective_from_file(filepath)
+    return moip_walkback(instance)
 end
 
 end

@@ -65,44 +65,37 @@ function feasible_graph(
     return graph, edge_indices
 end
 
+false_predicate(x) = false
+
 function plot_feasible_graph(
     instance :: IPInstance;
     max_vertices :: Int = 0,
-    full_labels :: Bool = false
+    full_labels :: Bool = false,
+    predicate = false_predicate
 )
     graph, edge_indices = feasible_graph(instance, max_vertices = max_vertices)
-    plot_feasible_graph(graph, edge_indices, full_labels = full_labels)
+    plot_feasible_graph(graph, edge_indices, full_labels = full_labels, predicate=predicate)
 end
 
 function plot_feasible_graph(
     instance :: IPInstance,
     arc_set :: Vector{Vector{Int}};
     max_vertices :: Int = 0,
-    full_labels :: Bool = false
+    full_labels :: Bool = false,
+    predicate = false_predicate
 )
     graph, edge_indices = feasible_graph(instance, arc_set, max_vertices = max_vertices)
-    plot_feasible_graph(graph, edge_indices, full_labels = full_labels)
+    plot_feasible_graph(graph, edge_indices, full_labels = full_labels, predicate=predicate)
 end
 
 function plot_feasible_graph(
     feasible_solutions :: Vector{Vector{Int}},
     arc_set :: Vector{Vector{Int}};
-    full_labels :: Bool = false
+    full_labels :: Bool = false,
+    predicate = false_predicate
 )
     graph, edge_indices = feasible_graph(feasible_solutions, arc_set)
-    plot_feasible_graph(graph, edge_indices, full_labels = full_labels)
-end
-
-function random_colors(n)
-    colors = []
-    for _ in 1:n
-        r = rand(0:255)
-        g = rand(0:255)
-        b = rand(0:255)
-        c = Makie.RGBA{Makie.N0f8}(r / 255, g / 255, b / 255, 255 / 255)
-        push!(colors, c)
-    end
-    return colors
+    plot_feasible_graph(graph, edge_indices, full_labels = full_labels, predicate=predicate)
 end
 
 function dag_layout(g :: AbstractGraph)
@@ -113,7 +106,8 @@ end
 function plot_feasible_graph(
     graph :: AbstractGraph,
     edge_indices :: Vector{Int};
-    full_labels :: Bool = false
+    full_labels :: Bool = false,
+    predicate = false_predicate
 )
     #colors = random_colors(maximum(edge_indices))
     hsv_colors = HSV.(range(0, 360, length(edge_indices)), 10, 10)
@@ -124,6 +118,7 @@ function plot_feasible_graph(
     f, ax, _ = graphplot(
         graph,
         nlabels=labels,
+        node_color=[predicate(get_prop(graph, i, :label)) ? :red : :black for i in 1:nv(graph)],
         arrow_size=25,
         edge_color=[hsv_colors[i] for i in edge_indices],
         layout=dag_layout,

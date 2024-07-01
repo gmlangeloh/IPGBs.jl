@@ -394,6 +394,22 @@ function feasibility_model(
     return jump_model(A, b, feasibility_obj, u, nonnegative, var_type, optimizer=optimizer)
 end
 
+function feasible_solution(
+    A :: Matrix{Int},
+    b :: Vector{Int},
+    u :: Vector{<: Union{Int, Nothing}},
+    nonnegative :: Vector{Bool};
+    optimizer = IPGBs.DEFAULT_SOLVER
+) :: Vector{Int}
+    model, x, _ = feasibility_model(A, b, u, nonnegative, Int, optimizer=optimizer)
+    set_silent(model)
+    optimize!(model)
+    if termination_status(model) == MOI.OPTIMAL
+        return round.(Int, value.(x))
+    end
+    return zeros(Int, length(x))
+end
+
 """
     update_feasibility_model_rhs(constraints :: Vector{ConstraintRef}, A :: Matrix{Int}, b :: Vector{Int}, v :: T) where {T <: AbstractVector{Int}}
 

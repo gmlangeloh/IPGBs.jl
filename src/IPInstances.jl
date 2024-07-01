@@ -587,6 +587,20 @@ function is_feasible_solution(
         all(perm_solution[1:instance.nonnegative_end] .>= 0)
 end
 
+function initial_solution(instance :: IPInstance) :: Vector{Int}
+    #Try to guess a feasible solution. If we can't, use a traditional MIP solver
+    #to find one. The assumption here is that the problem we wish to solve is much
+    #harder than a single IP call (e.g., MOIP)
+    try
+        return guess_initial_solution(instance)
+    catch _
+        return SolverTools.feasible_solution(
+            instance.A, instance.b, instance.u, nonnegative_vars(instance),
+            optimizer=instance.optimizer
+        )
+    end
+end
+
 function guess_initial_solution(
     instance :: IPInstance
 ) :: Vector{Int}
