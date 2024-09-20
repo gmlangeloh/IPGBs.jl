@@ -173,7 +173,7 @@ row, it will have (n-1) elements.
 function add_row!(
     triangle :: BitTriangle
 )
-    new_row = zeros(Int, length(triangle.data))
+    new_row = zeros(Int, length(triangle.data) + 1)
     push!(triangle.data, new_row)
 end
 

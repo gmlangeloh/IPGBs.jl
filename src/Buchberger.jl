@@ -14,6 +14,7 @@ using IPGBs.GBElements
 using IPGBs.Binomials
 using IPGBs.GradedBinomials
 using IPGBs.Orders
+using IPGBs.Pairs
 using IPGBs.Statistics
 using IPGBs.SupportTrees
 
@@ -21,37 +22,6 @@ using IPGBs.GBAlgorithms
 
 using JuMP
 using Logging
-
-"""
-The state of Buchberger S-binomial generation.
-"""
-mutable struct BuchbergerState
-    i :: Int
-    j :: Int
-    n :: Int
-    BuchbergerState(n) = new(1, 1, n)
-end
-
-increment_size!(state :: BuchbergerState) = state.n += 1
-
-"""
-Updates the state to the indices of the next generated S-pair. Returns the indices
-of the new state, if it corresponds to a new S-pair, or `nothing`, if all S-pairs
-were already generated.
-"""
-function next_state!(
-    state :: BuchbergerState
-) :: Union{Tuple{Int, Int}, Nothing}
-    if state.j < state.i - 1
-        state.j += 1
-        return (state.i, state.j)
-    elseif state.i < state.n
-        state.i += 1
-        state.j = 1
-        return (state.i, state.j)
-    end
-    return nothing
-end
 
 mutable struct BuchbergerStats <: GBStats
     #These fields will be present in any GBStats type
@@ -109,7 +79,8 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
         auto_reduce_freq :: Float64 = 2500.0,
         cache_tree_size :: Int = 100,
         debug :: Bool = false,
-        info :: Bool = false
+        info :: Bool = false,
+        pair_processing :: Symbol = :FIFO
     )
         #Build order and generating set
         order = MonomialOrder(instance)
@@ -166,7 +137,7 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
             weight, max_weight = truncation_weight(instance)
         end
         #Initialize the state of the algorithm (no pairs processed yet)
-        state = BuchbergerState(length(binomial_gen_set))
+        state = initialize_pairs(length(binomial_gen_set), pair_processing)
         stats = BuchbergerStats()
         #Setting up logging
         if debug || info
@@ -224,17 +195,16 @@ function GBAlgorithms.next_pair!(
 ) :: Union{BinomialPair, Nothing} where {T <: GBElement}
     #If we're starting to produce S-binomials from a new basis element
     #then check whether we should auto-reduce the basis for efficiency
-    if algorithm.state.j == algorithm.state.i - 1
+    if Pairs.auto_reduce_now(algorithm.state)
         algorithm.num_iterations += 1
         if GBAlgorithms.should_auto_reduce(algorithm)
             removed, before_idx = auto_reduce_once!(current_basis(algorithm), current_index=algorithm.state.i+1)
             algorithm.stats.removed_by_autoreduction += removed
-            algorithm.state.n -= removed
-            algorithm.state.i -= before_idx
+            Pairs.remove_auto_reduced!(algorithm.state, removed, before_idx)
         end
     end
     #Produce the next S-pair itself
-    s = next_state!(algorithm.state)
+    s = Pairs.next_pair!(algorithm.state)
     if !isnothing(s)
         i, j = s
         increment(algorithm, :queued_pairs)
@@ -249,7 +219,14 @@ function GBAlgorithms.update!(
     :: Union{CriticalPair, Nothing} = nothing
 ) where {T <: GBElement}
     push!(current_basis(algorithm), copy(g))
-    increment_size!(algorithm.state)
+    if !isempty(algorithm.original_solutions)
+        GBAlgorithms.optimize_solutions!(algorithm)
+        #println(
+        #    algorithm.instance.C[1, :]' * element(algorithm.solutions[1]), ", ",
+        #    IPInstances.solve(algorithm.instance)[2], ", ",
+        #    length(current_basis(algorithm)))
+    end
+    Pairs.update!(algorithm.state)
     algorithm.stats.max_basis_size = max(algorithm.stats.max_basis_size,
                                          length(current_basis(algorithm)))
 end

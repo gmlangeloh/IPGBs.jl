@@ -14,6 +14,7 @@ include("./Statistics.jl")
 include("./Orders.jl")
 include("./MonomialHeaps.jl")
 include("./FastComparator.jl")
+include("./Pairs.jl")
 include("./GBElements.jl")
 include("./SupportTrees.jl")
 include("./SupportMatrixTrees.jl")
@@ -166,6 +167,7 @@ end
     info :: Bool = false
     time_limit :: Float64 = 0.0
     gb_size_limit :: Int = 0
+    pair_processing :: Symbol = :FIFO
 end
 
 """
@@ -228,7 +230,8 @@ function groebner_basis(
             trunc_var_type = trunc_var, minimization = use_minimization,
             use_quick_truncation = opt.use_quick_truncation, use_binary_truncation = opt.use_binary_truncation,
             auto_reduce_type = opt.auto_reduce_type, auto_reduce_freq = opt.auto_reduce_freq,
-            cache_tree_size = opt.cache_tree_size, debug = opt.debug, info = opt.info
+            cache_tree_size = opt.cache_tree_size, debug = opt.debug, info = opt.info,
+            pair_processing = opt.pair_processing
         )
     end
     gb = GBAlgorithms.run(
