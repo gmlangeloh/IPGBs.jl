@@ -2,6 +2,8 @@ module Pairs
 
 using DataStructures
 
+using IPGBs.BinomialSets
+
 export BuchbergerState, initialize_pairs
 
 abstract type BuchbergerState end
@@ -12,11 +14,16 @@ next_pair!(:: BuchbergerState) = error("Not implemented.")
 auto_reduce_now(:: BuchbergerState) = false
 remove_auto_reduced!(:: BuchbergerState, :: Int) = error("Not implemented.")
 
-function initialize_pairs(n :: Int, strategy :: Symbol)
+function initialize_pairs(
+    n :: Int,
+    strategy :: Symbol,
+    gb :: BinomialSet{T},
+    x :: Union{T, Nothing}
+) where {T <: AbstractVector{Int}}
     if strategy == :Pair
         return PairState(n)
     elseif strategy == :Batch
-        return BatchState(n)
+        return BatchState(n, gb, x)
     elseif strategy == :FIFO
         return FIFOState(n)
     else
@@ -65,14 +72,40 @@ heap(state :: PairState) = state.heap
 size(state :: PairState) = state.n
 increment_size!(state :: PairState) = state.n += 1
 
+function by_solution(
+    i :: Int,
+    gb :: BinomialSet{T}, x :: T
+) where {T <: AbstractVector{Int}}
+    g = gb[i]
+    y = x + g
+    if all(yi >= 0 for yi in y)
+        return (1, i)
+    end
+    return (0, i)
+end
+
+#TODO: Currently, this performs badly. Good solutions are found even later
+#in the GB computation. Is there a bug? Some ideas:
+# 1. batches are being classified according to the best known solution when
+#they were introduced, not the current best
+# 2. the heap should be rebuilt from time to time?
+# 3. the ordering is actually wrong, bug. Inverting 0 by 1 somewhat helped
 mutable struct BatchState <: PriorityState
-    heap :: BinaryMinHeap{Int}
+    heap :: BinaryHeap{Int}
     current_i :: Int
     j :: Int
     n :: Int
 
-    function BatchState(n)
+    function BatchState(
+        n :: Int,
+        gb :: BinomialSet{T},
+        x :: Union{T, Nothing}
+    ) where {T <: AbstractVector{Int}}
         heap = BinaryMinHeap{Int}(1:n)
+        if !isnothing(x)
+            f(i) = by_solution(i, gb, x)
+            heap = BinaryHeap{Int}(Base.By(f), 1:n)
+        end
         new(heap, 0, 1, n)
     end
 end

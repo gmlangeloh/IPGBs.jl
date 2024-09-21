@@ -137,7 +137,13 @@ mutable struct BuchbergerAlgorithm{T <: GBElement} <: GBAlgorithm
             weight, max_weight = truncation_weight(instance)
         end
         #Initialize the state of the algorithm (no pairs processed yet)
-        state = initialize_pairs(length(binomial_gen_set), pair_processing)
+        feasible_solution = nothing
+        if !isempty(init_solutions)
+            feasible_solution = init_solutions[1]
+        end
+        state = initialize_pairs(
+            length(binomial_gen_set), pair_processing, binomial_gen_set, feasible_solution
+        )
         stats = BuchbergerStats()
         #Setting up logging
         if debug || info
@@ -221,10 +227,10 @@ function GBAlgorithms.update!(
     push!(current_basis(algorithm), copy(g))
     if !isempty(algorithm.original_solutions)
         GBAlgorithms.optimize_solutions!(algorithm)
-        #println(
-        #    algorithm.instance.C[1, :]' * element(algorithm.solutions[1]), ", ",
-        #    IPInstances.solve(algorithm.instance)[2], ", ",
-        #    length(current_basis(algorithm)))
+        println(
+            algorithm.instance.C[1, :]' * element(algorithm.solutions[1]), ", ",
+            IPInstances.solve(algorithm.instance)[2], ", ",
+            length(current_basis(algorithm)))
     end
     Pairs.update!(algorithm.state)
     algorithm.stats.max_basis_size = max(algorithm.stats.max_basis_size,
