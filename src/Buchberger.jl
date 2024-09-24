@@ -227,10 +227,10 @@ function GBAlgorithms.update!(
     push!(current_basis(algorithm), copy(g))
     if !isempty(algorithm.original_solutions)
         GBAlgorithms.optimize_solutions!(algorithm)
-        println(
-            algorithm.instance.C[1, :]' * element(algorithm.solutions[1]), ", ",
-            IPInstances.solve(algorithm.instance)[2], ", ",
-            length(current_basis(algorithm)))
+        #println(
+        #    algorithm.instance.C[1, :]' * element(algorithm.solutions[1]), ", ",
+        #    IPInstances.solve(algorithm.instance)[2], ", ",
+        #    length(current_basis(algorithm)))
     end
     Pairs.update!(algorithm.state)
     algorithm.stats.max_basis_size = max(algorithm.stats.max_basis_size,

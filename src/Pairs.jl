@@ -21,7 +21,7 @@ function initialize_pairs(
     x :: Union{T, Nothing}
 ) where {T <: AbstractVector{Int}}
     if strategy == :Pair
-        return PairState(n)
+        return PairState(n, gb, x)
     elseif strategy == :Batch
         return BatchState(n, gb, x)
     elseif strategy == :FIFO
@@ -52,13 +52,43 @@ function next_pair!(
     return pop!(heap(state))
 end
 
+function by_solution(
+    i :: Int,
+    gb :: BinomialSet{T},
+    x :: T
+) where {T <: AbstractVector{Int}}
+    g = gb[i]
+    y = x + g
+    if all(yi >= 0 for yi in y)
+        return (0, i)
+    end
+    return (1, i)
+end
+
+function by_pair_solution(
+    i :: Int,
+    j :: Int,
+    gb :: BinomialSet{T},
+    x :: T
+) where {T <: AbstractVector{Int}}
+    a1, _ = by_solution(i, gb, x)
+    a2, _ = by_solution(j, gb, x)
+    if a1 == 1 && a2 == 1
+        return (1, i, j)
+    end
+    return (0, i, j)
+end
+
 mutable struct PairState <: PriorityState
-    heap :: BinaryMinHeap{Tuple{Int, Int}}
+    heap :: BinaryHeap{Tuple{Int, Int}}
     n :: Int
 
-    function PairState(n)
-        #TODO: use Base.by to define how tuples should be compared
+    function PairState(n, gb, x)
         heap = BinaryMinHeap{Tuple{Int, Int}}()
+        if !isnothing(x)
+            f((i, j)) = by_pair_solution(i, j, gb, x)
+            heap = BinaryHeap{Tuple{Int, Int}}(Base.By(f))
+        end
         for i in 1:n
             for j in 1:i-1
                 push!(heap, (i, j))
@@ -72,24 +102,6 @@ heap(state :: PairState) = state.heap
 size(state :: PairState) = state.n
 increment_size!(state :: PairState) = state.n += 1
 
-function by_solution(
-    i :: Int,
-    gb :: BinomialSet{T}, x :: T
-) where {T <: AbstractVector{Int}}
-    g = gb[i]
-    y = x + g
-    if all(yi >= 0 for yi in y)
-        return (1, i)
-    end
-    return (0, i)
-end
-
-#TODO: Currently, this performs badly. Good solutions are found even later
-#in the GB computation. Is there a bug? Some ideas:
-# 1. batches are being classified according to the best known solution when
-#they were introduced, not the current best
-# 2. the heap should be rebuilt from time to time?
-# 3. the ordering is actually wrong, bug. Inverting 0 by 1 somewhat helped
 mutable struct BatchState <: PriorityState
     heap :: BinaryHeap{Int}
     current_i :: Int
