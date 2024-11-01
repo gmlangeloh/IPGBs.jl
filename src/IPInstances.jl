@@ -277,9 +277,9 @@ function new_first_objective(
 end
 
 """
-    initial_jump_model(
-    instance :: IPInstance,
-    first_objective :: Int = 1
+    jump_model(
+    instance :: IPInstance;
+    optimizer = IPGBs.DEFAULT_SOLVER
 )
 
 Return a JuMP Model corresponding to the IPInstance.

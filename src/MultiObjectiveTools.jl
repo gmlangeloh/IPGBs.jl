@@ -3,10 +3,11 @@ Some useful functions to deal with multi-objective optimization problems.
 """
 module MultiObjectiveTools
 export check_size_consistency, is_nondominated, is_nondominated_set, contained_by,
-is_efficient_set_feasible, remove_dominated!, ideal_point, nadir_bound
+is_efficient_set_feasible, remove_dominated!, ideal_point, nadir_bound, lexmin
 
 using IPGBs
 using IPGBs.IPInstances
+using IPGBs.SolverTools
 
 using JuMP
 using GLPK
@@ -252,6 +253,40 @@ function nadir_bound(
     end
     @objective(model, OptimizationSense(sense), instance.C[1, :]' * vars)
     return nadir
+end
+
+function lexmin(
+    instance :: IPInstance,
+    order :: Vector{Int},
+    optimizer :: DataType = IPGBs.DEFAULT_SOLVER
+) :: Vector{Int}
+    @assert length(order) == num_objectives(instance)
+
+    #Generate model for the first objective function and optimize it
+    ordered_C = instance.C[order, :]
+    model, vars, _ = SolverTools.jump_model(
+        instance.A, instance.b, ordered_C, instance.u,
+        nonnegative_vars(instance), Int, optimizer=optimizer
+    )
+    optimize!(model)
+    if termination_status(model) != MOI.OPTIMAL
+        throw(ArgumentError("Lexmin is unbounded or infeasible"))
+    end
+    opt_val = round(Int, objective_value(model))
+
+    #Now, iteratively fix the value of the previous objective and optimize the next one
+    for i in 2:num_objectives(instance)
+        @constraint(model, ordered_C[i-1, :]' * vars == opt_val)
+        @objective(model, objective_sense(model), ordered_C[i, :]' * vars)
+        optimize!(model)
+        if termination_status(model) != MOI.OPTIMAL
+            throw(ArgumentError("Lexmin is unbounded or infeasible"))
+        end
+        opt_val = round(Int, objective_value(model))
+    end
+
+    x = round.(Int, value.(vars))
+    return round.(Int, instance.C * x)
 end
 
 end
