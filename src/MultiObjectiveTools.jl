@@ -9,8 +9,14 @@ using IPGBs
 using IPGBs.IPInstances
 using IPGBs.SolverTools
 
+using Makie
+using GLMakie
+
 using JuMP
 using GLPK
+
+plot_pareto(pareto :: Vector{Tuple{Int, Int}}) = scatter(pareto)
+plot_pareto(pareto) = plot_pareto([(y[1],y[2]) for y in pareto])
 
 function check_size_consistency(
     A :: Matrix{Int},

@@ -5,7 +5,7 @@ using IPGBs.Orders
 using IPGBs.Walkback
 using IPGBs.IPInstances
 
-using CairoMakie
+using GLMakie
 using Graphs
 using GraphMakie
 using LayeredLayouts
