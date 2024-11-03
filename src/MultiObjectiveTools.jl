@@ -3,7 +3,8 @@ Some useful functions to deal with multi-objective optimization problems.
 """
 module MultiObjectiveTools
 export check_size_consistency, is_nondominated, is_nondominated_set, contained_by,
-is_efficient_set_feasible, remove_dominated!, ideal_point, nadir_bound, lexmin
+is_efficient_set_feasible, remove_dominated!, ideal_point, nadir_bound, lexmin,
+ideal_and_nadir
 
 using IPGBs
 using IPGBs.IPInstances
@@ -17,6 +18,11 @@ using GLPK
 
 plot_pareto(pareto :: Vector{Tuple{Int, Int}}) = scatter(pareto)
 plot_pareto(pareto) = plot_pareto([(y[1],y[2]) for y in pareto])
+
+function hypervolume(pareto :: Set{Vector{Int}}, reference :: Vector{Int})
+    # How do we compute the hypervolume efficiently?
+    error("Not implemented.")
+end
 
 function check_size_consistency(
     A :: Matrix{Int},
@@ -259,6 +265,31 @@ function nadir_bound(
     end
     @objective(model, OptimizationSense(sense), instance.C[1, :]' * vars)
     return nadir
+end
+
+function payoff_table(
+    instance :: IPInstance,
+    optimizer :: DataType = IPGBs.DEFAULT_SOLVER
+) :: Matrix{Int}
+    p = num_objectives(instance)
+    table = zeros(Int, p, p)
+    for i in 1:p
+        order = vcat([i], 1:(i-1), (i+1):p)
+        v = lexmin(instance, order, optimizer)
+        table[i, :] = v
+    end
+    return table
+end
+
+function ideal_and_nadir(
+    instance :: IPInstance,
+    optimizer :: DataType = IPGBs.DEFAULT_SOLVER
+) :: Tuple{Vector{Int}, Vector{Int}}
+    p = num_objectives(instance)
+    payoff = payoff_table(instance, optimizer)
+    ideal = reshape(minimum(payoff, dims=1), p)
+    nadir = reshape(maximum(payoff, dims=1), p)
+    return ideal, nadir
 end
 
 function lexmin(

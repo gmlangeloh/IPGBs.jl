@@ -178,8 +178,9 @@ function initialize(
     initial_solution :: Vector{Int},
     solver :: String
 ) :: MOIPGBState
-    ideal = ideal_point(instance, STD_CLASSICAL_SOLVER)
-    nadir = nadir_bound(instance, STD_CLASSICAL_SOLVER)
+    ideal, nadir = ideal_and_nadir(instance, STD_CLASSICAL_SOLVER)
+    #ideal = ideal_point(instance, STD_CLASSICAL_SOLVER)
+    #nadir = nadir_bound(instance, STD_CLASSICAL_SOLVER)
     vars = collect(1:instance.n)
     slacks = Int[]
     return MOIPGBState(
@@ -247,8 +248,10 @@ function next_objective(
     orig_vars = collect(1:length(x))
     epsilon_vars = generate_epsilon_constraints(model, x, state, new_objective)
     #generate_ideal_bounds(model, x, state, new_objective)
-    #generate_nadir_bounds(model, x, state, new_objective)
+    generate_nadir_bounds(model, x, state, new_objective)
     ip = IPInstance(model)
+    initial_solution = IPInstances.extend_feasible_solution(ip, initial_solution)
+    #TODO Add some new slack variables corresponding to the nadir bounds
     return MOIPGBState(
         state.instance, ip, new_objective, initial_solution, state.solver,
         state.ideal, state.nadir, orig_vars, epsilon_vars, state.efficient_points,
