@@ -281,7 +281,8 @@ function reduce!(
                     end
                 end
             end
-            if !GBElements.is_negative_disjoint(g, reducer, negative=negative)
+            if !is_monomial_reduction &&
+                !GBElements.is_negative_disjoint(g, reducer, negative=negative)
                 #@debug(
                 #    "Found reducer but it is not negative disjoint",
                 #    g, reducer, negative

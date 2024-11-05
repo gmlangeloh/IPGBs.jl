@@ -184,8 +184,8 @@ function initialize(
     vars = collect(1:instance.n)
     slacks = Int[]
     return MOIPGBState(
-        #TODO: Maybe I should already start with an epsilon constraint here
-        instance, copy(instance), 1, initial_solution, solver, ideal, nadir, vars, slacks
+        instance, copy(instance), 1, initial_solution, solver, ideal, nadir, vars,
+        slacks
     )
 end
 
@@ -251,11 +251,11 @@ function next_objective(
     generate_nadir_bounds(model, x, state, new_objective)
     ip = IPInstance(model)
     initial_solution = IPInstances.extend_feasible_solution(ip, initial_solution)
-    #TODO Add some new slack variables corresponding to the nadir bounds
     return MOIPGBState(
         state.instance, ip, new_objective, initial_solution, state.solver,
-        state.ideal, state.nadir, orig_vars, epsilon_vars, state.efficient_points,
-        state.nondominated_points, state.identifier, state.stats
+        state.ideal, state.nadir, orig_vars, epsilon_vars,
+        state.efficient_points, state.nondominated_points, state.identifier,
+        state.stats
     )
 end
 
@@ -267,11 +267,15 @@ function epsilon_rhs(
     #Only the first n columns are relevant for the epsilon constraints
     n = length(efficient_point)
     #The last p rows of the constraint matrix are epsilon constraints
+    original_num_rows = size(state.instance.A, 1)
     p = length(step)
-    C = constraint_matrix(state)[end-p+1:end, 1:n]
+    #TODO: This should probably be made more flexible later
+    epsilon_rows = (original_num_rows+1):(original_num_rows+p)
+    C = constraint_matrix(state)[epsilon_rows, 1:n]
     epsilons = C * efficient_point + step
-    #Return the right-hand side vector with the last p elements set to epsilons
-    return vcat(rhs(state)[1:end-p], epsilons)
+    #TODO: Check this carefully
+    extra_slacks = state.ip.b[(original_num_rows+p+1):end]
+    return vcat(rhs(state)[1:original_num_rows], epsilons, extra_slacks)
 end
 
 function set_current_solution!(
@@ -354,7 +358,7 @@ function solve_current_moip!(s::MOIPGBState)
     if compute_new_solution(s, had_test_set)
         #Now use the test set in s to efficiently solve the problem
         _, tnf, _, _, _ = @timed BinomialSets.reduce!(
-            s.current_solution, s.test_set
+            s.current_solution, s.test_set, is_monomial_reduction=true
         )
         s.stats.normalform_time += tnf
         s.stats.num_ips += 1
@@ -380,7 +384,7 @@ obtain a solution.
 function moip_gb_solve(
     instance::IPInstance,
     initial_solution::Vector{Int};
-    solver::String="4ti2"
+    solver::String="IPGBs"
 )::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
     @debug "Starting multiobjective GB algorithm"
     state = initialize(instance, initial_solution, solver)
@@ -400,12 +404,12 @@ function moip_gb_solve(
     return terminate(state)
 end
 
-function moip_gb_solve(instance :: IPInstance; solver :: String = "4ti2")
+function moip_gb_solve(instance :: IPInstance; solver :: String = "IPGBs")
     initial_solution = IPInstances.initial_solution(instance)
     return moip_gb_solve(instance, initial_solution, solver=solver)
 end
 
-function moip_gb_solve(filepath :: String; solver :: String = "4ti2")
+function moip_gb_solve(filepath :: String; solver :: String = "IPGBs")
     instance = multiobjective_from_file(filepath)
     return moip_gb_solve(instance, solver=solver)
 end
