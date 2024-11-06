@@ -179,8 +179,6 @@ function initialize(
     solver :: String
 ) :: MOIPGBState
     ideal, nadir = ideal_and_nadir(instance, STD_CLASSICAL_SOLVER)
-    #ideal = ideal_point(instance, STD_CLASSICAL_SOLVER)
-    #nadir = nadir_bound(instance, STD_CLASSICAL_SOLVER)
     vars = collect(1:instance.n)
     slacks = Int[]
     return MOIPGBState(
@@ -237,7 +235,8 @@ end
 function next_objective(
     state :: MOIPGBState,
     initial_solution :: Vector{Int},
-    new_objective :: Int
+    new_objective :: Int,
+    use_nadir_bounds :: Bool = true
 ) :: MOIPGBState
     # Take the initial ip from the instance again
     # Then order its objectives accordingly and add relevant epsilon constraints
@@ -248,7 +247,9 @@ function next_objective(
     orig_vars = collect(1:length(x))
     epsilon_vars = generate_epsilon_constraints(model, x, state, new_objective)
     #generate_ideal_bounds(model, x, state, new_objective)
-    generate_nadir_bounds(model, x, state, new_objective)
+    if use_nadir_bounds
+        generate_nadir_bounds(model, x, state, new_objective)
+    end
     ip = IPInstance(model)
     initial_solution = IPInstances.extend_feasible_solution(ip, initial_solution)
     return MOIPGBState(
@@ -384,13 +385,14 @@ obtain a solution.
 function moip_gb_solve(
     instance::IPInstance,
     initial_solution::Vector{Int};
-    solver::String="IPGBs"
+    solver::String="IPGBs",
+    use_nadir_bounds::Bool=true
 )::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
     @debug "Starting multiobjective GB algorithm"
     state = initialize(instance, initial_solution, solver)
     for objective in 1:num_objectives(instance)
         @debug "Starting computation for objective $objective"
-        state = next_objective(state, initial_solution, objective)
+        state = next_objective(state, initial_solution, objective, use_nadir_bounds)
         solve_current_moip!(state)
         pos_slacks = gbelems_with_positive_slack(binomials(state.test_set), state.epsilon_slack_indices)
         for efficient_point in state.efficient_points
@@ -404,14 +406,31 @@ function moip_gb_solve(
     return terminate(state)
 end
 
-function moip_gb_solve(instance :: IPInstance; solver :: String = "IPGBs")
+function moip_gb_solve(
+    instance :: IPInstance;
+    solver :: String = "IPGBs",
+    use_nadir_bounds :: Bool = true
+)
     initial_solution = IPInstances.initial_solution(instance)
-    return moip_gb_solve(instance, initial_solution, solver=solver)
+    return moip_gb_solve(
+        instance,
+        initial_solution,
+        solver=solver,
+        use_nadir_bounds=use_nadir_bounds
+    )
 end
 
-function moip_gb_solve(filepath :: String; solver :: String = "IPGBs")
+function moip_gb_solve(
+    filepath :: String;
+    solver :: String = "IPGBs",
+    use_nadir_bounds :: Bool = true
+)
     instance = multiobjective_from_file(filepath)
-    return moip_gb_solve(instance, solver=solver)
+    return moip_gb_solve(
+        instance,
+        solver=solver,
+        use_nadir_bounds=use_nadir_bounds
+    )
 end
 
 function moip_walkback(
