@@ -578,8 +578,7 @@ second(pair :: BinomialPair) = pair.j
 function build(
     mem :: Vector{Int},
     u :: T,
-    v :: T,
-    pair :: CriticalPair #This is used for more complicated CriticalPairs
+    v :: T
 ) :: T where {T <: AbstractVector{Int}}
     return minus(mem, u, v)
 end

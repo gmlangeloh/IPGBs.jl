@@ -24,8 +24,7 @@ stats(algorithm :: GBAlgorithm) = algorithm.stats
 elem(algorithm :: GBAlgorithm) = algorithm.preallocated #Memory allocated for current S-pair
 next_pair!(:: GBAlgorithm) = error("Not implemented.")
 current_basis(algorithm :: GBAlgorithm) = algorithm.basis
-update!(:: GBAlgorithm, :: GBElement, :: Union{CriticalPair, Nothing}) =
-    error("Not implemented.")
+update!(:: GBAlgorithm, :: GBElement) = error("Not implemented.")
 truncate_basis(algorithm :: GBAlgorithm) = algorithm.should_truncate
 use_implicit_representation(:: GBAlgorithm) = false
 quick_truncation(:: GBAlgorithm, :: GBElement) = false
@@ -63,16 +62,18 @@ end
 Return true iff the given CriticalPair should be eliminated according to this
 algorithm's criteria.
 """
-late_pair_elimination(:: GBAlgorithm, :: CriticalPair) = nothing
+late_pair_elimination(:: GBAlgorithm, :: Int, :: Int) = false
 
-process_zero_reduction!(:: GBAlgorithm, :: T, :: CriticalPair) where {T <: GBElement} = nothing
+process_zero_reduction!(:: GBAlgorithm, :: T) where {T <: GBElement} = nothing
 
 function sbinomial(
     algorithm :: GBAlgorithm,
-    pair :: CriticalPair
+    i :: Int,
+    j :: Int
+    #pair :: CriticalPair
 ) :: GBElement
     increment(algorithm, :built_pairs)
-    return BinomialSets.sbinomial(elem(algorithm), pair, current_basis(algorithm))
+    return BinomialSets.sbinomial(elem(algorithm), i, j, current_basis(algorithm))
 end
 
 function reduce!(
@@ -200,15 +201,15 @@ function run(
     #Main loop: process all relevant S-pairs
     algorithm.start_time = time()
     while true
-        pair = next_pair!(algorithm)
-        if isnothing(pair) #All S-pairs were processed, terminate algorithm.
+        i, j = next_pair!(algorithm)
+        if i < 0 #isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
-        if late_pair_elimination(algorithm, pair)
+        if late_pair_elimination(algorithm, i, j)#pair)
             continue
         end
         #Generate S-pair, reduce it and add to basis if necessary
-        binomial = sbinomial(algorithm, pair)
+        binomial = sbinomial(algorithm, i, j)
         if quick_truncation(algorithm, binomial)
             continue
         end
@@ -218,10 +219,10 @@ function run(
             #This is more efficient because relatively few elements are
             #truncated when compared to the number of zero reductions
             if !truncate(algorithm, binomial)
-                update!(algorithm, binomial, pair)
+                update!(algorithm, binomial)
             end
         else
-            process_zero_reduction!(algorithm, binomial, pair)
+            process_zero_reduction!(algorithm, binomial)
         end
         if stop_early(algorithm, time_limit, gb_size_limit)
             break

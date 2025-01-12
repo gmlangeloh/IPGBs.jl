@@ -198,7 +198,7 @@ Auto-reduces the partial GB periodically (for consistency with 4ti2).
 """
 function GBAlgorithms.next_pair!(
     algorithm :: BuchbergerAlgorithm{T}
-) :: Union{BinomialPair, Nothing} where {T <: GBElement}
+) :: Tuple{Int, Int} where {T <: GBElement}
     #If we're starting to produce S-binomials from a new basis element
     #then check whether we should auto-reduce the basis for efficiency
     if Pairs.auto_reduce_now(algorithm.state)
@@ -210,27 +210,16 @@ function GBAlgorithms.next_pair!(
         end
     end
     #Produce the next S-pair itself
-    s = Pairs.next_pair!(algorithm.state)
-    if !isnothing(s)
-        i, j = s
-        increment(algorithm, :queued_pairs)
-        return BinomialPair(i, j)
-    end
-    return nothing
+    return Pairs.next_pair!(algorithm.state)
 end
 
 function GBAlgorithms.update!(
     algorithm :: BuchbergerAlgorithm{T},
-    g :: T,
-    :: Union{CriticalPair, Nothing} = nothing
+    g :: T
 ) where {T <: GBElement}
     push!(current_basis(algorithm), copy(g))
     if !isempty(algorithm.original_solutions)
         GBAlgorithms.optimize_solutions!(algorithm)
-        #println(
-        #    algorithm.instance.C[1, :]' * element(algorithm.solutions[1]), ", ",
-        #    IPInstances.solve(algorithm.instance)[2], ", ",
-        #    length(current_basis(algorithm)))
     end
     Pairs.update!(algorithm.state)
     algorithm.stats.max_basis_size = max(algorithm.stats.max_basis_size,
@@ -243,10 +232,12 @@ S-pair.
 """
 function GBAlgorithms.late_pair_elimination(
     algorithm :: BuchbergerAlgorithm{T},
-    pair :: CriticalPair
+    i :: Int,
+    j :: Int
 ) :: Bool where {T <: GBElement}
     if is_support_reducible(
-        GBElements.first(pair), GBElements.second(pair), current_basis(algorithm),
+        #GBElements.first(pair), GBElements.second(pair), current_basis(algorithm),
+        i, j, current_basis(algorithm),
         use_binary_truncation=algorithm.use_binary_truncation
     )
         increment(algorithm, :eliminated_by_gcd)
@@ -257,8 +248,7 @@ end
 
 function GBAlgorithms.process_zero_reduction!(
     algorithm :: BuchbergerAlgorithm{T},
-    :: T,
-    :: CriticalPair
+    :: T
 ) where {T <: GBElement}
     increment(algorithm, :zero_reductions)
 end

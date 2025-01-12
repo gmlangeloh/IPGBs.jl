@@ -319,12 +319,13 @@ called after we were unable to eliminate `pair`.
 """
 function sbinomial(
     mem :: Vector{Int},
-    pair :: CriticalPair,
+    i :: Int,
+    j :: Int,
     bs :: BinomialSet{T, S}
 ) :: T where {T <: AbstractVector{Int}, S <: GBOrder}
-    v = bs[GBElements.first(pair)]
-    w = bs[GBElements.second(pair)]
-    r = build(mem, v, w, pair)
+    v = bs[i]
+    w = bs[j]
+    r = build(mem, v, w)
     orientate!(r, order(bs))
     return r
 end

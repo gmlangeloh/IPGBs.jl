@@ -40,6 +40,7 @@ include("./FeasibleGraphs.jl")
 include("./SingleObjective.jl")
 include("./MultiObjectiveTools.jl")
 include("./MultiObjectiveStats.jl")
+include("./AugmentedTchebychev.jl")
 include("./MultiObjectiveAlgorithms.jl")
 
 using .GBAlgorithms

@@ -45,9 +45,9 @@ end
 
 function next_pair!(
     state :: PriorityState
-) :: Union{Tuple{Int, Int}, Nothing}
+) :: Tuple{Int, Int}
     if isempty(heap(state))
-        return nothing
+        return (-1, -1)
     end
     return pop!(heap(state))
 end
@@ -131,7 +131,7 @@ function update!(state :: BatchState)
     push!(heap(state), size(state))
 end
 
-function next_pair!(state :: BatchState) :: Union{Tuple{Int, Int}, Nothing}
+function next_pair!(state :: BatchState) :: Tuple{Int, Int}
     if state.j < state.current_i - 1
         state.j += 1
         return (state.current_i, state.j)
@@ -146,7 +146,7 @@ function next_pair!(state :: BatchState) :: Union{Tuple{Int, Int}, Nothing}
         state.j = 1
         return (state.current_i, state.j)
     end
-    return nothing
+    return (-1, -1)
 end
 
 mutable struct FIFOState <: BuchbergerState
@@ -166,7 +166,7 @@ were already generated.
 """
 function next_pair!(
     state :: FIFOState
-) :: Union{Tuple{Int, Int}, Nothing}
+) :: Tuple{Int, Int}
     if state.j < state.i - 1
         state.j += 1
         return (state.i, state.j)
@@ -175,7 +175,7 @@ function next_pair!(
         state.j = 1
         return (state.i, state.j)
     end
-    return nothing
+    return (-1, -1)
 end
 
 auto_reduce_now(state :: FIFOState) = state.j == state.i - 1
