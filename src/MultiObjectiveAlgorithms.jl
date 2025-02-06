@@ -321,12 +321,15 @@ state `s`.
 The GB can be computed using either 4ti2 or IPGBs, depending on the solver
 specified in `s`.
 """
-function moip_gb(s::MOIPGBState)::BinomialSet{Vector{Int},MonomialOrder}
+function moip_gb(
+    s :: MOIPGBState;
+    gb_size_limit :: Int = 0
+) :: BinomialSet{Vector{Int},MonomialOrder}
     @assert use_test_sets(s)
     if s.solver == "4ti2"
         gb = binomials(groebner(s.ip, project_name=s.identifier))
     else #s.solver == "IPGBs"
-        gb = groebner_basis(s.ip)
+        gb = groebner_basis(s.ip, gb_size_limit=gb_size_limit)
     end
     @debug "Computed new Gröbner Basis" length(gb)
     return BinomialSet(gb, s.ip)
@@ -339,7 +342,10 @@ Solve the scalarization of a MOIP given by `s`. If `s.solver` uses test sets,
 then a test set is computed, in case one is not already available. Otherwise,
 `s.solver` is used directly to solve the scalarization.
 """
-function solve_current_moip!(s::MOIPGBState)
+function solve_current_moip!(
+    s :: MOIPGBState;
+    gb_size_limit :: Int = 0
+)
     had_test_set = !use_test_sets(s) || has_test_set(s)
     if !use_test_sets(s) #Use a conventional MIP solver
         x, ts, _, _, _ = @timed IPInstances.solve(s.ip)
@@ -350,7 +356,7 @@ function solve_current_moip!(s::MOIPGBState)
         return x
     elseif !has_test_set(s) #&& use_test_sets(s)
         #Compute a test set and store it in s.test_set
-        test_set, time_test_set, _, _, _ = @timed moip_gb(s)
+        test_set, time_test_set, _, _, _ = @timed moip_gb(s, gb_size_limit=gb_size_limit)
         s.stats.gb_total_time += time_test_set
         new_gb_size_and_time(s.stats, length(test_set), time_test_set)
         s.test_set = test_set
@@ -386,14 +392,15 @@ function moip_gb_solve(
     instance::IPInstance,
     initial_solution::Vector{Int};
     solver::String="IPGBs",
-    use_nadir_bounds::Bool=true
+    use_nadir_bounds::Bool=false,
+    gb_size_limit::Int=0
 )::Tuple{Vector{Vector{Int}}, Set{Vector{Int}}, Stats}
     @debug "Starting multiobjective GB algorithm"
     state = initialize(instance, initial_solution, solver)
     for objective in 1:num_objectives(instance)
         @debug "Starting computation for objective $objective"
         state = next_objective(state, initial_solution, objective, use_nadir_bounds)
-        solve_current_moip!(state)
+        solve_current_moip!(state, gb_size_limit=gb_size_limit)
         pos_slacks = gbelems_with_positive_slack(binomials(state.test_set), state.epsilon_slack_indices)
         for efficient_point in state.efficient_points
             steps = minimal_steps(pos_slacks, efficient_point, state.original_variable_indices, state.epsilon_slack_indices)
@@ -409,27 +416,31 @@ end
 function moip_gb_solve(
     instance :: IPInstance;
     solver :: String = "IPGBs",
-    use_nadir_bounds :: Bool = true
+    use_nadir_bounds :: Bool = false,
+    gb_size_limit :: Int = 0
 )
     initial_solution = IPInstances.initial_solution(instance)
     return moip_gb_solve(
         instance,
         initial_solution,
         solver=solver,
-        use_nadir_bounds=use_nadir_bounds
+        use_nadir_bounds=use_nadir_bounds,
+        gb_size_limit=gb_size_limit
     )
 end
 
 function moip_gb_solve(
     filepath :: String;
     solver :: String = "IPGBs",
-    use_nadir_bounds :: Bool = true
+    use_nadir_bounds :: Bool = false,
+    gb_size_limit :: Int = 0
 )
     instance = multiobjective_from_file(filepath)
     return moip_gb_solve(
         instance,
         solver=solver,
-        use_nadir_bounds=use_nadir_bounds
+        use_nadir_bounds=use_nadir_bounds,
+        gb_size_limit=gb_size_limit
     )
 end
 
