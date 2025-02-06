@@ -148,6 +148,9 @@ function groebner_basis(
     if :optimizer in keys(kwargs)
         optimizer = kwargs[:optimizer]
     end
+    if isnothing(u)
+        u = [nothing for _ in 1:size(C, 2)]
+    end
     instance = IPInstance(A, b, C, u, apply_normalization=normalize, optimizer=optimizer)
     return groebner_basis(instance, markov_basis; kwargs...)
 end
