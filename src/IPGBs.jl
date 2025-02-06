@@ -172,6 +172,8 @@ end
     time_limit :: Float64 = 0.0
     gb_size_limit :: Int = 0
     pair_processing :: Symbol = :FIFO
+    apply_normalization :: Bool = true
+    optimizer = DEFAULT_SOLVER
 end
 
 """
