@@ -200,4 +200,11 @@ function li_rows(A :: Matrix{Int}, b :: Vector{Int}; tol = 1e-10)
     return li_A, li_b
 end
 
+function lawrence_lifting(A :: Matrix{Int})
+    m, n = size(A)
+    Inn = I(n)
+    Zmn = zeros(Int, m, n)
+    return [A Zmn; Inn Inn]
+end
+
 end

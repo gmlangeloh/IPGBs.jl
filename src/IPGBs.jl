@@ -248,4 +248,28 @@ function groebner_basis(
     return gb
 end
 
+function graver_basis(
+    A :: Matrix{Int},
+    b :: Vector{Union{Nothing, Int}} = Union{Nothing, Int}[];
+    binary_bounds :: Bool = false
+) :: Vector{Vector{Int}}
+    # Compute a reduced Gröbner basis of the Lawrence Lifting of A
+    A_lifted = MatrixTools.lawrence_lifting(A)
+    m = size(A_lifted, 1)
+    C = hcat(ones(Int, 1, size(A, 2)), zeros(Int, 1, size(A, 2)))
+    new_b = zeros(Int, m)
+    for i in 1:m
+        if !isempty(b) && !isnothing(b[i]) && i <= length(b)
+            new_b[i] = b[i]
+        elseif binary_bounds
+            new_b[i] = 1
+        else
+            #TODO: Use a higher bound here, such as typemax(Int). For this to work,
+            # we cannot compute an initial solution in project-and-lift though.
+            new_b[i] = 1000
+        end
+    end
+    return groebner_basis(A_lifted, new_b, C; apply_normalization = false)
+end
+
 end

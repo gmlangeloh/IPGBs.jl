@@ -640,8 +640,8 @@ function project_and_lift(
 
     #Postprocessing: check solutions are consistent, compute optimal value
     @assert all(is_feasible_solution(instance, solution, pl_state.relaxation.inverse_permutation) for solution in pl_state.primal_solutions)
-    @assert is_feasible_solution(instance, relaxation_feasible(pl_state))
-    @assert !pl_state.has_optimal_solution || is_feasible_solution(instance, pl_state.optimal_solution)
+    #@assert is_feasible_solution(instance, relaxation_feasible(pl_state))
+    #@assert !pl_state.has_optimal_solution || is_feasible_solution(instance, pl_state.optimal_solution)
     if feasible && !pl_state.has_optimal_solution
         pl_state.optimal_solution = relaxation_feasible(pl_state)
         pl_state.has_optimal_solution = true

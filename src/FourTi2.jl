@@ -477,14 +477,30 @@ TODO: Implement other options (lower and upper bound, arbitrary signs,
 support to lattice bases instead of matrices...)
 """
 function graver(
-    A :: Array{Int, 2},
-    nonnegative :: Vector{Bool},
+    A :: Array{Int, 2};
+    lb :: Vector{Int} = Int[],
+    ub :: Vector{Int} = Int[],
+    all_binary :: Bool = false,
     project_name :: String = "tmp",
 ) :: Array{Int, 2}
     _4ti2_clear(project_name)
     #Write project files
     matrix_file = project_name * ".mat"
     _4ti2_write(A, matrix_file)
+    lower_bounds = lb
+    upper_bounds = ub
+    if all_binary
+        lower_bounds = zeros(Int, size(A, 2))
+        upper_bounds = ones(Int, size(A, 2))
+    end
+    if !isempty(lb)
+        lb_file = project_name * ".lb"
+        _4ti2_write(lower_bounds, lb_file)
+    end
+    if !isempty(ub)
+        ub_file = project_name * ".ub"
+        _4ti2_write(upper_bounds, ub_file)
+    end
     #Run 4ti2
     cmd = `graver -q $project_name`
     run(cmd)
