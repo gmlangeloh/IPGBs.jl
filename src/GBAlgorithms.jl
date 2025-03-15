@@ -205,11 +205,14 @@ function run(
         if i < 0 #isnothing(pair) #All S-pairs were processed, terminate algorithm.
             break
         end
-        if late_pair_elimination(algorithm, i, j)#pair)
+        if late_pair_elimination(algorithm, i, j)
             continue
         end
         #Generate S-pair, reduce it and add to basis if necessary
         binomial = sbinomial(algorithm, i, j)
+        #if any(!isnothing(algorithm.instance.u[i]) && algorithm.instance.u[i] <= binomial[i] for i in 1:algorithm.instance.n)
+        #    continue
+        #end
         if quick_truncation(algorithm, binomial)
             continue
         end

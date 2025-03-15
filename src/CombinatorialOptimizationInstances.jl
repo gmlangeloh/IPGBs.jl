@@ -15,6 +15,7 @@ function generate_knapsack(
     n :: Int,
     m :: Int = 1;
     binary :: Bool = false,
+    bounded :: Bool = false,
     correlation :: Bool = false,
     max_coef :: Int = 1000
 )
@@ -41,6 +42,12 @@ function generate_knapsack(
     end
     @objective(model, Max, sum(C[1, j] * x[j] for j in 1:n))
     @constraint(model, [i in 1:m], sum(A[i, j] * x[j] for j in 1:n) <= b[i])
+    if bounded
+        for i in 1:n
+            bound = rand(1:10)
+            @constraint(model, x[i] <= bound)
+        end
+    end
     return model, x
 end
 
@@ -183,6 +190,27 @@ function all_binary_knapsacks(reps = 10)
                     corr = "_corr"
                 end
                 name = "knapsack_binary_" * string(n) * corr * "_" * string(rep) * ".mps"
+                write_to_file(knapsack, full_path * "/" * name)
+            end
+        end
+    end
+end
+
+function all_bounded_knapsacks(reps = 10)
+    ns = [5, 10, 15, 20, 25, 30]
+    full_path = BASE_INSTANCE_DIR * "knapsack_bounded"
+    if !isdir(full_path)
+        mkdir(full_path)
+    end
+    for correlated in [true, false]
+        for n in ns
+            for rep in 1:reps
+                knapsack, _ = generate_knapsack(n, bounded=true, correlation=correlated)
+                corr = ""
+                if correlated
+                    corr = "_corr"
+                end
+                name = "knapsack_bounded_" * string(n) * corr * "_" * string(rep) * ".mps"
                 write_to_file(knapsack, full_path * "/" * name)
             end
         end

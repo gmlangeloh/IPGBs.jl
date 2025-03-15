@@ -144,7 +144,8 @@ mutable struct MOIPGBState
 
     function MOIPGBState(
         instance, ip, i, init_sol, solver, ideal, nadir,
-        vars, slacks, efficient = Vector{Int}[],
+        vars, slacks, test_set = BinomialSet(Vector{Int}[], ip),
+        efficient = Vector{Int}[],
         nondominated = Set{Vector{Int}}(), proj_name = nothing, stats = nothing
     )
         if isnothing(stats)
@@ -157,7 +158,7 @@ mutable struct MOIPGBState
             proj_name = proj_prefix * "_" * string(i)
         end
         new(instance, ip, solver, proj_name, i, copy(init_sol), stats,
-            BinomialSet(Vector{Int}[], ip), 0, efficient,
+            test_set, 0, efficient,
             nondominated, ideal, nadir, vars, slacks
         )
     end
@@ -255,6 +256,7 @@ function next_objective(
     return MOIPGBState(
         state.instance, ip, new_objective, initial_solution, state.solver,
         state.ideal, state.nadir, orig_vars, epsilon_vars,
+        state.test_set,
         state.efficient_points, state.nondominated_points, state.identifier,
         state.stats
     )
@@ -329,7 +331,20 @@ function moip_gb(
     if s.solver == "4ti2"
         gb = binomials(groebner(s.ip, project_name=s.identifier))
     else #s.solver == "IPGBs"
-        gb = groebner_basis(s.ip, gb_size_limit=gb_size_limit)
+        gb = Vector{Int}[]
+        if !isempty(s.test_set)
+            #Use previous test set as a Markov basis
+            rhs = zeros(Int, s.ip.m)
+            markov = [ IPGBs.MatrixTools.lift_partial_solution(m, rhs, s.ip.A)
+                for m in s.test_set.basis
+            ]
+            gb = groebner_basis(s.ip, markov, gb_size_limit=gb_size_limit,
+                use_binary_truncation=false,
+                quiet=false
+            )
+        else
+            gb = groebner_basis(s.ip, gb_size_limit=gb_size_limit)
+        end
     end
     @debug "Computed new Gröbner Basis" length(gb)
     return BinomialSet(gb, s.ip)
